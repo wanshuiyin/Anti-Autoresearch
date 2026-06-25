@@ -66,10 +66,14 @@ Invoke `/adversarial-case-builder` → `adversarial-case-builder.memo.md`. Memo 
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings *.findings.json \
+    --ledger claims.json \
     --paper-id <id> --observability-level <L> --taxonomy-version 0.1 \
     --memo "$(cat adversarial-case-builder.memo.md 2>/dev/null)" \
     --out report.json --md REPORT.md
 ```
+
+`--ledger` is **required**: it is what verifies each finding quotes a verbatim
+ledger span. Without it every above-info finding fails closed to `info`.
 
 The adjudicator applies the gates (span → observability → FP-risk → memo-only) and
 computes `overall_verdict` ∈ {CLEAN_GIVEN_EVIDENCE, SOFT_FLAGS, HARD_FLAGS} by

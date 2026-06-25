@@ -48,22 +48,16 @@ def _cap(sev, cap):
     return sev if SEV_ORDER[sev] <= SEV_ORDER[cap] else cap
 
 
-def _has_span(finding):
-    for ev in finding.get("evidence", []) or []:
-        if (ev.get("span") or "").strip():
-            return True
-    return False
-
-
 def _norm_ws(s):
     return " ".join((s or "").split())
 
 
 def _anchored(finding, ledger_map):
     """True iff some evidence cites a real ledger claim_id AND quotes a span that is
-    a verbatim (whitespace-normalized) substring of that claim's text. This is what
-    makes the span gate a real anchor check, not a string-presence check — an LLM
-    cannot fabricate a claim_id/span and have it count."""
+    a verbatim (whitespace-normalized) substring OF that claim's text. Only `span in
+    base` is allowed — NOT `base in span` — so appending hallucinated text to a real
+    claim cannot pass. This is what makes the span gate a real anchor check rather
+    than a string-presence check: an LLM cannot fabricate or pad its way to a flag."""
     for ev in finding.get("evidence", []) or []:
         cid = ev.get("claim_id")
         span = _norm_ws(ev.get("span"))
@@ -72,8 +66,7 @@ def _anchored(finding, ledger_map):
         base = ledger_map.get(cid)
         if base is None:
             continue
-        base = _norm_ws(base)
-        if span in base or base in span:
+        if span in _norm_ws(base):
             return True
     return False
 
@@ -107,18 +100,22 @@ def adjudicate(findings, run_level, ledger_map=None):
         reasons = []
 
         # 1. ANCHOR/SPAN gate — applies to ANY above-info finding (incl. minor).
+        #    No ledger => cannot anchor anything => fail closed (everything -> info).
         if SEV_ORDER[sev] > SEV_ORDER["info"]:
-            anchored = _anchored(f, ledger_map) if ledger_map is not None else _has_span(f)
-            if not anchored:
+            if ledger_map is None:
                 sev = "info"
-                reasons.append("unanchored-demotion" if ledger_map is not None
-                               else "no-span-demotion")
+                reasons.append("no-ledger-fail-closed")
+                stats["unanchored"] += 1
+            elif not _anchored(f, ledger_map):
+                sev = "info"
+                reasons.append("unanchored-demotion")
                 stats["unanchored"] += 1
 
         # 2. OBSERVABILITY gate — fail-closed: missing/invalid requirement -> info.
+        #    type(req) is int (NOT isinstance) so JSON booleans (True==1) are rejected.
         if SEV_ORDER[sev] > SEV_ORDER["info"]:
             req = f.get("observability_level_required")
-            if not isinstance(req, int) or req < 0 or req > 3:
+            if type(req) is not int or req < 0 or req > 3:
                 sev = "info"
                 reasons.append("undeclared-observability")
             elif req > run_level:
@@ -295,8 +292,9 @@ def render_md(report):
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Deterministic adjudicator for Anti-Autoresearch findings.")
     ap.add_argument("--findings", nargs="+", required=True, help="findings.json file(s)")
-    ap.add_argument("--ledger", default="", help="claims.json — enables real anchor "
-                    "verification (every above-info finding must quote a verbatim ledger span)")
+    ap.add_argument("--ledger", required=True, help="claims.json — REQUIRED. Every "
+                    "above-info finding must quote a verbatim span of a real ledger claim; "
+                    "without it nothing can be anchored and all findings fail closed to info.")
     ap.add_argument("--paper-id", required=True)
     ap.add_argument("--observability-level", type=int, required=True, choices=[0, 1, 2, 3])
     ap.add_argument("--taxonomy-version", default="0.1")
@@ -309,18 +307,13 @@ def main(argv=None):
 
     findings = load_findings(args.findings)
 
-    ledger_map = None
-    if args.ledger:
-        with open(args.ledger, "r", encoding="utf-8") as fh:
-            ledger = json.load(fh)
-        ledger_map = {c.get("claim_id"): c.get("text_span", "")
-                      for c in ledger.get("claims", []) if c.get("claim_id")}
-    else:
-        print("WARN: no --ledger; anchoring will be checked by span-presence only, "
-              "not verified against ledger claims.", file=sys.stderr)
+    with open(args.ledger, "r", encoding="utf-8") as fh:
+        ledger = json.load(fh)
+    ledger_map = {c.get("claim_id"): c.get("text_span", "")
+                  for c in ledger.get("claims", []) if c.get("claim_id")}
 
     stats = adjudicate(findings, args.observability_level, ledger_map)
-    report = build_report(findings, args, stats, anchoring_verified=ledger_map is not None)
+    report = build_report(findings, args, stats, anchoring_verified=True)
 
     with open(args.out, "w", encoding="utf-8") as fh:
         json.dump(report, fh, indent=2, ensure_ascii=False)

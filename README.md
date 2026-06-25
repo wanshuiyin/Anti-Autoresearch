@@ -110,8 +110,10 @@ python3 tools/build_claim_ledger.py --paper-id mypaper \
 # 3) Run the deterministic consistency checks
 python3 tools/check_numeric_consistency.py --ledger claims.json --out findings.json
 
-# 4) Adjudicate into a report (deterministic verdict)
-python3 tools/adjudicate_findings.py --findings findings.json \
+# 4) Adjudicate into a report (deterministic verdict).
+#    --ledger is REQUIRED: every above-info finding must quote a verbatim ledger
+#    span, else it fails closed to info (the anti-slop guarantee).
+python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.json \
     --paper-id mypaper --observability-level 1 --out report.json --md REPORT.md
 ```
 

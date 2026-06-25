@@ -74,9 +74,25 @@ def test_verdict_levels():
     assert A.verdict_of(["critical", "info"]) == "HARD_FLAGS"
 
 
-def test_no_ledger_falls_back_to_span_presence_with_warning_field():
-    # without a ledger, a non-empty span passes the (weaker) presence check
-    assert _final([_f()], ledger=None) == ["critical"]
+def test_no_ledger_fails_closed():
+    # without a ledger nothing can be anchored -> everything demoted to info
+    f = _f()
+    assert _final([f], ledger=None) == ["info"]
+    assert "no-ledger-fail-closed" in f["_adjudication"]
+
+
+def test_span_padding_bypass_rejected():
+    # real claim text + appended hallucination must NOT anchor (only span in base)
+    f = _f(evidence=[{"claim_id": "C001",
+                      "span": LEDGER["C001"] + " AND FABRICATED EXTRA TEXT"}])
+    assert _final([f]) == ["info"]
+
+
+def test_json_boolean_observability_rejected():
+    # observability_level_required: true  (JSON bool, ==1 in python) must be rejected
+    f = _f(observability_level_required=True)
+    assert _final([f], run_level=1) == ["info"]
+    assert "undeclared-observability" in f["_adjudication"]
 
 
 if __name__ == "__main__":
