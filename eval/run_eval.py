@@ -66,7 +66,7 @@ def audit(name, tex):
          "--latex", tex, "--observability-level", "1", "--out", ledger])
     run([os.path.join(TOOLS, "check_numeric_consistency.py"), "--ledger", ledger, "--out", findings])
     run([os.path.join(TOOLS, "adjudicate_findings.py"), "--findings", findings,
-         "--paper-id", name, "--observability-level", "1",
+         "--ledger", ledger, "--paper-id", name, "--observability-level", "1",
          "--generated-at", FIXED_TS, "--out", report, "--md", md])
     with open(report, encoding="utf-8") as fh:
         return json.load(fh)
@@ -81,6 +81,7 @@ def evaluate(name, report):
     required = set(exp.get("required_patterns", []))
 
     fn = sorted(required - found)
+    extra = sorted(found - required)  # precision gate: unexpected patterns are FPs
     fp_clean = exp.get("forbidden_above_info") and len(above_info) > 0
     tp = sorted(required & found)
 
@@ -95,10 +96,10 @@ def evaluate(name, report):
     unanchored = [f["finding_id"] for f in above_info
                   if not any((e.get("span") or "").strip() for e in f.get("evidence", []))]
 
-    ok = not fn and not fp_clean and not verr and not unanchored
+    ok = not fn and not extra and not fp_clean and not verr and not unanchored
     return {
         "name": name, "ok": ok, "verdict": verdict,
-        "tp": tp, "fn": fn, "fp_clean": fp_clean, "verr": verr,
+        "tp": tp, "fn": fn, "extra": extra, "fp_clean": fp_clean, "verr": verr,
         "unanchored": unanchored, "n_above_info": len(above_info),
     }
 
@@ -119,6 +120,8 @@ def main():
             detail.append("caught=" + ",".join(r["tp"]))
         if r["fn"]:
             detail.append("MISSED=" + ",".join(r["fn"]))
+        if r["extra"]:
+            detail.append("UNEXPECTED=" + ",".join(r["extra"]))
         if r["fp_clean"]:
             detail.append(f"FALSE-POSITIVE x{r['n_above_info']}")
         if r["verr"]:

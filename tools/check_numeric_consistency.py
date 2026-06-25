@@ -53,9 +53,11 @@ def check_delta(claims):
         for rx, order in ((DELTA_P1, "ab_stated"), (DELTA_P2, "stated_ab")):
             for m in rx.finditer(span):
                 if order == "ab_stated":
-                    a, b, stated, rel_word = m.group(1), m.group(2), m.group(3), m.group(4)
+                    a, b, stated, rel_word, dir_word = (
+                        m.group(1), m.group(2), m.group(3), m.group(4), m.group(5))
                 else:
-                    stated, rel_word, a, b = m.group(1), m.group(2), m.group(4), m.group(5)
+                    stated, rel_word, dir_word, a, b = (
+                        m.group(1), m.group(2), m.group(3), m.group(4), m.group(5))
                 key = (loc.get("file"), loc.get("line"), a, b, stated)
                 if key in seen:
                     continue
@@ -63,8 +65,13 @@ def check_delta(claims):
                 a, b, stated = float(a), float(b), float(stated)
                 rel, ab = _rel(a, b), b - a
                 claims_relative = bool(rel_word)
-                ok = (abs(stated - rel) <= TOL) if claims_relative else (
-                    abs(stated - rel) <= TOL or abs(stated - abs(ab)) <= TOL)
+                # a "reduction/drop/decrease" is reported as a positive magnitude on
+                # a lower-better metric, where rel/ab are negative — compare |.|.
+                decrease = bool(re.search(r"reduc|drop|decreas|lower|fewer", dir_word or "", re.I))
+                rel_cmp = abs(rel) if decrease else rel
+                ab_cmp = abs(ab) if decrease else ab
+                ok = (abs(stated - rel_cmp) <= TOL) if claims_relative else (
+                    abs(stated - rel_cmp) <= TOL or abs(stated - abs(ab_cmp)) <= TOL)
                 if ok:
                     continue
                 n += 1

@@ -23,28 +23,21 @@ span-anchored, hashed, checkable claims. Every downstream finding must cite a
 
 ## Step 1 — Artifact manifest + observability level (deterministic)
 
-Inventory what is actually available and derive the level (`references/
-observability-levels.md`):
+Inventory what is available and derive the level by the fixed rule
+(`references/observability-levels.md`) — this is a deterministic tool, not a manual
+judgment:
 
 ```bash
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-# detect inputs in the target dir
-ls *.tex *.pdf 2>/dev/null            # PDF / LaTeX source?
-ls -d code/ src/ repo/ 2>/dev/null     # a repo present?
-ls results/ outputs/ logs/ 2>/dev/null # result files present?
+python3 "$ROOT/tools/build_manifest.py" --paper-id <id> --dir <paper-dir> \
+    [--pdf-text paper.txt] --out artifact_manifest.json
+# -> writes artifact_manifest.json (schemas/artifact_manifest.schema.json) and
+#    derives: repo+results -> L2 · latex,no-results -> L1 · pdf/text-only -> L0
 ```
 
-Write `artifact_manifest.json` (`schemas/artifact_manifest.schema.json`) recording
-each artifact (kind, path, sha256, present) and the derived level:
-
-```
-repo + results present      -> L2
-latex present, no results    -> L1
-pdf only                     -> L0
-```
-
-**Never** claim a higher level than the artifacts support. The level caps every
-downstream finding's severity.
+Carry the derived level **L** forward. **Never** claim a higher level than the
+artifacts support — the level caps every downstream finding's severity, and
+`build_manifest.py` never sets `rerunnable` (v0 does not claim reproduction).
 
 ## Step 2 — Extract the ledger (deterministic)
 

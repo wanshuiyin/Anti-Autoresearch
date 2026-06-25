@@ -45,6 +45,29 @@ LLM-driven research pipelines produce. We verify the paper **against itself** (n
 external ground truth needed — exactly where machine output cracks) and specialize
 the failure catalog to autoresearch. See [docs/positioning.md](docs/positioning.md).
 
+## Status — what v0 actually ships
+
+Being precise about what runs today vs what is an agent-orchestrated contract
+(this distinction is the point — see [DESIGN.md](DESIGN.md)):
+
+- **Deterministic core — runs now, zero-dependency, tested.** The evidence-ledger
+  extractor, the artifact-manifest / observability derivation, the numeric
+  self-consistency checks (`HP-DELTA-ERROR`, `HP-NUM-INFLATE`), and the rule-based
+  adjudicator. The `eval/` harness gates these: **100% recall on the two
+  deterministic numeric patterns** across the bundled fixtures, **zero clean
+  false-positives**, every above-info finding ledger-anchored. This is the
+  load-bearing, reproducible part — no model in the loop.
+- **Agent-layer audits — alpha, require Claude + a cross-model reviewer.** The
+  *semantic* skills (method-drift, ablation attribution, wrong-context citation,
+  baseline adequacy, experiment-code integrity) are `SKILL.md` contracts run by an
+  agent via `/anti-autoresearch`. They propose span-anchored findings that the
+  *same* deterministic adjudicator scores; they are not yet covered by the
+  deterministic eval (semantic judgments can't be unit-tested the same way).
+
+The **verdict machinery and the numeric core are real and tested**; semantic
+coverage is an agent contract that grows as the taxonomy and eval grow. The
+headline "fabrication forensics" is the *roadmap*, honestly scoped here.
+
 ## How it stays honest (the anti-"LLM-slop" design)
 
 The obvious dismissal of any such tool is *"an LLM grading another LLM's paper is
@@ -75,7 +98,10 @@ python3 eval/run_eval.py
 #   clean            CLEAN_GIVEN_EVIDENCE   PASS
 #   delta_inflate    SOFT_FLAGS             PASS   caught=HP-DELTA-ERROR
 #   headline_inflate SOFT_FLAGS             PASS   caught=HP-NUM-INFLATE
-#   injected-defect recall: 100%  ·  clean false-positives: none
+#   injected-defect recall: 100% (2 deterministic numeric patterns) · clean FP: none
+
+# 1b) gate unit tests (the anti-slop guarantee)
+python3 tests/test_adjudicator.py
 
 # 2) Build an evidence ledger from a real paper's LaTeX
 python3 tools/build_claim_ledger.py --paper-id mypaper \
@@ -116,10 +142,11 @@ input (pdf | pdf+latex | pdf+repo+results)
 |------|------|
 | `skills/` | the six auditor skills (LLM proposes findings, span-anchored) |
 | `workflows/anti-autoresearch/` | the end-to-end orchestrator |
-| `tools/` | deterministic spine: ledger builder, numeric checks, adjudicator |
+| `tools/` | deterministic spine: manifest/observability derivation · ledger builder · numeric checks · adjudicator |
 | `schemas/` | JSON contracts: claims · finding · report · artifact manifest |
 | `references/` | hack-pattern taxonomy (the IP) · observability levels · reviewer independence · forensics contract |
 | `eval/` | clean + synthetic-corruption fixtures + the regression harness |
+| `tests/` | gate unit tests for the adjudicator (the anti-slop invariants) |
 | `docs/` | positioning vs existing work · limitations |
 
 ## Honest limitations

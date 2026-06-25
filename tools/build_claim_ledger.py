@@ -131,8 +131,12 @@ def parse_value(num_str, unit):
 
 
 def _local_metric(sent, start, end):
-    """Bind a metric keyword to THIS number (look just after it), not the sentence."""
-    local = sent[max(0, start - 4): end + 22]
+    """Bind a metric keyword to THIS number (just before or after it: catches both
+    '78.0% accuracy' and 'accuracy of 78.0%'), without crossing a clause boundary —
+    so 'X% accuracy, a Y% improvement' does NOT tag Y with accuracy."""
+    before = re.split(r"[,;:]", sent[max(0, start - 18): start])[-1]
+    after = re.split(r"[,;:.]", sent[end: end + 22])[0]
+    local = before + sent[start:end] + after
     m = METRIC.search(local)
     return m.group(0).lower() if m else None
 
@@ -159,8 +163,8 @@ def extract_from_latex(path):
         sec = label(i)
         for m in NUMBER.finditer(ln):
             num, unit = m.group(1), m.group(2)
-            if not unit and "." not in num:
-                continue  # skip bare ints in tables (column indices etc.)
+            # keep bare integers in tables too (integer-valued result tables are
+            # common); the lookbehind already excludes digits glued to words/years.
             claims.append({
                 "type": "table_cell",
                 "text_span": ln.strip()[:300],
