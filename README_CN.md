@@ -143,6 +143,33 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 `baseline-comparison-audit` ← `paper-claim-audit`、`adversarial-case-builder` ←
 `kill-argument`,外加新的 `evidence-ledger` 脊柱与 `presentation-signals`。
 
+## 引用 Citation
+
+Anti-Autoresearch **派生自 ARIS**,复用了它的审计 DNA。如果你在学术工作中用到本仓库,
+**请引用 ARIS**(母项目):
+
+```bibtex
+@article{aris2026,
+  title={Auto-claude-code-research-in-sleep (ARIS): Autonomous ML Research via Cross-Model Collaboration},
+  author={Yin, Wanshu and others},
+  year={2026},
+  howpublished={\url{https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep}},
+  note={Technical Report arXiv:2605.03042}
+}
+```
+
+如需专门引用本仓库:
+
+```bibtex
+@misc{antiautoresearch2026,
+  title={Anti-Autoresearch: Substantive Integrity Forensics for Autoresearch Papers},
+  author={Yin, Wanshu and others},
+  year={2026},
+  howpublished={\url{https://github.com/wanshuiyin/Anti-Autoresearch}},
+  note={A sibling project of ARIS (arXiv:2605.03042)}
+}
+```
+
 ## 许可证
 
 MIT,见 [LICENSE](LICENSE)。
