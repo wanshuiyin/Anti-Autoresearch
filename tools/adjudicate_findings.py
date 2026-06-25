@@ -8,8 +8,9 @@ DECIDES the verdict by fixed rules. No model is in the final decision, so the
 verdict is reproducible: same findings + same observability level -> same verdict.
 
 Gates applied to every finding, in order (each may demote severity and is logged):
-  1. SPAN gate         — critical/major with no non-empty evidence span -> info.
-  2. OBSERVABILITY gate — observability_level_required > run level       -> info.
+  1. ANCHOR gate       — any above-info finding not quoting a verbatim ledger span
+                         (or any finding when no ledger is given) -> info.
+  2. OBSERVABILITY gate — observability_level_required missing/invalid, or > run level -> info.
   3. FP-RISK gate      — false_positive_risk high -> cap at minor; medium -> cap at major.
   4. MEMO gate         — adversarial-case-builder is memo-only           -> cap at info.
 
