@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/wanshuiyin/Anti-Autoresearch/schemas/finding.schema.json",
+  "title": "Auditor Finding",
+  "description": "One integrity flag emitted by an auditor skill. CRITICAL invariant: a finding with severity 'critical' or 'major' MUST carry at least one evidence entry with a non-empty span (enforced by tools/adjudicate_findings.py). A finding is NEVER a final verdict — the deterministic adjudicator computes the report verdict from the full finding set. The LLM reviewer proposes findings; it does not grade the paper.",
+  "type": "object",
+  "required": ["finding_id", "skill", "title", "severity", "evidence", "verdict_local"],
+  "properties": {
+    "finding_id": {"type": "string", "description": "e.g. \"F001\"."},
+    "skill": {
+      "type": "string",
+      "enum": ["consistency-audit", "experiment-forensics", "baseline-comparison-audit", "citation-forensics", "adversarial-case-builder", "evidence-ledger"]
+    },
+    "pattern_id": {"type": "string", "description": "Optional ref into references/hack-pattern-taxonomy.md (e.g. \"HP-NUM-INFLATE\"). The taxonomy is a post-hoc MAPPING layer, never the detector itself."},
+    "title": {"type": "string"},
+    "description": {"type": "string", "description": "What was found, in reviewer-facing language. Describes a discrepancy/risk, NOT an accusation of misconduct."},
+    "severity": {"type": "string", "enum": ["critical", "major", "minor", "info"]},
+    "observability_level_required": {"type": "integer", "minimum": 0, "maximum": 3, "description": "Lowest evidence tier at which this finding is decidable. The adjudicator downgrades severity if the run's observability level is below this (you cannot assert code-level fraud from a PDF)."},
+    "evidence": {
+      "type": "array",
+      "description": "Span-anchored evidence. Empty array is only permitted for severity 'info'.",
+      "items": {
+        "type": "object",
+        "required": ["claim_id", "span"],
+        "properties": {
+          "claim_id": {"type": "string", "description": "claim_id from the evidence ledger this finding is anchored to."},
+          "span": {"type": "string", "description": "Verbatim quoted text the finding rests on."},
+          "location": {"type": "object", "description": "Mirror of the ledger claim's location for human navigation."},
+          "artifact_hash": {"type": "string", "description": "sha256 of the source artifact (from the ledger's evidence_anchor) — makes the finding reproducible."}
+        }
+      }
+    },
+    "verdict_local": {
+      "type": "string",
+      "enum": ["fail", "warn", "clean", "needs_external_check"],
+      "description": "This skill's LOCAL read. NOT the repo verdict. 'needs_external_check' = the claim (e.g. 'SOTA', 'first') cannot be settled inside this skill and is handed to baseline/citation forensics."
+    },
+    "reviewer": {
+      "type": "object",
+      "description": "Provenance of the cross-model judgment (reviewer-independence). Absent for purely deterministic findings produced by tools/.",
+      "properties": {
+        "model": {"type": "string"},
+        "reasoning": {"type": "string"},
+        "thread_id": {"type": "string"},
+        "deterministic": {"type": "boolean", "description": "true when the finding came from a code rule (arithmetic, hash, regex), not an LLM."}
+      }
+    },
+    "requires_external_check": {"type": "boolean", "default": false},
+    "false_positive_risk": {"type": "string", "enum": ["low", "medium", "high"], "description": "Honest self-assessment — drives whether the finding is shown as a flag vs a note. Legit round numbers / single-seed pilots are common FPs."},
+    "recommended_reviewer_action": {"type": "string", "description": "What a human reviewer should ASK or CHECK — never 'reject', always an investigative next step."}
+  }
+}

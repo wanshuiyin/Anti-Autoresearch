@@ -1,0 +1,8 @@
+{
+  "fixture": "synthetic_corruptions/headline_inflate.tex",
+  "corruption": "headline_inflate",
+  "required_patterns": ["HP-NUM-INFLATE"],
+  "forbidden_above_info": false,
+  "min_verdict": "SOFT_FLAGS",
+  "note": "Abstract headline accuracy (85.3%) no longer appears in any results table. High-FP-risk signal, capped at minor -> SOFT_FLAGS."
+}

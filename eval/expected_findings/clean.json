@@ -1,0 +1,8 @@
+{
+  "fixture": "clean/sample_paper.tex",
+  "corruption": null,
+  "required_patterns": [],
+  "forbidden_above_info": true,
+  "expected_verdict": "CLEAN_GIVEN_EVIDENCE",
+  "note": "An honest, well-scoped paper. The deterministic layer must NOT raise any finding above info — this is the false-positive guard."
+}

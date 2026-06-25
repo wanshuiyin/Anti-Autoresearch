@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/wanshuiyin/Anti-Autoresearch/schemas/claims.schema.json",
+  "title": "Evidence Ledger (claims.json)",
+  "description": "Deterministic, span-anchored extraction of every checkable claim in a paper. Produced by skills/evidence-ledger; consumed by every auditor skill. The ledger is the ONLY structure auditors are allowed to reason over — no auditor re-reads the raw PDF and invents structure. Every downstream finding must cite a claim_id from here.",
+  "type": "object",
+  "required": ["ledger_version", "paper_id", "observability_level", "source_files", "claims"],
+  "properties": {
+    "ledger_version": {"type": "string", "description": "Schema/extractor version, e.g. \"0.1\"."},
+    "paper_id": {"type": "string", "description": "Stable id for the audited paper (arxiv id, slug, or sha)."},
+    "observability_level": {"type": "integer", "minimum": 0, "maximum": 3, "description": "Evidence tier actually available. See references/observability-levels.md."},
+    "generated_at": {"type": "string", "description": "UTC ISO-8601 timestamp (stamped by the caller; the extractor itself stays deterministic)."},
+    "source_files": {
+      "type": "array",
+      "description": "Every file the ledger was built from, with a content hash so findings are reproducible against an immutable input.",
+      "items": {
+        "type": "object",
+        "required": ["path", "sha256"],
+        "properties": {
+          "path": {"type": "string"},
+          "sha256": {"type": "string"},
+          "kind": {"type": "string", "enum": ["pdf", "latex", "bib", "results", "repo", "text"]}
+        }
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["claim_id", "type", "text_span", "location"],
+        "properties": {
+          "claim_id": {"type": "string", "description": "Stable within-ledger id, e.g. \"C001\"."},
+          "type": {
+            "type": "string",
+            "enum": ["number", "comparison", "scope", "method", "baseline", "citation", "artifact_ref", "table_cell", "caption"],
+            "description": "What kind of checkable thing this is."
+          },
+          "text_span": {"type": "string", "description": "VERBATIM source text (the exact sentence/phrase/cell). Findings quote this; no paraphrase."},
+          "location": {
+            "type": "object",
+            "required": ["file"],
+            "properties": {
+              "file": {"type": "string"},
+              "line": {"type": "integer"},
+              "page": {"type": "integer"},
+              "section": {"type": "string", "description": "abstract | intro | method | experiments | table:N | figure:N | appendix | ..."}
+            }
+          },
+          "value": {
+            "type": "object",
+            "description": "Parsed value, present for numeric/comparison claims. Lets the deterministic layer do arithmetic (delta checks, coherence) without an LLM.",
+            "properties": {
+              "raw": {"type": "string"},
+              "normalized": {"type": "number"},
+              "unit": {"type": "string", "description": "%, point, ms, x (speedup), ..."},
+              "metric": {"type": "string", "description": "accuracy, BLEU, F1, latency, ..."},
+              "direction": {"type": "string", "enum": ["higher_better", "lower_better", "unknown"]},
+              "aggregation": {"type": "string", "enum": ["mean", "best", "median", "single", "unspecified"]}
+            }
+          },
+          "refs": {"type": "array", "items": {"type": "string"}, "description": "Cite keys / arXiv ids / DOIs referenced by this span (for citation claims)."},
+          "evidence_anchor": {"type": "string", "description": "sha256 of the source file (or table/artifact id) this span lives in — the immutable anchor a finding rehashes against."},
+          "extractor": {"type": "string", "enum": ["latex_regex", "pdf_text", "table_parser", "bib_parser", "manual"]},
+          "confidence": {"type": "string", "enum": ["high", "medium", "low"], "description": "Extractor's confidence the span was parsed correctly (low for OCR/PDF-text numbers)."}
+        }
+      }
+    }
+  }
+}

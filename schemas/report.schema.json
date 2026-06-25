@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/wanshuiyin/Anti-Autoresearch/schemas/report.schema.json",
+  "title": "Integrity Forensics Report",
+  "description": "The synthesized output of a /anti-autoresearch run. Produced by tools/adjudicate_findings.py (deterministic) from the union of all skills' findings. The overall_verdict is computed by RULES, not by an LLM — this is the structural defense against 'LLM slop grading LLM slop'.",
+  "type": "object",
+  "required": ["report_version", "taxonomy_version", "paper_id", "observability_level", "overall_verdict", "adjudicator", "findings", "counts", "human_review_required"],
+  "properties": {
+    "report_version": {"type": "string"},
+    "taxonomy_version": {"type": "string", "description": "Version of references/hack-pattern-taxonomy.md used — recorded so a report is interpretable after the taxonomy evolves."},
+    "paper_id": {"type": "string"},
+    "observability_level": {"type": "integer", "minimum": 0, "maximum": 3},
+    "generated_at": {"type": "string"},
+    "overall_verdict": {
+      "type": "string",
+      "enum": ["CLEAN_GIVEN_EVIDENCE", "SOFT_FLAGS", "HARD_FLAGS"],
+      "description": "Deliberately NOT 'fabricated/honest'. CLEAN_GIVEN_EVIDENCE = no flags at the available observability level (NOT 'the paper is honest'). SOFT_FLAGS = minor/medium-FP-risk discrepancies a reviewer should ask about. HARD_FLAGS = ≥1 span-anchored critical discrepancy decidable at this observability level."
+    },
+    "adjudicator": {"type": "string", "description": "e.g. \"deterministic-rules-v0\" — the rule engine + version, never an LLM identity."},
+    "dimension_verdicts": {
+      "type": "object",
+      "description": "Per-dimension roll-up.",
+      "properties": {
+        "consistency": {"type": "string"},
+        "experiment": {"type": "string"},
+        "baseline": {"type": "string"},
+        "citation": {"type": "string"}
+      }
+    },
+    "findings": {"type": "array", "items": {"$ref": "finding.schema.json"}},
+    "adversarial_memo": {"type": "string", "description": "Evidence-bound rejection memo from adversarial-case-builder. Informational; contributes NO verdict weight."},
+    "taxonomy_matches": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "pattern_id": {"type": "string"},
+          "finding_ids": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "required": ["critical", "major", "minor"],
+      "properties": {
+        "critical": {"type": "integer"},
+        "major": {"type": "integer"},
+        "minor": {"type": "integer"},
+        "info": {"type": "integer"},
+        "downgraded_for_observability": {"type": "integer", "description": "How many findings the adjudicator demoted because the run's evidence tier was below the finding's required level."}
+      }
+    },
+    "limitations": {"type": "array", "items": {"type": "string"}, "description": "What this run could NOT check (always populated — honesty is part of the contract)."},
+    "human_review_required": {"type": "boolean", "description": "Always true. The report is decision SUPPORT for a human reviewer/AC; it never issues a verdict on misconduct."}
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/wanshuiyin/Anti-Autoresearch/schemas/artifact_manifest.schema.json",
+  "title": "Artifact Manifest",
+  "description": "Declares what inputs were actually available for a run, which DETERMINES the observability level (and therefore the ceiling on finding severity). Built first, before the ledger. See references/observability-levels.md.",
+  "type": "object",
+  "required": ["paper_id", "observability_level", "artifacts"],
+  "properties": {
+    "paper_id": {"type": "string"},
+    "observability_level": {"type": "integer", "minimum": 0, "maximum": 3, "description": "Derived from which artifacts are present (the rule lives in references/observability-levels.md)."},
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "present"],
+        "properties": {
+          "kind": {"type": "string", "enum": ["pdf", "latex", "bib", "repo", "results", "config", "logs"]},
+          "path": {"type": "string"},
+          "sha256": {"type": "string"},
+          "present": {"type": "boolean"}
+        }
+      }
+    },
+    "repo": {
+      "type": "object",
+      "properties": {
+        "url": {"type": "string"},
+        "commit": {"type": "string"},
+        "present": {"type": "boolean"},
+        "rerunnable": {"type": "boolean", "description": "v0 never sets this true — we do not claim reproduction."}
+      }
+    },
+    "notes": {"type": "string"}
+  }
+}

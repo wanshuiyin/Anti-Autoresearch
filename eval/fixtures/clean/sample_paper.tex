@@ -1,0 +1,50 @@
+\documentclass{article}
+\usepackage{booktabs}
+\title{FooNet: A Small but Honest Example Paper}
+\author{Anti-Autoresearch Eval Fixture}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We present FooNet, a method for the BarBench task. FooNet reaches
+78.0\% accuracy, improving from a 73.1\% baseline to 78.0\% accuracy,
+a 6.7\% relative improvement. We report the mean over 5 seeds with
+standard deviation, and compare against the strongest published baseline.
+\end{abstract}
+
+\section{Introduction}
+Prior work established strong baselines on BarBench \cite{smith2024bar}.
+We build on the architecture of \cite{lee2023foundations} and add a
+lightweight routing module. Our contribution is a single, well-scoped
+improvement evaluated on one benchmark.
+
+\section{Method}
+FooNet adds a routing module on top of the backbone of
+\cite{lee2023foundations}. No test-time labels are used; all calibration
+is performed on the training split only.
+
+\section{Experiments}
+We evaluate on BarBench. All numbers are the mean of 5 seeds.
+
+\begin{table}[t]
+\caption{Main results on BarBench (accuracy, \%, mean of 5 seeds).}
+\begin{tabular}{lc}
+\toprule
+Method & Accuracy \\
+\midrule
+Baseline \cite{smith2024bar} & 73.1 \\
+FooNet (ours) & 78.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+On BarBench, FooNet improves accuracy from 73.1\% to 78.0\%. The gain is
+modest and we make no claim of broad generality: results are limited to a
+single benchmark with five seeds.
+
+\section{Conclusion}
+FooNet yields a 78.0\% accuracy on BarBench. Future work should test
+additional benchmarks before any broader claim is warranted.
+
+\end{document}

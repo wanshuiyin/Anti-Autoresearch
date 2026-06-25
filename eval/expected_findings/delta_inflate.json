@@ -1,0 +1,8 @@
+{
+  "fixture": "synthetic_corruptions/delta_inflate.tex",
+  "corruption": "delta_inflate",
+  "required_patterns": ["HP-DELTA-ERROR"],
+  "forbidden_above_info": false,
+  "min_verdict": "SOFT_FLAGS",
+  "note": "Stated 16.7% relative improvement contradicts 73.1->78.0 (=6.7%). Must be caught by check_numeric_consistency with a span anchor."
+}
