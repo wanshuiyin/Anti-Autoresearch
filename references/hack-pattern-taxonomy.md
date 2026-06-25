@@ -1,7 +1,7 @@
 # Autoresearch Hack-Pattern Taxonomy
 
 ```
-taxonomy_version: 0.1
+taxonomy_version: 0.2
 last_reviewed: 2026-06-26
 status: living document — versioned; the version is stamped into every report
 ```
@@ -215,6 +215,22 @@ demoted to `info`.
 - **severity_rule:** major.
 - **min_evidence:** the definition site + the (absent) call site.
 
+### HP-SUSPICIOUS-REGULARITY — results "don't look like real runs"
+- **signals:** numbers across configs/backbones related by a too-clean arithmetic
+  pattern (constant additive/multiplicative offset between rows, implausibly smooth
+  monotonicity, identical decimals across unrelated settings) — i.e. they look
+  synthesized rather than measured. (Reported by real reviewers as "明显的加减乘除
+  规律性,不像跑出来的".)
+- **fp_cases:** genuinely deterministic metrics; small integer-valued scores;
+  rounding coincidence; a real linear trend. **High FP — "looks fake" is a hunch.**
+- **severity_rule:** **at L0/L1 this is `minor`, `false_positive_risk: high`, a
+  *prompt to check* only — never a "this is fabricated" grade.** It rises to `major`
+  **only at L2**, confirmed against the actual result files / code (emit with
+  `observability_level_required: 2`, so a PDF-only run auto-demotes it). This split
+  is mandatory: you cannot grade results as synthesized from a table alone.
+- **min_evidence:** the table spans exhibiting the pattern + the arithmetic relation
+  (L0); the result-file/code confirmation (L2).
+
 ---
 
 ## E. Citation integrity (L0)
@@ -241,6 +257,73 @@ demoted to `info`.
   correlated errors" when it argues the opposite.
 
 ---
+
+## F. Presentation & surface signals (auxiliary — NEVER a standalone verdict)
+
+> ⚠️ **Read this preamble before using any F-pattern.** These are the "AI-flavor /
+> low-effort" signals that reviewers notice first (generic prose, few/duplicated
+> floats, LLM-looking figures, padding to fill the page limit, jargon-stuffing).
+> They are **weak, high-false-positive, and presentation-level** — a polished paper
+> can be fraudulent and a rough paper can be honest. So in this repo F-patterns:
+> (a) are emitted only by `skills/presentation-signals`, (b) carry
+> `false_positive_risk: high` by default, (c) are **capped at `minor` by the
+> adjudicator** (`SURFACE_ONLY_SKILLS`) so they can contribute at most `SOFT_FLAGS`
+> — they can never produce `HARD_FLAGS` on their own, and they are **not** an
+> AI-generation verdict. Their job is to say *"combine with the substantive findings
+> and look closer"*, nothing more. We are not an AI-text classifier; for that, use a
+> dedicated detector.
+
+### HP-DUP-TABLE — duplicate / near-identical tables
+- **level:** L0 (deterministic via the ledger's table cells)
+- **signals:** two tables share an identical (ordered) sequence of numeric cells —
+  often padding, or a copy-paste that was never updated. (Reviewer: "两张表占满一页
+  并且内容一模一样".)
+- **fp_cases:** a deliberately repeated reference table; tiny tables that collide by
+  chance.
+- **severity_rule:** minor (capped). Pair with HP-PAGE-PADDING if used as filler.
+- **min_evidence:** both table spans / the matching cell sequences.
+
+### HP-THIN-FLOAT — too few figures/tables for the claimed scope
+- **level:** L0
+- **signals:** a full-length paper with almost no figures/tables while claiming
+  broad empirical results. (Reviewer: "全文只有两个表一张图".)
+- **fp_cases:** legitimately theoretical / short-format papers.
+- **severity_rule:** minor (capped); high FP.
+- **min_evidence:** the float count + the scope claim.
+
+### HP-LLM-FIGURE — a figure appears machine-generated / decorative
+- **level:** L0 (visual; needs the rendered PDF)
+- **signals:** a "figure" that is an LLM-generated illustration rather than a real
+  plot/diagram of results. (Reviewer: "图还是大模型生成的".)
+- **fp_cases:** legitimate conceptual/teaser figures; well-made diagrams.
+- **severity_rule:** minor (capped); high FP.
+- **min_evidence:** the figure reference + caption span.
+
+### HP-PAGE-PADDING — filler to reach the page limit
+- **level:** L0
+- **signals:** oversized floats, repeated content, or vacuous text used to fill
+  required length; or conversely failing to fill it. (Reviewer: "就这还没写满9页".)
+- **fp_cases:** legitimately concise work; venue-specific length norms.
+- **severity_rule:** minor (capped); high FP.
+- **min_evidence:** the padding span(s).
+
+### HP-JARGON-STUFF — term-stuffing without substance
+- **level:** L0
+- **signals:** dense piling-up of technical terms where the surrounding argument
+  carries no actual content. (Reviewer: "堆砌名词吗".)
+- **fp_cases:** genuinely dense but correct technical writing.
+- **severity_rule:** minor (capped); very high FP.
+- **min_evidence:** the offending span.
+
+### HP-AI-FLAVOR — generic LLM-flavored prose
+- **level:** L0
+- **signals:** hallmarks of unedited LLM text (boilerplate transitions, hedged
+  filler, uniform paragraph shapes). **Gross cases only.**
+- **fp_cases:** huge — many honest authors use LLM assistance; non-native writing;
+  house style. This is the single most FP-prone pattern in the taxonomy.
+- **severity_rule:** minor (capped); very high FP. **Never** treat as evidence of
+  fabrication or as an authorship verdict.
+- **min_evidence:** representative span(s) — illustrative, not probative.
 
 ## Contributing a pattern
 

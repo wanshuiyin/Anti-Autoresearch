@@ -67,6 +67,21 @@ def test_memo_only_skill_capped_to_info():
     assert _final([f]) == ["info"]
 
 
+def test_surface_only_skill_capped_to_minor():
+    # presentation/AI-flavor signals cap at minor -> at most SOFT_FLAGS, never HARD
+    f = _f(skill="presentation-signals")  # critical by default
+    assert _final([f]) == ["minor"]
+    assert "surface-only-cap" in f["_adjudication"]
+    assert A.verdict_of(["minor"]) == "SOFT_FLAGS"
+
+
+def test_surface_pattern_capped_even_under_other_skill():
+    # an F-pattern smuggled in under a non-surface skill is STILL capped at minor
+    f = _f(skill="consistency-audit", pattern_id="HP-AI-FLAVOR")  # critical by default
+    assert _final([f]) == ["minor"]
+    assert "surface-only-cap" in f["_adjudication"]
+
+
 def test_verdict_levels():
     assert A.verdict_of(["info"]) == "CLEAN_GIVEN_EVIDENCE"
     assert A.verdict_of(["minor"]) == "SOFT_FLAGS"

@@ -1,0 +1,8 @@
+{
+  "fixture": "synthetic_corruptions/dup_table.tex",
+  "corruption": "dup_table",
+  "required_patterns": ["HP-DUP-TABLE"],
+  "forbidden_above_info": false,
+  "min_verdict": "SOFT_FLAGS",
+  "note": "A second table with identical numeric content. Deterministic surface signal, capped at minor by SURFACE_ONLY_SKILLS -> at most SOFT_FLAGS (never HARD)."
+}

@@ -3,6 +3,8 @@
 **面向研究论文的"实质性诚信取证"工具 —— 尤其针对机器生成（autoresearch /
 AI-Scientist 式）的论文产出。**
 
+> 🛡️ **[ARIS](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep)（~12.5k★ 自动科研 agent 平台）的对偶。** ARIS 做自动科研是**负责任**的:它内置了多层审计栈(experiment-integrity · result-to-claim · 零上下文 paper-claim 审 · citation 审),让自己的产出保持诚实。**Anti-Autoresearch 就是这枚硬币的另一面** —— 把同一套审计 DNA 朝外,抓那些**没有**这些护栏就产出的自动科研论文。([什么是 ARIS?](#-什么是-aris) · English [README.md](README.md))
+
 > 不管论文是谁、是什么写的,它的科学结论是否自洽、是否被自己的证据支撑?
 > Anti-Autoresearch 审查一篇投稿的**自洽性**与**造假迹象**,产出带证据锚点、
 > 可供审稿人直接使用的报告。它**不是** AI 文本检测器,也**不下学术不端的结论**——
@@ -26,12 +28,32 @@ DNA —— 由"从生成端见过这些失败模式"的人来做。
 6%、为某条主张引用了一篇根本没这么说的论文、方法描述与实际评测不一致。这些都是
 **可核查**的,本仓库就核查它们。
 
+**这不是假想。** 转述自 NeurIPS 2026 周期一则公开的审稿人吐槽(示意,非正式引用),
+一批稿件几乎逐条命中本仓库编码的 taxonomy:
+
+> - *第一篇* — "数据表和正文对不上,好几行错位,不同 backbone 间明显的加减乘除
+>   规律性,不像跑出来的。" → consistency · `HP-SUSPICIOUS-REGULARITY`
+> - *第二篇* — "两张表占满一页且一模一样,唯一的图还是大模型生成的,就这还没写满
+>   9 页。" → `HP-DUP-TABLE` · 表象信号
+> - *第三篇* — "公式推导不通,关键问题数学上不正确,实验看着完整但公式错了结果不知
+>   道怎么对上的。" → claim 与推导不一致
+> - *第四篇* — "开源了,结构完整绘图精美书写流畅 —— 但我把代码跑了,和正文结果南辕
+>   北辙。" → experiment-forensics (L2)
+
+第四篇就是本仓库的论点一句话版:**表面光鲜 ≠ 诚信。**(审稿人自己的总结:"llm 和
+多模态是重灾区;理论也是 —— 结论看着很 solid,一看附录是 gpt 大法,一坨。")
+
 ## 它是什么 / 不是什么
 
 | | |
 |---|---|
-| ✅ **是** | 自洽性 + 造假取证;证据账本锚定;可观测性分层;面向审稿人/AC 的决策支持 |
+| ✅ **是** | 自洽性 + 造假取证;证据账本锚定;可观测性分层;面向审稿人/AC 的决策支持;**+ 辅助的表象/AI 味信号(封顶,永不单独定罪)** |
 | ❌ **不是** | AI 文本分类器(Pangram/GPTZero/Binoculars)、AI 审稿检测器、学术不端判决、会改论文的"合著者" |
+
+> 关于表象信号(AI 味文风、重复表格、LLM 配图、凑页数):我们**确实会报告**它们
+> ——审稿人要看——但只作为**弱、高假阳的上下文**,被裁决器封顶在 `minor`(所以它们
+> 最多说"再看一眼",绝不会说"这是错的"或"这是 AI 写的")。这个封顶是**代码强制**的
+> (`SURFACE_ONLY_SKILLS`),不是口头承诺。
 
 ### 它填补的空白
 
@@ -75,8 +97,9 @@ python3 tools/build_claim_ledger.py --paper-id mypaper \
 # 3) 跑确定性自洽检查
 python3 tools/check_numeric_consistency.py --ledger claims.json --out findings.json
 
-# 4) 裁决成报告(确定性 verdict)
-python3 tools/adjudicate_findings.py --findings findings.json \
+# 4) 裁决成报告(确定性 verdict)。--ledger 是必填:每条 above-info finding 必须
+#    引用证据账本里的逐字 span,否则 fail-closed 降到 info(反 slop 保证)。
+python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.json \
     --paper-id mypaper --observability-level 1 --out report.json --md REPORT.md
 ```
 
@@ -93,12 +116,32 @@ python3 tools/adjudicate_findings.py --findings findings.json \
 - **分类法会被绕过**:它是活的、带版本的文档,是安全网而非证明系统。
   详见 [docs/limitations.md](docs/limitations.md)。
 
-## 与 ARIS 的关系
+## 🌟 什么是 ARIS
 
-ARIS 是一个 autoresearch **系统**;Anti-Autoresearch 是它的对抗性姊妹仓库:复用并
-改造 ARIS 的审计 skill(`experiment-audit`、`paper-claim-audit`、`citation-audit`、
-`kill-argument`)与跨模型审查纪律,但把视角从"作者自查"改造成"第三方审一篇未知
-投稿"。护城河正是这份"知道生成器如何失败"的内部知识。
+[**ARIS — Auto Research in Sleep**](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep)
+是一个广泛使用的 AI 科研 agent 技能平台(2025–2026)。它跑端到端科研流水线(文献 →
+想法 → 实验 → 论文)——而且**内置诚信护栏**,这让它成为这把"审计刀"可信的基座:
+
+- ⭐ **~12.5k GitHub stars**、HuggingFace Daily Papers #1、78+ 技能跨 7+ 平台。
+- 🛡️ **三层审计栈**让 ARIS *自己*的产出保持诚实:`experiment-audit`(假 GT /
+  归一化作弊 / 幽灵结果)、`result-to-claim`(claim 科学上成立吗)、零上下文
+  `paper-claim-audit` + `citation-audit`(数字和引用站得住吗)。Anti-Autoresearch
+  就是这套审计**朝外**。
+- 🔬 **跨模型对抗审**是核心教条:executor 与 reviewer 必须来自不同模型家族
+  (Claude × GPT-5.5 xhigh × Gemini),没有 LLM 给自己的产出打分。Anti-Autoresearch
+  继承并**加固**了它 —— 这里模型只**提出** finding,确定性裁决器**裁决**。
+
+**一体两面。** ARIS 是如何*负责任*地做自动科研;Anti-Autoresearch 是如何*标记出*那些
+不负责任的。一个公开了自己审计栈的生成器,最清楚这些流水线会怎么坏 —— 因为它就是
+从内部对抗这些坏法的。这正是本仓库带来的视角。
+
+👉 **ARIS 主仓库**:https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep
+
+技能映射:Anti-Autoresearch 的 skill 就是 ARIS 的审计 skill,改造成"第三方审未知
+投稿":`consistency-audit` ← `paper-claim-audit`、`experiment-forensics` ←
+`experiment-audit`、`citation-forensics` ← `citation-audit`、
+`baseline-comparison-audit` ← `paper-claim-audit`、`adversarial-case-builder` ←
+`kill-argument`,外加新的 `evidence-ledger` 脊柱与 `presentation-signals`。
 
 ## 许可证
 

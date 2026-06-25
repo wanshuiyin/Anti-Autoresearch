@@ -19,6 +19,15 @@ CORRUPTIONS = {
     "headline_inflate": [
         ("FooNet reaches\n78.0\\% accuracy", "FooNet reaches\n85.3\\% accuracy"),
     ],
+    # a second table with identical numeric content (padding / un-updated copy)
+    "dup_table": [
+        ("\\section{Conclusion}",
+         "\\begin{table}[t]\n"
+         "\\caption{Additional results on BarBench (accuracy, \\%).}\n"
+         "\\begin{tabular}{lc}\n\\toprule\nMethod & Accuracy \\\\\n\\midrule\n"
+         "Baseline \\cite{smith2024bar} & 73.1 \\\\\nFooNet (ours) & 78.0 \\\\\n"
+         "\\bottomrule\n\\end{tabular}\n\\end{table}\n\n\\section{Conclusion}"),
+    ],
 }
 
 

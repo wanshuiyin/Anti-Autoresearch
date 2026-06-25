@@ -23,6 +23,7 @@ it does **not** judge misconduct. See `references/` for the contracts.
       citation-forensics           (if citations present)
       baseline-comparison-audit    (if a comparison/SOTA claim is present)
       experiment-forensics         (L0/L1: info signals only · L2: full code audit)
+      presentation-signals         (surface/AI-flavor; auxiliary, capped at minor)
 [3] adversarial-case-builder       (memo only, evidence-bound, no verdict weight)
 [4] adjudicate     — tools/adjudicate_findings.py → REPORT.md + report.json
 ```
@@ -50,6 +51,7 @@ Run the applicable skills (decide from the ledger's claim types):
 | `/citation-forensics` | ≥1 `citation` claim | `citation-forensics.findings.json` |
 | `/baseline-comparison-audit` | ≥1 comparison/scope SOTA claim | `baseline-comparison-audit.findings.json` |
 | `/experiment-forensics` | always (depth scales with L) | `experiment-forensics.findings.json` |
+| `/presentation-signals` | always (auxiliary, capped at minor) | `presentation-signals.findings.json` |
 
 Each is cross-model (codex, fresh threads) and span-anchored. Reviewer
 independence + reviewer≠adjudicator hold throughout (`references/
@@ -67,7 +69,7 @@ ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings *.findings.json \
     --ledger claims.json \
-    --paper-id <id> --observability-level <L> --taxonomy-version 0.1 \
+    --paper-id <id> --observability-level <L> --taxonomy-version 0.2 \
     --memo "$(cat adversarial-case-builder.memo.md 2>/dev/null)" \
     --out report.json --md REPORT.md
 ```

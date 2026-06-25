@@ -39,8 +39,16 @@ SKILL_TO_DIMENSION = {
     "experiment-forensics": "experiment",
     "baseline-comparison-audit": "baseline",
     "citation-forensics": "citation",
+    "presentation-signals": "presentation",
 }
 MEMO_ONLY_SKILLS = {"adversarial-case-builder"}
+# presentation/AI-flavor signals are weak + high-FP: capped at minor so they can
+# contribute at most SOFT_FLAGS, never HARD_FLAGS. NOT an AI-generation verdict.
+# Capped by BOTH the emitting skill AND the pattern_id, so a surface pattern smuggled
+# in under another skill cannot bypass the cap (see references/hack-pattern-taxonomy F).
+SURFACE_ONLY_SKILLS = {"presentation-signals"}
+SURFACE_PATTERNS = {"HP-DUP-TABLE", "HP-THIN-FLOAT", "HP-LLM-FIGURE",
+                    "HP-PAGE-PADDING", "HP-JARGON-STUFF", "HP-AI-FLAVOR"}
 FP_CAP = {"high": "minor", "medium": "major", "low": "critical"}
 
 
@@ -136,6 +144,15 @@ def adjudicate(findings, run_level, ledger_map=None):
             capped = _cap(sev, "info")
             if capped != sev:
                 reasons.append("memo-only-skill")
+                sev = capped
+
+        # 5. SURFACE gate — presentation/AI-flavor signals capped at minor (by skill
+        #    OR pattern_id), so a pile of surface signals is at most a SOFT_FLAGS
+        #    "look closer", never HARD — even if smuggled in under another skill.
+        if f.get("skill") in SURFACE_ONLY_SKILLS or f.get("pattern_id") in SURFACE_PATTERNS:
+            capped = _cap(sev, "minor")
+            if capped != sev:
+                reasons.append("surface-only-cap")
                 sev = capped
 
         f["_severity_original"] = original
@@ -298,7 +315,7 @@ def main(argv=None):
                     "without it nothing can be anchored and all findings fail closed to info.")
     ap.add_argument("--paper-id", required=True)
     ap.add_argument("--observability-level", type=int, required=True, choices=[0, 1, 2, 3])
-    ap.add_argument("--taxonomy-version", default="0.1")
+    ap.add_argument("--taxonomy-version", default="0.2")
     ap.add_argument("--memo", default="", help="adversarial memo text (informational)")
     ap.add_argument("--limitation", action="append", help="extra limitation line (repeatable)")
     ap.add_argument("--generated-at", default="", help="override timestamp (for reproducible eval)")
