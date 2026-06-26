@@ -1,5 +1,9 @@
 # Anti-Autoresearch 🛡️（反自动科研）
 
+[![Stars](https://img.shields.io/github/stars/wanshuiyin/Anti-Autoresearch?style=flat&logo=github&logoColor=white&color=gold&label=Stars)](https://github.com/wanshuiyin/Anti-Autoresearch/stargazers) · [![Built on ARIS](https://img.shields.io/badge/built%20on-ARIS-8A2BE2?style=flat&logo=github)](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep) · [![Technical Report](https://img.shields.io/badge/Technical%20Report-arXiv%3A2605.03042-b31b1b?style=flat&logo=arxiv)](https://arxiv.org/abs/2605.03042) · [![HF Daily #1](https://img.shields.io/badge/%F0%9F%A4%97%20HF%20Daily%20Papers-%231-ffcc4d?style=flat)](https://huggingface.co/papers/2605.03042) · [![PaperWeekly](https://img.shields.io/badge/Featured%20on-PaperWeekly-red?style=flat)](https://mp.weixin.qq.com/s/tDniVryVGjDkkkWl-5sTkQ) · [![awesome-agent-skills](https://img.shields.io/badge/Featured%20in-awesome--agent--skills-blue?style=flat&logo=github)](https://github.com/VoltAgent/awesome-agent-skills) · [![Project of the Day](https://img.shields.io/badge/AI%20Digital%20Crew-Project%20of%20the%20Day-orange?style=flat)](https://aidigitalcrew.com) · [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat)](LICENSE) · [![English](https://img.shields.io/badge/README-English-blue?style=flat)](README.md)
+
+> 🏆 **建立在久经考验的根基上 —— [ARIS](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep) 的审稿侧对偶。** 上方那行 badge 是 **ARIS(本仓库的母仓)** 的战绩:**~12.5k★**、**HuggingFace Daily Papers #1**、**AI Digital Crew Project of the Day**、**78+ 研究技能 / 7+ 平台**。ARIS 做自动科研是*负责任*的 —— 多层审计栈(experiment-integrity · result-to-claim · paper-claim · citation)让它*自己*的产出保持诚实。**Anti-Autoresearch 就是这套生产级审计 DNA 朝外** —— 抓那些**没有**这些护栏就产出的自动科研论文。
+
 **面向研究论文的"实质性诚信取证"工具 —— 尤其针对机器生成（autoresearch /
 AI-Scientist 式）的论文产出。**
 
@@ -7,8 +11,6 @@ AI-Scientist 式）的论文产出。**
 一部分**经不起细看**:表格和正文对不上、该有的 baseline 不见了、开源的代码跑出来和
 论文南辕北辙。审稿人、AC、以及诚实的作者,越来越需要一种办法去**验证**这件事,而不
 只是凭感觉怀疑。这正是本仓库要填的空白。
-
-> **[ARIS](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep)（~12.5k★ 自动科研 agent 平台）的对偶。** ARIS 做自动科研是**负责任**的:它内置了多层审计栈(experiment-integrity · result-to-claim · 零上下文 paper-claim 审 · citation 审),让自己的产出保持诚实。**Anti-Autoresearch 就是这枚硬币的另一面** —— 把同一套审计 DNA 朝外,抓那些**没有**这些护栏就产出的自动科研论文。(English [README.md](README.md) · ARIS 来源见下文)
 
 > 不管论文是谁、是什么写的,它的科学结论是否自洽、是否被自己的证据支撑?
 > Anti-Autoresearch 审查一篇投稿的**自洽性**与**造假迹象**,产出带证据锚点、

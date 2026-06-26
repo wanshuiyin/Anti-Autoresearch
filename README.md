@@ -1,5 +1,9 @@
 # Anti-Autoresearch 🛡️
 
+[![Stars](https://img.shields.io/github/stars/wanshuiyin/Anti-Autoresearch?style=flat&logo=github&logoColor=white&color=gold&label=Stars)](https://github.com/wanshuiyin/Anti-Autoresearch/stargazers) · [![Built on ARIS](https://img.shields.io/badge/built%20on-ARIS-8A2BE2?style=flat&logo=github)](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep) · [![Technical Report](https://img.shields.io/badge/Technical%20Report-arXiv%3A2605.03042-b31b1b?style=flat&logo=arxiv)](https://arxiv.org/abs/2605.03042) · [![HF Daily #1](https://img.shields.io/badge/%F0%9F%A4%97%20HF%20Daily%20Papers-%231-ffcc4d?style=flat)](https://huggingface.co/papers/2605.03042) · [![PaperWeekly](https://img.shields.io/badge/Featured%20on-PaperWeekly-red?style=flat)](https://mp.weixin.qq.com/s/tDniVryVGjDkkkWl-5sTkQ) · [![awesome-agent-skills](https://img.shields.io/badge/Featured%20in-awesome--agent--skills-blue?style=flat&logo=github)](https://github.com/VoltAgent/awesome-agent-skills) · [![Project of the Day](https://img.shields.io/badge/AI%20Digital%20Crew-Project%20of%20the%20Day-orange?style=flat)](https://aidigitalcrew.com) · [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat)](LICENSE) · [![中文](https://img.shields.io/badge/README-%E4%B8%AD%E6%96%87-blue?style=flat)](README_CN.md)
+
+> 🏆 **Built on a battle-tested foundation — the reviewer-side dual of [ARIS](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep).** The badges above the line are **ARIS's** — this repo's parent: **~12.5k★**, **HuggingFace Daily Papers #1**, **AI Digital Crew Project of the Day**, and **78+ research skills across 7+ platforms**. ARIS runs autoresearch *responsibly* — a multi-layer audit stack (experiment-integrity · result-to-claim · paper-claim · citation) keeps its **own** output honest. **Anti-Autoresearch is that same production audit DNA, pointed outward** — catching autoresearch produced *without* those guardrails.
+
 **Substantive integrity-forensics for research papers — especially machine-generated
 (autoresearch / AI-Scientist-style) output.**
 
@@ -8,8 +12,6 @@ pile is machine-generated — and a lot of it **doesn't hold up**: tables that d
 match the text, baselines that aren't there, open-sourced code that won't reproduce
 its own paper. Reviewers, area chairs, and honest authors increasingly need to
 **verify** that, not just suspect it. That is the gap this repo is built for.
-
-> **The dual of [ARIS](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep)** — the ~12.5k★ autoresearch agent platform. ARIS is built to do autoresearch *responsibly*: it ships a multi-layer audit stack (experiment-integrity · result-to-claim · zero-context paper-claim audit · citation audit) so its **own** output stays honest. **Anti-Autoresearch is the other side of that coin** — the reviewer-side tool that catches autoresearch produced *without* those guardrails. Same audit DNA, pointed outward. (中文 [README_CN.md](README_CN.md) · ARIS provenance below)
 
 > Regardless of *who or what* wrote a paper, does the science hold together and
 > reflect its own evidence? Anti-Autoresearch audits a submission for
