@@ -1,8 +1,9 @@
 # Autoresearch Hack-Pattern Taxonomy
 
 ```
-taxonomy_version: 0.2
+taxonomy_version: 0.3
 last_reviewed: 2026-06-26
+patterns: 39 hard (families A–G) + 2 advisory (no verdict weight)
 status: living document — versioned; the version is stamped into every report
 ```
 
@@ -145,6 +146,27 @@ demoted to `info`.
 - **min_evidence:** the abstract claim span + the theorem statement span (with
   assumptions).
 
+### HP-ARGUMENT-CHAIN-BREAK — the motivation → method → experiment chain doesn't connect
+- **level:** L0
+- **signals:** the problem the intro motivates, the mechanism the method proposes, and
+  what the experiments actually measure don't line up; sections read disjointed
+  ("前言不搭后语"); a section restates its claim in circular wording ("not even wrong"
+  filler) instead of advancing it.
+- **fp_cases:** a dense-but-valid argument the reader must work through; a modular paper
+  with explicit cross-references.
+- **severity_rule:** major; critical if the headline contribution rests on the broken link.
+- **min_evidence:** the motivation span + the method/experiment span it fails to connect to.
+
+### HP-CAUSAL-EVIDENCE-LEAP — a relation is concluded that no experiment tests
+- **level:** L0 (claim visible) / L2 (confirm no supporting run)
+- **signals:** "A and B correlate, therefore equivalent / causal"; the paper studies C
+  but concludes "D affects C" with no experiment that varies D; equivalence or causation
+  asserted from a correlation or a single setting.
+- **fp_cases:** the relation is established *theoretically* (then it's a proof obligation —
+  see family G); the supporting experiment exists elsewhere in the paper.
+- **severity_rule:** major; critical if it is the central claim.
+- **min_evidence:** the conclusion span + the (absent) experimental-design span for that relation.
+
 ---
 
 ## C. Baseline integrity (L0 stated / L2 verified)
@@ -230,6 +252,36 @@ demoted to `info`.
   is mandatory: you cannot grade results as synthesized from a table alone.
 - **min_evidence:** the table spans exhibiting the pattern + the arithmetic relation
   (L0); the result-file/code confirmation (L2).
+
+### HP-PLACEHOLDER-DATA — AI placeholder / fake data left in the released code
+- **level:** L2
+- **signals:** released code still contains generated placeholder/fake data or the
+  assistant's own annotations ("# fake data for plotting", "dummy", "TODO: replace with
+  real data"), and a reported figure/number is produced from it.
+- **fp_cases:** a clearly-labeled synthetic toy example or unit-test fixture that feeds
+  no reported result.
+- **severity_rule:** critical (a reported result is drawn from placeholder data).
+- **min_evidence:** the code line with the placeholder + the paper number/figure it feeds.
+
+### HP-RESULT-ARTIFACT-MISMATCH — code output ≠ the paper's numbers
+- **level:** L2
+- **signals:** running (or reading) the released code yields results different from the
+  paper's reported numbers; the implementation diverges from the described method/equations.
+- **fp_cases:** seed/version/hardware variance within a stated tolerance; a documented
+  post-hoc correction.
+- **severity_rule:** critical.
+- **min_evidence:** the paper number + the code-produced value (or the implementation
+  span that diverges from the method).
+
+### HP-MISSING-REPRO-ARTIFACT — the artifacts the method needs to be checkable are absent
+- **level:** L0 (stated) / L2 (verified)
+- **signals:** an empirical / agent / LLM paper ships neither code nor the prompts/configs
+  its results depend on; "code will be released" with nothing runnable; key
+  hyperparameters or prompts omitted.
+- **fp_cases:** a genuinely theoretical paper; anonymized-submission norms (route to a
+  camera-ready expectation, lower severity).
+- **severity_rule:** major (an empirical claim cannot be reproduced even in principle).
+- **min_evidence:** the result claim + the (absent) artifact it would need.
 
 ---
 
@@ -324,6 +376,100 @@ demoted to `info`.
 - **severity_rule:** minor (capped); very high FP. **Never** treat as evidence of
   fabrication or as an authorship verdict.
 - **min_evidence:** representative span(s) — illustrative, not probative.
+
+### HP-DEFENSIVE-HEDGE — defensive "not X but Y" hedging instead of stating what was done
+- **level:** L0
+- **signals:** pervasive "this paper is not X, but rather Y" / "we do not claim …;
+  instead …" framing — a tell of iteratively patching a draft with AI edit-suggestions —
+  where the text defends against objections rather than directly stating what was built
+  and shown. (Reviewer: "本文不是什么什么，而是什么什么…论文应该直接表达做了什么".)
+- **fp_cases:** a single deliberate scoping sentence; a genuine related-work contrast.
+- **severity_rule:** minor (capped, surface-only); high FP.
+- **min_evidence:** representative hedge spans (≥2).
+
+### HP-NARRATIVE-ARC-BREAK — abstract / intro lacks the expected substantive arc
+- **level:** L0
+- **signals:** the abstract reads like an experiment-log dump, or is vague "general"
+  language with no specifics; so many undefined new terms it can't be understood; no
+  background → contribution → evidence arc; an Introduction that doesn't go problem →
+  why-hard → approach → validation. (Reviewer: "摘要写的像实验分析 / 读不到引言".)
+- **fp_cases:** a legitimately terse abstract; non-native phrasing; field conventions.
+- **severity_rule:** minor (capped, surface-only); high FP.
+- **min_evidence:** the abstract/intro span + which arc element is missing.
+
+## G. Proof & derivation integrity (L0/L1 from the written proof · CAN be critical)
+
+> Adapted from ARIS `proof-checker` + `formula-derivation`, reframed to audit a third
+> party's proofs. Broken math is the most-cited "obviously machine-written" tell in real
+> reviews. Unlike family F these are **substantive** and **can be critical**: a theorem
+> whose proof is circular or skips a load-bearing step does not support its claim. Owned
+> by `skills/proof-derivation-forensics`. Decide from the *written* proof/derivation
+> (L0/L1) — never assert "fabricated"; assert that the step shown does not hold. High FP
+> care: a terse-but-valid step is not a gap; cite the exact line that fails.
+
+### HP-PROOF-OBLIGATION-GAP — a required lemma / case / transition is missing
+- **level:** L0 (claim) / L1 (full proof source)
+- **signals:** the proof omits a nontrivial obligation the theorem needs — a missing case,
+  an un-proved lemma invoked as fact, a "clearly / it follows that" across a real gap
+  ("过不去的步骤用文字糊弄"), an existence/concentration/generic-position claim never shown.
+- **fp_cases:** the step is genuinely standard and cited; the obligation is discharged in
+  an appendix.
+- **severity_rule:** major; critical if the headline theorem depends on the gap.
+- **min_evidence:** the theorem statement + the proof span where the obligation is skipped.
+
+### HP-PROOF-CIRCULARITY — the proof assumes what it sets out to prove
+- **level:** L0 / L1
+- **signals:** the conclusion (or an equivalent restatement) is used as a premise; the
+  "proof" restates the claim in different words and calls it done ("车轱辘话复述当证明").
+- **fp_cases:** a legitimate "WLOG / by symmetry" reduction; proof by contradiction that
+  *assumes the negation* (not circular).
+- **severity_rule:** critical — a circular proof proves nothing.
+- **min_evidence:** the premise span + the conclusion span it duplicates.
+
+### HP-DERIVATION-INVALID — an algebra / probability / calculus step does not follow
+- **level:** L0 (if the step is shown) / L1
+- **signals:** an adjacent derivation step is mathematically wrong — an illegal
+  manipulation, a sign/factor error, a misapplied expectation/inequality, a wrong limit.
+- **fp_cases:** a typo that doesn't affect the result (note as minor); a valid step the
+  reader can fill in.
+- **severity_rule:** major; critical if a headline equation/result depends on it.
+- **min_evidence:** the step span + why it does not follow.
+
+### HP-SYMBOL-SEMANTIC-DRIFT — a symbol / operator / inequality changes meaning mid-paper
+- **level:** L0 / L1
+- **signals:** a symbol, index, quantifier, operator, or inequality direction is used
+  inconsistently across definition → formula → proof (e.g. "关键公式符号用反" — a key
+  formula's operator reversed); ≤ vs ≥, argmin vs argmax, one variable name with two meanings.
+- **fp_cases:** an explicitly redefined symbol with notice; standard overloading the paper declares.
+- **severity_rule:** major; critical if it inverts a result.
+- **min_evidence:** the definition span + the divergent-use span.
+
+### HP-ASSUMPTION-SMUGGLE — the proof relies on an unstated stronger assumption
+- **level:** L0 / L1
+- **signals:** a derivation silently uses independence, convexity, smoothness,
+  boundedness, i.i.d., or a regularity condition the theorem never assumes; the result
+  holds only under that hidden assumption.
+- **fp_cases:** the assumption is standard for the setting and stated in the setup; it is
+  implied by a cited result.
+- **severity_rule:** major (the theorem as stated is broader than what's proved); pairs
+  with HP-THEOREM-SCOPE-DRIFT.
+- **min_evidence:** the proof step using the assumption + the (absent) assumption in the
+  theorem statement.
+
+## Advisory signals (NOT in the 39 · zero verdict weight · reviewer-judgment only)
+
+> These recur in real reviews but are **not decidable from the paper alone**, so they are
+> NOT hard patterns and carry **no adjudicator weight**. A skill may surface them as an
+> informational memo (like `adversarial-case-builder`); the human decides. They are never
+> a verdict.
+
+- **ADV-TRIVIAL-COMBINATION** — "standard A + B + C where A, B, C are all well-known" /
+  "缝合 (stapling)". Novelty is a reviewer judgment; the tool can lay out the prior-work
+  overlap, it cannot rule "trivial".
+- **ADV-DUPLICATE-PUBLICATION** — a submission looks like a repackaged/duplicate of prior
+  work. Decidable only against a corpus: an exact title/abstract/DOI match is reportable;
+  the *absence* of a match is **not** evidence of originality. Surfaced as candidate
+  overlap, never a verdict.
 
 ## Contributing a pattern
 

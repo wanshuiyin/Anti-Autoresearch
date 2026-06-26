@@ -40,15 +40,18 @@ SKILL_TO_DIMENSION = {
     "baseline-comparison-audit": "baseline",
     "citation-forensics": "citation",
     "presentation-signals": "presentation",
+    "proof-derivation-forensics": "proof",
 }
-MEMO_ONLY_SKILLS = {"adversarial-case-builder"}
+# memo-only skills contribute an informational memo, never a verdict-bearing finding.
+MEMO_ONLY_SKILLS = {"adversarial-case-builder", "novelty-duplication-advisory"}
 # presentation/AI-flavor signals are weak + high-FP: capped at minor so they can
 # contribute at most SOFT_FLAGS, never HARD_FLAGS. NOT an AI-generation verdict.
 # Capped by BOTH the emitting skill AND the pattern_id, so a surface pattern smuggled
 # in under another skill cannot bypass the cap (see references/hack-pattern-taxonomy F).
 SURFACE_ONLY_SKILLS = {"presentation-signals"}
 SURFACE_PATTERNS = {"HP-DUP-TABLE", "HP-THIN-FLOAT", "HP-LLM-FIGURE",
-                    "HP-PAGE-PADDING", "HP-JARGON-STUFF", "HP-AI-FLAVOR"}
+                    "HP-PAGE-PADDING", "HP-JARGON-STUFF", "HP-AI-FLAVOR",
+                    "HP-DEFENSIVE-HEDGE", "HP-NARRATIVE-ARC-BREAK"}
 FP_CAP = {"high": "minor", "medium": "major", "low": "critical"}
 
 
