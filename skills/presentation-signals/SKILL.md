@@ -1,6 +1,6 @@
 ---
 name: presentation-signals
-description: "Surface presentation signals a reviewer notices first — duplicate/near-identical tables, too-few or LLM-looking figures, page-padding, jargon-stuffing, and generic AI-flavored prose. AUXILIARY ONLY and weak by design: a deterministic dup-table pass (tools/check_presentation.py) plus a fresh cross-model GROSS-cases-only semantic pass, every above-info finding span-anchored to the evidence ledger (claims.json). The adjudicator CAPS everything at minor (SURFACE_ONLY_SKILLS + SURFACE_PATTERNS) — these contribute at most SOFT_FLAGS, never a HARD verdict — default false_positive_risk:high, and this is NOT an AI-generation classifier. Emits presentation-signals.findings.json; NEVER computes the verdict. Triggers: \"presentation signals\", \"AI-flavor check\", \"surface check\", \"排版/AI味\"."
+description: "Surface presentation signals a reviewer notices first — duplicate/near-identical tables, too-few or LLM-looking figures, page-padding, jargon-stuffing, generic AI-flavored prose, defensive 'not-X-but-Y' hedging, and broken abstract/intro narrative arc. AUXILIARY ONLY and weak by design: a deterministic dup-table pass (tools/check_presentation.py) plus a fresh cross-model GROSS-cases-only semantic pass, every above-info finding span-anchored to the evidence ledger (claims.json). The adjudicator CAPS everything at minor (SURFACE_ONLY_SKILLS + SURFACE_PATTERNS) — these contribute at most SOFT_FLAGS, never a HARD verdict — default false_positive_risk:high, and this is NOT an AI-generation classifier. Emits presentation-signals.findings.json; NEVER computes the verdict. Triggers: \"presentation signals\", \"AI-flavor check\", \"surface check\", \"排版/AI味\"."
 argument-hint: [paper-dir | claims.json]
 allowed-tools: Bash(*), Read, Write, mcp__codex__codex
 ---
@@ -33,17 +33,22 @@ skill computes **no verdict**.
 Real reviewers notice surface tells before they read a single number — and they say
 so out loud: *"两张表一模一样"* (two tables are identical), *"图还是大模型生成的"*
 (the figure is LLM-generated), *"就这还没写满9页"* (couldn't even fill 9 pages),
-*"堆砌名词吗"* (just stuffing jargon?). An autoresearch pipeline (or a rushed human)
-produces exactly these artifacts: a table copy-pasted and never updated, an oversized
-float to pad the page limit, a decorative generated illustration in place of a real
-results plot, paragraphs of generic LLM boilerplate.
+*"堆砌名词吗"* (just stuffing jargon?), *"本文不是什么什么，而是什么什么…论文应该直接表达
+做了什么"* (stop hedging "this paper is not X but rather Y" — just say what you did),
+*"摘要写的像实验分析,读不到引言"* (the abstract reads like an experiment log; the
+introduction is unreadable). An autoresearch pipeline (or a rushed human) produces
+exactly these artifacts: a table copy-pasted and never updated, an oversized float to
+pad the page limit, a decorative generated illustration in place of a real results
+plot, paragraphs of generic LLM boilerplate, draft text so densely over-hedged that
+every sentence defends against an objection, and an abstract that dumps experiment
+notes instead of telling a background → contribution → evidence story.
 
 These signals are **real** in the sense that reviewers react to them — but they are
 **weak evidence of misconduct**. A concise honest paper has few floats; a careful
 honest author uses LLM assistance for prose; a legitimate teaser figure can look
 "generated". So this skill's contract is narrow and permanent:
 
-- it emits only the six §F surface patterns, all **capped at `minor`**;
+- it emits only the eight §F surface patterns, all **capped at `minor`**;
 - it defaults every finding to `false_positive_risk: high`;
 - it **never** says a paper is "AI-generated" or implies fabrication;
 - **silence is the common, correct output** — most papers should produce few or zero
@@ -61,9 +66,10 @@ detector.** Two passes feed the pipeline:
 
 1. a **deterministic** dup-table pass (no model) — objective, reproducible, the only
    surface signal computable without judgment (`HP-DUP-TABLE`);
-2. a **fresh cross-model GROSS-cases-only** semantic pass — the five judgment-call
+2. a **fresh cross-model GROSS-cases-only** semantic pass — the seven judgment-call
    signals (`HP-THIN-FLOAT`, `HP-LLM-FIGURE`, `HP-PAGE-PADDING`, `HP-JARGON-STUFF`,
-   `HP-AI-FLAVOR`), each span-anchored and tagged `false_positive_risk: high`.
+   `HP-AI-FLAVOR`, `HP-DEFENSIVE-HEDGE`, `HP-NARRATIVE-ARC-BREAK`), each span-anchored
+   and tagged `false_positive_risk: high`.
 
 Both emit findings conforming to `schemas/finding.schema.json`. **Every above-info
 finding cites a ledger `claim_id` + a verbatim span** (`references/integrity-forensics-contract.md`
@@ -78,16 +84,17 @@ design working: AI-flavor and jargon prose structurally almost never become even
 
 | Auditor | Question it answers | Level |
 |---------|---------------------|------|
-| **`presentation-signals`** (this) | **Surface tells a reviewer notices first (dup tables, thin/LLM figures, padding, jargon, AI-flavor) — AUXILIARY, capped at `minor`** | **L0** |
+| **`presentation-signals`** (this) | **Surface tells a reviewer notices first (dup tables, thin/LLM figures, padding, jargon, AI-flavor, defensive hedging, broken narrative arc) — AUXILIARY, capped at `minor`** | **L0** |
 | `consistency-audit` | Does the paper contradict ITSELF / described method = evaluated method? | L0 |
 | `experiment-forensics` | Are the reported numbers what the code actually computes? (fake GT, self-norm, phantom) | L2 |
 | `baseline-comparison-audit` | Are the right baselines present, tuned, and is "SOTA" earned? | L0 stated / L2 verified |
 | `citation-forensics` | Do the cited papers exist and support the claim they are used for? | L0 |
 | `adversarial-case-builder` | Strongest evidence-bound rejection memo (no verdict weight) | any |
 
-**Stay in lane.** This skill emits **only** the six surface (`HP-DUP-TABLE`,
+**Stay in lane.** This skill emits **only** the eight surface (`HP-DUP-TABLE`,
 `HP-THIN-FLOAT`, `HP-LLM-FIGURE`, `HP-PAGE-PADDING`, `HP-JARGON-STUFF`,
-`HP-AI-FLAVOR`) patterns — nothing else. **Do NOT raise here** (hand off instead): if
+`HP-AI-FLAVOR`, `HP-DEFENSIVE-HEDGE`, `HP-NARRATIVE-ARC-BREAK`) patterns — nothing
+else. **Do NOT raise here** (hand off instead): if
 two "duplicate" tables actually report *contradictory* numbers for the same setting →
 that is a numeric self-contradiction for `consistency-audit`, not `HP-DUP-TABLE`; if a
 figure *misrepresents* a result vs its caption → `consistency-audit`
@@ -106,10 +113,11 @@ REVIEWER_REASONING      = xhigh                    # always; effort never lowers
 REVIEWER_SANDBOX        = read-only                # detect-only; never mutate the paper
 REVIEWER_CWD            = <paper-dir>              # so it can read claims.json + pdf-text + the PDF directly
 THREAD_POLICY           = fresh mcp__codex__codex per run; NEVER mcp__codex__codex-reply
-TAXONOMY_VERSION        = 0.2                      # references/hack-pattern-taxonomy.md §F
+TAXONOMY_VERSION        = 0.3                      # references/hack-pattern-taxonomy.md §F
 DETERMINISTIC_PATTERN   = HP-DUP-TABLE                                   # Step 1 (tool)
 SEMANTIC_PATTERNS       = HP-THIN-FLOAT, HP-LLM-FIGURE, HP-PAGE-PADDING, # Step 2 (reviewer)
-                          HP-JARGON-STUFF, HP-AI-FLAVOR
+                          HP-JARGON-STUFF, HP-AI-FLAVOR,
+                          HP-DEFENSIVE-HEDGE, HP-NARRATIVE-ARC-BREAK
 SEVERITY_CAP            = minor    # SURFACE_ONLY_SKILLS + SURFACE_PATTERNS in adjudicate_findings.py
 DEFAULT_FP_RISK         = high     # every surface finding; this is not optional
 OBS_REQUIRED            = 0        # every F-pattern is decidable at L0 (PDF-only)
@@ -246,7 +254,7 @@ identical tables, or no `table_cell` claims were extracted to compare); keep the
 
 ## Step 2 — Cross-model GROSS-cases-only semantic pass (reviewer ≠ adjudicator)
 
-The other five §F signals are judgment calls. Open a **fresh** `mcp__codex__codex`
+The other seven §F signals are judgment calls. Open a **fresh** `mcp__codex__codex`
 thread (the Reviewer Calling Convention above), `cwd = PAPER_DIR` so it can read
 `claims.json`, the PDF-text, and the PDF directly. First create the forensic trace dir
 and fix the exact response path — shell state does not persist, so this prints the
@@ -306,12 +314,12 @@ mcp__codex__codex:
     4. NO ACCUSATION, NO AUTHORSHIP VERDICT. description and recommended_reviewer_action
        say what a human should glance at / ask. NEVER write "AI-generated", "fabricated",
        "reject", or imply misconduct. A surface tell is a prompt to look, nothing more.
-    5. STAY IN LANE. pattern_id MUST be exactly one of the five below. If you notice a
+    5. STAY IN LANE. pattern_id MUST be exactly one of the seven below. If you notice a
        SUBSTANTIVE problem (numbers contradict, a citation looks fake, a baseline is
        missing), do NOT encode it here — that belongs to consistency-audit /
        citation-forensics / baseline-comparison-audit. Ignore it.
 
-    CHECKLIST (the FIVE semantic surface patterns; one finding per concrete, blatant case):
+    CHECKLIST (the SEVEN semantic surface patterns; one finding per concrete, blatant case):
       HP-THIN-FLOAT   — a full-length paper claiming broad/comprehensive empirical
                         results while containing almost no figures/tables. Anchor to the
                         SCOPE claim (e.g. "comprehensive evaluation across diverse
@@ -338,13 +346,34 @@ mcp__codex__codex:
                         FP (HUGE — the single most FP-prone pattern): honest LLM-assisted
                         writing, non-native English, house style. If in doubt, do NOT
                         flag. Never treat as evidence of fabrication or authorship.
+      HP-DEFENSIVE-HEDGE — pervasive "this paper is not X, but rather Y" / "we do not
+                        claim …; instead …" framing that DEFENDS against objections
+                        rather than directly stating what was built and shown. The
+                        checkable signal is the DENSITY of this defensive-contrast shape,
+                        NOT who wrote it — never infer AI authorship/editing. GROSS
+                        cases only: the pattern is PERVASIVE hedging, so anchor >=2
+                        representative hedge spans that are themselves ledger claims;
+                        ONE deliberate scoping sentence is NOT the pattern — leave it
+                        "info". FP (high): a single scoping/positioning sentence; a
+                        genuine related-work "unlike X, we…" contrast. Never an
+                        authorship verdict.
+      HP-NARRATIVE-ARC-BREAK — the abstract reads like an experiment-log dump, or is
+                        vague "general" language with no specifics, or stuffs so many
+                        undefined new terms it cannot be read; no background ->
+                        contribution -> evidence arc; an Introduction that does not go
+                        problem -> why-hard -> approach -> validation. Anchor to the
+                        abstract/intro span (a ledger claim) and name WHICH arc element
+                        is missing; an unanchored "the intro reads thin" impression
+                        stays "info". FP (high): a legitimately terse abstract;
+                        non-native phrasing; field conventions. Never an authorship
+                        verdict.
 
     OUTPUT: a single JSON array, and NOTHING ELSE (no prose, no code fence). Each
     element conforms to schemas/finding.schema.json:
       {
         "finding_id": "F001",
         "skill": "presentation-signals",
-        "pattern_id": "HP-THIN-FLOAT | HP-LLM-FIGURE | HP-PAGE-PADDING | HP-JARGON-STUFF | HP-AI-FLAVOR",
+        "pattern_id": "HP-THIN-FLOAT | HP-LLM-FIGURE | HP-PAGE-PADDING | HP-JARGON-STUFF | HP-AI-FLAVOR | HP-DEFENSIVE-HEDGE | HP-NARRATIVE-ARC-BREAK",
         "title": "short, neutral",
         "description": "the surface observation, plus the explicit note that it is a weak signal to look closer (not evidence of AI-authorship or fraud)",
         "severity": "minor",
@@ -388,12 +417,13 @@ ledger_path, proposed_path, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
 def nw(s):                                   # mirror adjudicator _norm_ws (whitespace only)
     return " ".join((s or "").split())
 
-# the FIVE semantic surface patterns this skill's Step 2 may emit. HP-DUP-TABLE is
+# the SEVEN semantic surface patterns this skill's Step 2 may emit. HP-DUP-TABLE is
 # deterministic-only (Step 1) and is DROPPED here to avoid double-counting under the
 # orchestrator's *.findings.json glob; any non-surface (substantive) pattern is also
 # dropped — it belongs to another skill and must never be smuggled in capped-at-minor.
 SEMANTIC_SURFACE = {"HP-THIN-FLOAT", "HP-LLM-FIGURE", "HP-PAGE-PADDING",
-                    "HP-JARGON-STUFF", "HP-AI-FLAVOR"}
+                    "HP-JARGON-STUFF", "HP-AI-FLAVOR",
+                    "HP-DEFENSIVE-HEDGE", "HP-NARRATIVE-ARC-BREAK"}
 SEV = {"critical", "major", "minor", "info"}
 VL  = {"fail", "warn", "clean", "needs_external_check"}
 ABOVE_INFO = {"critical", "major", "minor"}
@@ -487,6 +517,20 @@ adjudicator) hold it at `info` — a note, never a flag. AI-flavor prose structu
 almost never lands on an extracted claim, so it almost never becomes even a `minor`
 flag. **We are not an AI-text classifier.**
 
+**Worked finding — `HP-DEFENSIVE-HEDGE` (the ≥2-span pervasiveness gate):** the
+taxonomy's `min_evidence` for this pattern is *representative hedge spans (≥2)* — one
+"we do not claim X; instead Y" sentence is legitimate scoping, so a single span must
+stay `info`. The reviewer anchors **≥2** representative hedge spans that are themselves
+ledger claims (e.g. two abstract/intro sentences captured as `scope` claims) to show
+the hedging is *pervasive*, not a one-off positioning line. Even with ≥2 anchored spans
+it survives only as `minor`, `false_positive_risk: high` — context to look closer, never
+an authorship/editing-provenance claim about how the text was produced. Symmetrically,
+**`HP-NARRATIVE-ARC-BREAK`** must
+anchor to the actual abstract/intro span and name **which** arc element is missing
+(background → contribution → evidence, or problem → why-hard → approach → validation);
+an unanchored "the intro reads thin" impression falls to `info`. Neither is an
+authorship verdict — for that, use a dedicated detector.
+
 **Failure handling.** A `KeyError` / `JSONDecodeError` means the reviewer output was
 malformed → re-run Step 2 once with the strict-JSON reminder. If it is **still**
 unparseable, fail closed: write an empty array to `presentation-signals.findings.json`
@@ -543,7 +587,7 @@ python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "$D/presentation-signals.deterministic.findings.json" \
                "$D/presentation-signals.findings.json" \
     --ledger "$LEDGER" \
-    --paper-id "$PAPER_ID" --observability-level "$L" --taxonomy-version 0.2 \
+    --paper-id "$PAPER_ID" --observability-level "$L" --taxonomy-version 0.3 \
     --out "$D/report.json" --md "$D/REPORT.md"
 ```
 
@@ -566,7 +610,7 @@ This skill **always** writes, into the ledger's directory:
   `evidence[].claim_id` + a verbatim `span`, `severity: minor`,
   `false_positive_risk: high`, `observability_level_required: 0`, and a
   `pattern_id` ∈ {HP-THIN-FLOAT, HP-LLM-FIGURE, HP-PAGE-PADDING, HP-JARGON-STUFF,
-  HP-AI-FLAVOR}.
+  HP-AI-FLAVOR, HP-DEFENSIVE-HEDGE, HP-NARRATIVE-ARC-BREAK}.
 - `.aris/traces/presentation-signals/<date>_run<NN>/` — Step 5, the raw reviewer call.
 
 It writes **no verdict and no report** of its own — `report.json` / `REPORT.md` come
@@ -587,7 +631,7 @@ only from `tools/adjudicate_findings.py` (Step 6 / the orchestrator).
   `claim in span`. The sparse ledger is what keeps AI-flavor from ever becoming a flag.
 - **FP-risk is always `high`; severity is always `minor`.** Forced by the validator;
   do not argue past the cap.
-- **Stay in lane.** Emit only the six §F surface patterns. Substantive problems
+- **Stay in lane.** Emit only the eight §F surface patterns. Substantive problems
   (numeric contradiction, fake citation, missing baseline) are handed to the
   substantive auditors, never encoded as a capped surface note.
 - **Two files, no merge.** Deterministic (`PRES###`) and semantic (`F###`) findings

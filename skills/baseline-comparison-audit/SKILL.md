@@ -45,7 +45,8 @@ repeatable failure modes:
   the method's **own backbone with the new component removed, at an identical
   budget** — is missing. `HP-WEAK-BASELINE`
 - **Significance** — "consistently outperforms" on a 0.3-point gap with overlapping
-  error bars, or with no variance / no seed count reported at all. `HP-SIG-OVERLAP`
+  error bars, with no variance / no seed count reported at all, or resting on a single
+  dataset too thin for the "consistent / across-the-board" wording. `HP-SIG-OVERLAP`
 - **Delta arithmetic** — "improves over the strongest baseline by 16%" when the
   baseline row is 73.1 and the proposed row is 78.0 (+6.7% relative / +4.9 points),
   the two operands sitting in *different* cells so the single-sentence deterministic
@@ -151,7 +152,7 @@ REVIEWER_SANDBOX      = read-only                # detect-only; never mutate the
 REVIEWER_CWD          = <paper-dir>              # so it can read claims.json + sources directly
 THREAD_POLICY         = fresh mcp__codex__codex per DIMENSION (and per entry on fan-out);
                         NEVER mcp__codex__codex-reply across dimensions/entries
-TAXONOMY_VERSION      = 0.2                      # references/hack-pattern-taxonomy.md
+TAXONOMY_VERSION      = 0.3                      # references/hack-pattern-taxonomy.md
 PROFILE_VERSION       = 0.1                      # the per-domain baseline profile above (advisory)
 PATTERNS_OWNED        = HP-MISSING-BASELINE, HP-WEAK-BASELINE, HP-SIG-OVERLAP,
                         HP-DELTA-ERROR (cross-row comparison form only — see Step 4)
@@ -515,7 +516,27 @@ mcp__codex__codex:
         severity: major if error bars are reported AND overlap; minor if merely absent
         variance for a small gap (rise to major only if the headline rests on it).
         observability 0. FP (high → say so): a large gap; a significance test reported;
-        a genuinely deterministic metric (exact match on a fixed test set).
+        a genuinely deterministic metric (exact match on a fixed test set). Two further
+        thin-evidence signals — each a recurring real-review tell — to flag EXPLICITLY
+        (SAME pattern_id HP-SIG-OVERLAP, SAME anchor = the comparison/SOTA claim):
+        (a) NO VARIANCE / SEEDS REPORTED — the comparison rests on bare point estimates
+            with NO ±/std/CI and NO seed/run count reported AT ALL (one number per cell,
+            no "over N seeds"), so the gap cannot be told from run-to-run noise. severity
+            minor for a small gap; major when the headline rests on it OR the profile's
+            "Variance norm" column expects >=N seeds for this domain (e.g. RL >=5 seeds,
+            retrieval per-query CI) and none are reported. observability 0. FP (high →
+            say so): a large clearly-separated gap; a reported significance test; a
+            genuinely deterministic / single-pass metric where seeds are moot.
+        (b) SINGLE-DATASET-ONLY — a "consistently / robustly / across-the-board /
+            general" comparison claim that rests on ONE dataset/benchmark (or a single
+            split/domain), too thin for the breadth the wording asserts. severity minor;
+            major only when that breadth IS the headline. observability 0. FP (high →
+            say so): the claim is explicitly SCOPED to that one benchmark ("on GSM8K we
+            …"); the dataset is the field-standard SOLE benchmark for the task; or broad
+            scope genuinely exists elsewhere in the paper. LANE: this fires ONLY when
+            anchored to a comparison/SOTA claim — generic scope-language inflation with
+            NO comparison claim ("a comprehensive study") is consistency-audit's
+            HP-SCOPE-INFLATE, not this; do NOT double-emit.
      3. CROSS-ROW DELTA ARITHMETIC [HP-DELTA-ERROR] — recompute a stated "improves over
         <baseline> by X%" as (proposed-baseline)/baseline AND absolute points; flag if
         X disagrees beyond rounding, or relative/absolute are conflated to inflate.
@@ -791,7 +812,7 @@ LEDGER="<abs path to claims.json>"; D="$(dirname "$LEDGER")"
 python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "$D/baseline-comparison-audit.findings.json" \
     --ledger "$LEDGER" \
-    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.2 \
+    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.3 \
     --out "$D/baseline.report.json" --md "$D/baseline.REPORT.md"
 # prints e.g.: verdict=SOFT_FLAGS crit=0 maj=1 min=2 -> baseline.report.json, baseline.REPORT.md
 ```
@@ -839,9 +860,12 @@ second deterministic file** and never edits the audited paper.
   backbone/split/protocol, or a missing equal-budget ablation-as-baseline. A standard
   reference number quoted from a baseline's own paper is legitimate (high FP) — note
   the config delta, don't allege. Stated in text → level 0; config-only → level 2.
-- **Small gap + no variance is a flag to CHECK, not proof.** Keep `HP-SIG-OVERLAP`
-  honest: overlapping reported error bars = major; merely-absent variance for a small
-  gap = minor, FP high; a large gap or a reported significance test suppresses it.
+- **Small gap + thin evidence (no variance/seeds, or single-dataset-only) is a flag to
+  CHECK, not proof.** Keep `HP-SIG-OVERLAP` honest: overlapping reported error bars =
+  major; merely-absent variance / no seed count reported at all for a small gap =
+  minor, FP high; a "consistently/across-the-board" claim resting on a single dataset =
+  minor (major only if breadth is the headline), FP high if the claim is scoped to that
+  benchmark; a large gap or a reported significance test suppresses it.
 - **Delta cross-check, not double-count.** Re-verify only *cross-row* "improves over
   baseline by X%" arithmetic whose operands span a sentence + a table row; never
   re-emit a single-sentence delta (owned by `consistency-audit`'s deterministic pass).

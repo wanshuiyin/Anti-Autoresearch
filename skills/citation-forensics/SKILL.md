@@ -115,7 +115,7 @@ REVIEWER_REASONING   = xhigh                    # always; effort never lowers re
 REVIEWER_SANDBOX     = read-only                # detect-only; never mutate the paper or .bib
 REVIEWER_CWD         = <PAPER_DIR>              # so it can re-open claims.json + the .bib to confirm a span
 THREAD_POLICY        = ONE fresh mcp__codex__codex per CITED KEY; NEVER mcp__codex__codex-reply across keys
-TAXONOMY_VERSION     = 0.2                      # references/hack-pattern-taxonomy.md §E
+TAXONOMY_VERSION     = 0.3                      # references/hack-pattern-taxonomy.md §E
 PATTERNS             = HP-CITE-HALLUC (existence/metadata) | HP-CITE-CONTEXT (wrong context)
 OBS_REQUIRED         = 0 for both patterns      # decidable at L0 (text + canonical sources)
 FACT_GATHERING       = executor, Step 2: DBLP MCP + WebSearch/WebFetch -> resolution.json (FACTS, never a verdict)
@@ -668,7 +668,7 @@ LEDGER="<abs LEDGER>"; D="$(dirname "$LEDGER")"
 python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "$D/citation-forensics.findings.json" \
     --ledger "$LEDGER" \
-    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.2 \
+    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.3 \
     --out "$D/report.json" --md "$D/REPORT.md"
 ```
 

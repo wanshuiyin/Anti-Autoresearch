@@ -12,7 +12,7 @@ Gates applied to every finding, in order (each may demote severity and is logged
                          (or any finding when no ledger is given) -> info.
   2. OBSERVABILITY gate — observability_level_required missing/invalid, or > run level -> info.
   3. FP-RISK gate      — false_positive_risk high -> cap at minor; medium -> cap at major.
-  4. MEMO gate         — adversarial-case-builder is memo-only           -> cap at info.
+  4. MEMO gate         — memo-only skills + advisory (ADV-*) patterns     -> cap at info.
 
 Verdict rule (after gating):
   any critical                 -> HARD_FLAGS
@@ -142,11 +142,15 @@ def adjudicate(findings, run_level, ledger_map=None):
             reasons.append(f"fp-cap({f.get('false_positive_risk')})")
             sev = capped
 
-        # 4. MEMO gate — memo-only skills never raise the verdict.
-        if f.get("skill") in MEMO_ONLY_SKILLS:
+        # 4. MEMO gate — memo-only skills AND advisory (ADV-*) patterns never raise the
+        #    verdict. The advisory cap is by pattern_id PREFIX, so an ADV-* finding smuggled
+        #    in under a non-memo skill with severity=critical is STILL forced to info — the
+        #    taxonomy's "advisory · zero verdict weight" rule is ENFORCED, not just documented.
+        pid = f.get("pattern_id") or ""
+        if f.get("skill") in MEMO_ONLY_SKILLS or pid.startswith("ADV-"):
             capped = _cap(sev, "info")
             if capped != sev:
-                reasons.append("memo-only-skill")
+                reasons.append("advisory-pattern-cap" if pid.startswith("ADV-") else "memo-only-skill")
                 sev = capped
 
         # 5. SURFACE gate — presentation/AI-flavor signals capped at minor (by skill
@@ -157,6 +161,15 @@ def adjudicate(findings, run_level, ledger_map=None):
             if capped != sev:
                 reasons.append("surface-only-cap")
                 sev = capped
+
+        # 6. EXTERNAL-CHECK gate — a finding the auditor itself marks unsettled
+        #    (verdict_local=needs_external_check, or requires_external_check) is NOT a
+        #    confirmed flag: it may inform a human but must never raise the verdict.
+        if SEV_ORDER[sev] > SEV_ORDER["info"] and (
+                f.get("verdict_local") == "needs_external_check"
+                or f.get("requires_external_check") is True):
+            sev = "info"
+            reasons.append("needs-external-check")
 
         f["_severity_original"] = original
         f["_severity_final"] = sev

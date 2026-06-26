@@ -82,12 +82,12 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 **局部**自洽:摘要里一个任何表格都没有的数字、号称"提升 16%"而操作数算出来只有
 6%、为某条主张引用了一篇根本没这么说的论文、方法描述与实际评测不一致。
 
-这些都是在**声明的可观测性层级下可核查**的。具体地,taxonomy v0.2 编码了
-**6 个家族、27 个 hack-pattern**(数值自洽 · 方法/范围 · baseline 诚信 · 实验诚信 ·
-引用诚信 · 表象/surface 信号)—— 这是本仓库的**覆盖词表**,而不是"27 个检测器的
-benchmark"。
+这些都是在**声明的可观测性层级下可核查**的。具体地,taxonomy v0.3 编码了
+**7 个家族、39 个 hack-pattern**(数值自洽 · 方法/范围 · baseline 诚信 · 实验诚信 ·
+引用诚信 · 表象/surface 信号 · 证明 & 推导诚信)—— 这是本仓库的**覆盖词表**,而不是
+"39 个检测器的 benchmark"。
 
-> **已交付 v0:**确定性脊柱 + 下面带 ✓ 的 3 个模式经 eval 测试;其余 24 个是 agent
+> **已交付 v0:**确定性脊柱 + 下面带 ✓ 的 3 个模式经 eval 测试;其余 36 个是 agent
 > 层合同(跨模型 reviewer 提出带 span 锚点的 finding,确定性裁决器打分或降级)——
 > 不是"自带 eval 的检测器"承诺。
 
@@ -102,11 +102,11 @@ benchmark"。
 - `HP-MISSING-BASELINE` — 号称 SOTA,可那个该有的近期 baseline 表里压根没出现。
 - `HP-FAKE-GT` — (L2) "参考答案"是模型自己的输出,却当成 ground truth 报。
 - `HP-PHANTOM-RESULT` — (L2) 头条数字指向一个并不存在的结果文件 / 指标键。
-- `HP-SUSPICIOUS-REGULARITY` — (L2) 行与行差一个太整齐的常数 —— 先看文件再说"假"。
+- `HP-PROOF-CIRCULARITY` — (L1) "证明"把结论换种说法复述一遍就算完 —— 等于什么都没证。
 - `HP-CITE-HALLUC` — DOI / arXiv 号 / venue / 作者名,根本查无此文。
 
 <details>
-<summary><b>……另外 17 个,逐条列全(覆盖全部 6 个家族)</b></summary>
+<summary><b>……另外 29 个,逐条列全(覆盖全部 7 个家族)</b></summary>
 
 **A · 数值自洽**
 - `HP-AGG-DRIFT` — 写着"多 seed 平均",那个数其实是最好的一个 seed。
@@ -118,6 +118,8 @@ benchmark"。
 **B · 方法 & 范围**
 - `HP-ABLATION-ATTRIB` — 把功劳记给组件 X,但每个 ablation 里 X 都和 Y 绑在一起。
 - `HP-THEOREM-SCOPE-DRIFT` — 摘要卖一个通用定理,真正干活的全是那些假设。
+- `HP-ARGUMENT-CHAIN-BREAK` — 实质性的断链:动机引出的问题不是方法解决的那个,或实验测的量不是机制能预测的。
+- `HP-CAUSAL-EVIDENCE-LEAP` — 下了一个因果 / 等价的结论,可全文没有哪个实验真的去变量去测它。
 
 **C · baseline 诚信**
 - `HP-WEAK-BASELINE` — 新方法拿到的调参和算力,baseline 明显没给。
@@ -126,6 +128,10 @@ benchmark"。
 **D · 实验诚信**(需要代码/结果 —— L2)
 - `HP-SELF-NORM` — (L2) 分数接近 1.0,因为除以了模型自己的 max。
 - `HP-DEAD-METRIC` — (L2) 指标函数有定义、没调用、没结果,却还在正文里讨论。
+- `HP-SUSPICIOUS-REGULARITY` — (L2) 行与行差一个太整齐的常数 —— 先看文件再说"假"。
+- `HP-PLACEHOLDER-DATA` — (L2) 开源代码里还留着 placeholder/dummy/假数据,且喂给了某个报告出来的图或数。
+- `HP-RESULT-ARTIFACT-MISMATCH` — (L2) 开源代码 / 工件照着跑,产出的数和论文报告的对不上。
+- `HP-MISSING-REPRO-ARTIFACT` — (L2) 一篇实证论文,代码、和结果所依赖的 prompt/config 一样都没放。
 
 **E · 引用诚信**
 - `HP-CITE-CONTEXT` — 真论文,用错地方:拿来支持一个它明确没说的主张。
@@ -136,6 +142,14 @@ benchmark"。
 - `HP-PAGE-PADDING` — 超大浮动图、重复段落、空话,都在替页数干活。
 - `HP-JARGON-STUFF` — 名词堆成山,周围的论证几乎没贡献什么。
 - `HP-AI-FLAVOR` — 模板化过渡 + 整齐划一的段落节奏;当上下文,不当证据。
+- `HP-DEFENSIVE-HEDGE` — 通篇"本文不是 X 而是 Y"的防御式对冲,光在挡反对意见,不直接说做了什么。
+- `HP-NARRATIVE-ARC-BREAK` — 摘要读着像实验日志堆砌,没有"背景 → 贡献 → 证据"的弧线。
+
+**G · 证明 & 推导诚信**(在 L1 可定罪 —— 从写出来的数学判定)
+- `HP-PROOF-OBLIGATION-GAP` — (L1) 一个必需的引理 / 分支 / 过渡被"显然"一句话跨过了真实的缺口。
+- `HP-DERIVATION-INVALID` — (L1) 某个代数 / 概率 / 微积分步骤根本不成立(不等式用反、极限取错)。
+- `HP-SYMBOL-SEMANTIC-DRIFT` — (L1) 某个符号 / 算子 / 不等号方向在定义、公式、证明之间换了意思。
+- `HP-ASSUMPTION-SMUGGLE` — (L1) 证明悄悄用了定理陈述里从没列出的假设(独立性、凸性……)。
 
 </details>
 
@@ -147,7 +161,7 @@ benchmark"。
 > - *第二篇* — "两张表占满一页且一模一样,唯一的图还是大模型生成的,就这还没写满
 >   9 页。" → `HP-DUP-TABLE` · 表象信号
 > - *第三篇* — "公式推导不通,关键问题数学上不正确,实验看着完整但公式错了结果不知
->   道怎么对上的。" → claim 与推导不一致
+>   道怎么对上的。" → proof-derivation-forensics · `HP-DERIVATION-INVALID`
 > - *第四篇* — "开源了,结构完整绘图精美书写流畅 —— 但我把代码跑了,和正文结果南辕
 >   北辙。" → experiment-forensics (L2)
 
@@ -209,8 +223,10 @@ benchmark"。
 技能映射:Anti-Autoresearch 的 skill 就是 ARIS 的审计 skill,改造成"第三方审未知
 投稿":`consistency-audit` ← `paper-claim-audit`、`experiment-forensics` ←
 `experiment-audit`、`citation-forensics` ← `citation-audit`、
-`baseline-comparison-audit` ← `paper-claim-audit`、`adversarial-case-builder` ←
-`kill-argument`,外加新的 `evidence-ledger` 脊柱与 `presentation-signals`。
+`baseline-comparison-audit` ← `paper-claim-audit`、`proof-derivation-forensics` ←
+`proof-checker`、`adversarial-case-builder` ← `kill-argument`、
+`novelty-duplication-advisory` ← `novelty-check`,外加新的 `evidence-ledger` 脊柱
+与 `presentation-signals`。
 
 ## 📖 引用 Citation
 

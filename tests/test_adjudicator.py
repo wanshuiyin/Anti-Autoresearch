@@ -82,6 +82,19 @@ def test_surface_pattern_capped_even_under_other_skill():
     assert "surface-only-cap" in f["_adjudication"]
 
 
+def test_advisory_pattern_capped_even_under_other_skill():
+    # an ADV-* advisory pattern smuggled in under a verdict-bearing skill is STILL info
+    f = _f(skill="consistency-audit", pattern_id="ADV-TRIVIAL-COMBINATION")  # critical by default
+    assert _final([f]) == ["info"]
+    assert "advisory-pattern-cap" in f["_adjudication"]
+
+
+def test_needs_external_check_capped_to_info():
+    # a finding the auditor itself marks unsettled cannot raise the verdict
+    assert _final([_f(verdict_local="needs_external_check")]) == ["info"]
+    assert _final([_f(requires_external_check=True)]) == ["info"]
+
+
 def test_verdict_levels():
     assert A.verdict_of(["info"]) == "CLEAN_GIVEN_EVIDENCE"
     assert A.verdict_of(["minor"]) == "SOFT_FLAGS"

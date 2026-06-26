@@ -148,12 +148,15 @@ demoted to `info`.
 
 ### HP-ARGUMENT-CHAIN-BREAK — the motivation → method → experiment chain doesn't connect
 - **level:** L0
-- **signals:** the problem the intro motivates, the mechanism the method proposes, and
-  what the experiments actually measure don't line up; sections read disjointed
-  ("前言不搭后语"); a section restates its claim in circular wording ("not even wrong"
-  filler) instead of advancing it.
+- **signals:** a *substantive* missing link in the argument — the problem the intro
+  motivates, the mechanism the method proposes, and the quantity the experiments measure
+  are logically disconnected: e.g. the method addresses a different problem than the one
+  motivated, or the experiments measure something the method's claimed mechanism does not
+  predict. This is about the *content* of the chain, not its prose. Mere stylistic
+  disjointedness, "前言不搭后语" reading, or filler wording is the surface tell
+  HP-NARRATIVE-ARC-BREAK (F-family, capped minor) — not this pattern.
 - **fp_cases:** a dense-but-valid argument the reader must work through; a modular paper
-  with explicit cross-references.
+  with explicit cross-references that does connect on inspection.
 - **severity_rule:** major; critical if the headline contribution rests on the broken link.
 - **min_evidence:** the motivation span + the method/experiment span it fails to connect to.
 
@@ -253,34 +256,39 @@ demoted to `info`.
 - **min_evidence:** the table spans exhibiting the pattern + the arithmetic relation
   (L0); the result-file/code confirmation (L2).
 
-### HP-PLACEHOLDER-DATA — AI placeholder / fake data left in the released code
+### HP-PLACEHOLDER-DATA — placeholder / fake data left in the released code
 - **level:** L2
-- **signals:** released code still contains generated placeholder/fake data or the
-  assistant's own annotations ("# fake data for plotting", "dummy", "TODO: replace with
-  real data"), and a reported figure/number is produced from it.
+- **signals:** released code still contains placeholder/fake data or stub annotations
+  ("# fake data for plotting", "dummy", "TODO: replace with real data"), and a reported
+  figure/number is produced from it. (Flag the checkable code artifact; do not infer *who*
+  wrote the annotation — the provenance is irrelevant to the discrepancy.)
 - **fp_cases:** a clearly-labeled synthetic toy example or unit-test fixture that feeds
   no reported result.
 - **severity_rule:** critical (a reported result is drawn from placeholder data).
 - **min_evidence:** the code line with the placeholder + the paper number/figure it feeds.
 
-### HP-RESULT-ARTIFACT-MISMATCH — code output ≠ the paper's numbers
+### HP-RESULT-ARTIFACT-MISMATCH — code/artifact output ≠ the paper's numbers
 - **level:** L2
-- **signals:** running (or reading) the released code yields results different from the
-  paper's reported numbers; the implementation diverges from the described method/equations.
+- **signals:** running (or reading) the released code / result artifacts (logs, checkpoints,
+  result JSON) yields numbers different from the paper's reported values for the *same*
+  experiment cell. Strictly artifact-number vs paper-number. (An implementation that diverges
+  from the *described method/equations* is HP-METHOD-DRIFT — route there, not here.)
 - **fp_cases:** seed/version/hardware variance within a stated tolerance; a documented
   post-hoc correction.
 - **severity_rule:** critical.
-- **min_evidence:** the paper number + the code-produced value (or the implementation
-  span that diverges from the method).
+- **min_evidence:** the paper number + the code/artifact-produced value for the same cell.
 
 ### HP-MISSING-REPRO-ARTIFACT — the artifacts the method needs to be checkable are absent
-- **level:** L0 (stated) / L2 (verified)
+- **level:** L2 — an absent-artifact flag is only verdict-bearing once the repo / artifact
+  set is actually inspected. At L0/L1 a "code will be released" note is at most `info` /
+  `needs_external_check`; you cannot assert artifacts are missing from a PDF alone.
 - **signals:** an empirical / agent / LLM paper ships neither code nor the prompts/configs
   its results depend on; "code will be released" with nothing runnable; key
   hyperparameters or prompts omitted.
 - **fp_cases:** a genuinely theoretical paper; anonymized-submission norms (route to a
   camera-ready expectation, lower severity).
-- **severity_rule:** major (an empirical claim cannot be reproduced even in principle).
+- **severity_rule:** major at L2 (an empirical claim cannot be reproduced even in principle);
+  below L2 it is informational only.
 - **min_evidence:** the result claim + the (absent) artifact it would need.
 
 ---
@@ -379,10 +387,13 @@ demoted to `info`.
 
 ### HP-DEFENSIVE-HEDGE — defensive "not X but Y" hedging instead of stating what was done
 - **level:** L0
-- **signals:** pervasive "this paper is not X, but rather Y" / "we do not claim …;
-  instead …" framing — a tell of iteratively patching a draft with AI edit-suggestions —
-  where the text defends against objections rather than directly stating what was built
-  and shown. (Reviewer: "本文不是什么什么，而是什么什么…论文应该直接表达做了什么".)
+- **signals:** a high *density* of "this paper is not X, but rather Y" / "we do not claim …;
+  instead …" constructions, where the text defends against anticipated objections rather than
+  directly stating what was built and shown. The checkable signal is the recurrence of the
+  defensive-contrast shape, **not** who wrote it — do not infer AI authorship or editing
+  provenance. (Reviewer: "本文不是什么什么，而是什么什么…论文应该直接表达做了什么".) Differs
+  from HP-AI-FLAVOR: that is generic LLM-flavored prose; this is the specific not-X-but-Y
+  rhetorical posture, regardless of authorship.
 - **fp_cases:** a single deliberate scoping sentence; a genuine related-work contrast.
 - **severity_rule:** minor (capped, surface-only); high FP.
 - **min_evidence:** representative hedge spans (≥2).
@@ -397,18 +408,20 @@ demoted to `info`.
 - **severity_rule:** minor (capped, surface-only); high FP.
 - **min_evidence:** the abstract/intro span + which arc element is missing.
 
-## G. Proof & derivation integrity (L0/L1 from the written proof · CAN be critical)
+## G. Proof & derivation integrity (verdict-bearing at L1 — needs the LaTeX source · CAN be critical)
 
 > Adapted from ARIS `proof-checker` + `formula-derivation`, reframed to audit a third
 > party's proofs. Broken math is the most-cited "obviously machine-written" tell in real
 > reviews. Unlike family F these are **substantive** and **can be critical**: a theorem
 > whose proof is circular or skips a load-bearing step does not support its claim. Owned
-> by `skills/proof-derivation-forensics`. Decide from the *written* proof/derivation
-> (L0/L1) — never assert "fabricated"; assert that the step shown does not hold. High FP
-> care: a terse-but-valid step is not a gap; cite the exact line that fails.
+> by `skills/proof-derivation-forensics`. **Verdict-bearing only at L1** — decide from the
+> LaTeX *source*, because PDF-extracted math is unreliable (mangled symbols, subscripts,
+> equation structure); at an L0 (PDF-only) run a proof flaw is surfaced as a candidate
+> (`info`) only. Never assert "fabricated"; assert that the step shown does not hold. High
+> FP care: a terse-but-valid step is not a gap; cite the exact line that fails.
 
 ### HP-PROOF-OBLIGATION-GAP — a required lemma / case / transition is missing
-- **level:** L0 (claim) / L1 (full proof source)
+- **level:** L1 (the LaTeX proof source; at L0 surface `info` only)
 - **signals:** the proof omits a nontrivial obligation the theorem needs — a missing case,
   an un-proved lemma invoked as fact, a "clearly / it follows that" across a real gap
   ("过不去的步骤用文字糊弄"), an existence/concentration/generic-position claim never shown.
@@ -418,7 +431,7 @@ demoted to `info`.
 - **min_evidence:** the theorem statement + the proof span where the obligation is skipped.
 
 ### HP-PROOF-CIRCULARITY — the proof assumes what it sets out to prove
-- **level:** L0 / L1
+- **level:** L1 (at L0 surface `info` only)
 - **signals:** the conclusion (or an equivalent restatement) is used as a premise; the
   "proof" restates the claim in different words and calls it done ("车轱辘话复述当证明").
 - **fp_cases:** a legitimate "WLOG / by symmetry" reduction; proof by contradiction that
@@ -427,7 +440,7 @@ demoted to `info`.
 - **min_evidence:** the premise span + the conclusion span it duplicates.
 
 ### HP-DERIVATION-INVALID — an algebra / probability / calculus step does not follow
-- **level:** L0 (if the step is shown) / L1
+- **level:** L1 (at L0 surface `info` only — PDF math extraction is unreliable)
 - **signals:** an adjacent derivation step is mathematically wrong — an illegal
   manipulation, a sign/factor error, a misapplied expectation/inequality, a wrong limit.
 - **fp_cases:** a typo that doesn't affect the result (note as minor); a valid step the
@@ -436,7 +449,7 @@ demoted to `info`.
 - **min_evidence:** the step span + why it does not follow.
 
 ### HP-SYMBOL-SEMANTIC-DRIFT — a symbol / operator / inequality changes meaning mid-paper
-- **level:** L0 / L1
+- **level:** L1 (at L0 surface `info` only)
 - **signals:** a symbol, index, quantifier, operator, or inequality direction is used
   inconsistently across definition → formula → proof (e.g. "关键公式符号用反" — a key
   formula's operator reversed); ≤ vs ≥, argmin vs argmax, one variable name with two meanings.
@@ -445,10 +458,13 @@ demoted to `info`.
 - **min_evidence:** the definition span + the divergent-use span.
 
 ### HP-ASSUMPTION-SMUGGLE — the proof relies on an unstated stronger assumption
-- **level:** L0 / L1
-- **signals:** a derivation silently uses independence, convexity, smoothness,
-  boundedness, i.i.d., or a regularity condition the theorem never assumes; the result
-  holds only under that hidden assumption.
+- **level:** L1 (at L0 surface `info` only)
+- **framing note:** the id is a mnemonic for the *effect* (an assumption present in the
+  proof but absent from the statement); the finding asserts only that checkable
+  discrepancy — never authorial intent or misconduct.
+- **signals:** a derivation uses independence, convexity, smoothness, boundedness, i.i.d.,
+  or a regularity condition the theorem statement never lists; the result holds only under
+  that additional assumption.
 - **fp_cases:** the assumption is standard for the setting and stated in the setup; it is
   implied by a cited result.
 - **severity_rule:** major (the theorem as stated is broader than what's proved); pairs

@@ -87,14 +87,14 @@ an abstract number that no table reports, a "16% improvement" that the operands 
 is 6%, a citation for a claim the cited paper never makes, a method described one
 way and evaluated another.
 
-Those are checkable under a declared observability level. Concretely, taxonomy v0.2
-names **27 hack-patterns across 6 families** (numeric self-consistency · method /
+Those are checkable under a declared observability level. Concretely, taxonomy v0.3
+names **39 hack-patterns across 7 families** (numeric self-consistency · method /
 scope · baseline integrity · experiment integrity · citation integrity ·
-presentation / surface signals) — the repo's **coverage vocabulary**, not a
-27-detector benchmark.
+presentation / surface signals · proof & derivation integrity) — the repo's
+**coverage vocabulary**, not a 39-detector benchmark.
 
 > **Shipped v0:** the deterministic spine and the three ✓ patterns below are
-> eval-tested; the other 24 are agent-layer contracts (a cross-model reviewer
+> eval-tested; the other 36 are agent-layer contracts (a cross-model reviewer
 > proposes span-anchored findings, the deterministic adjudicator scores or demotes
 > them) — not bundled-eval detector claims.
 
@@ -110,11 +110,11 @@ by the deterministic eval today):
 - `HP-MISSING-BASELINE` — SOTA is claimed while the obvious recent baseline never appears in the table.
 - `HP-FAKE-GT` — (L2) the "reference" targets are model outputs, then reported as ground truth.
 - `HP-PHANTOM-RESULT` — (L2) a headline number points at a result file or metric key that isn't there.
-- `HP-SUSPICIOUS-REGULARITY` — (L2) rows differ by a suspiciously clean offset — check the files before calling it fake.
+- `HP-PROOF-CIRCULARITY` — (L1) the "proof" restates the claim in different words and calls it done — it proves nothing.
 - `HP-CITE-HALLUC` — the DOI / arXiv id / venue / author list simply doesn't exist.
 
 <details>
-<summary><b>… the other 17, listed in full (across all 6 families)</b></summary>
+<summary><b>… the other 29, listed in full (across all 7 families)</b></summary>
 
 **A · Numeric self-consistency**
 - `HP-AGG-DRIFT` — they write "mean over seeds", but the number is really the best seed.
@@ -126,6 +126,8 @@ by the deterministic eval today):
 **B · Method & scope**
 - `HP-ABLATION-ATTRIB` — they credit component X, but every ablation keeps X bundled with Y.
 - `HP-THEOREM-SCOPE-DRIFT` — the abstract sells a general theorem; the assumptions do nearly all the work.
+- `HP-ARGUMENT-CHAIN-BREAK` — a substantive missing link: the problem motivated isn't the one the method addresses, or the experiments measure something the mechanism doesn't predict.
+- `HP-CAUSAL-EVIDENCE-LEAP` — a causal / equivalence relation is concluded that no experiment in the paper actually varies or tests.
 
 **C · Baseline integrity**
 - `HP-WEAK-BASELINE` — the new method gets tuning and compute the baseline plainly did not.
@@ -134,6 +136,10 @@ by the deterministic eval today):
 **D · Experiment integrity** (needs code/results — L2)
 - `HP-SELF-NORM` — (L2) the score nears 1.0 because it's divided by the model's own max.
 - `HP-DEAD-METRIC` — (L2) a metric function exists with no call site and no result, yet is discussed.
+- `HP-SUSPICIOUS-REGULARITY` — (L2) rows differ by a suspiciously clean offset — check the files before calling it fake.
+- `HP-PLACEHOLDER-DATA` — (L2) released code still ships placeholder/dummy/fake data feeding a reported figure or number.
+- `HP-RESULT-ARTIFACT-MISMATCH` — (L2) the released code / artifacts, run as written, produce numbers different from the paper's.
+- `HP-MISSING-REPRO-ARTIFACT` — (L2) an empirical paper ships neither code nor the prompts/configs its results depend on.
 
 **E · Citation integrity**
 - `HP-CITE-CONTEXT` — real paper, wrong job: cited for a claim it explicitly doesn't make.
@@ -144,6 +150,14 @@ by the deterministic eval today):
 - `HP-PAGE-PADDING` — oversized floats, repeated text, or empty prose doing page-count labor.
 - `HP-JARGON-STUFF` — dense buzzwords pile up while the surrounding argument adds almost nothing.
 - `HP-AI-FLAVOR` — boilerplate transitions and identical paragraph rhythms; context, not evidence.
+- `HP-DEFENSIVE-HEDGE` — pervasive "not X but Y" hedging that defends against objections instead of stating what was done.
+- `HP-NARRATIVE-ARC-BREAK` — the abstract reads like an experiment-log dump with no background → contribution → evidence arc.
+
+**G · Proof & derivation integrity** (verdict-bearing at L1 — from the written math)
+- `HP-PROOF-OBLIGATION-GAP` — (L1) a required lemma / case / transition is skipped with "clearly" across a real gap.
+- `HP-DERIVATION-INVALID` — (L1) an algebra / probability / calculus step does not follow (a misapplied inequality, a wrong limit).
+- `HP-SYMBOL-SEMANTIC-DRIFT` — (L1) a symbol / operator / inequality direction changes meaning between definition, formula, and proof.
+- `HP-ASSUMPTION-SMUGGLE` — (L1) the proof relies on an assumption (independence, convexity, …) the theorem statement never lists.
 
 </details>
 
@@ -158,7 +172,7 @@ onto the taxonomy this repo encodes:
 >   LLM-generated; and it *still* didn't fill 9 pages." → `HP-DUP-TABLE` ·
 >   presentation signals
 > - *Paper 3* — "formula derivations don't hold; the experiments look complete but
->   the math can't give those results." → claim-vs-derivation
+>   the math can't give those results." → proof-derivation-forensics · `HP-DERIVATION-INVALID`
 > - *Paper 4* — "open-sourced, beautifully written and drawn — but I ran the code
 >   and it gives completely different results from the paper." → experiment-forensics (L2)
 
@@ -203,15 +217,17 @@ input (pdf | pdf+latex | pdf+repo+results)
         citation-forensics         exists? correct? right context? · ARIS citation-audit
         baseline-comparison-audit  missing/weak/mistuned baselines · ARIS paper-claim-audit
         experiment-forensics       L2: fake GT / self-norm / phantom · ARIS experiment-audit
+        proof-derivation-forensics L1: proof gap / circularity / invalid step · verdict-bearing · ARIS proof-checker
         presentation-signals       surface/AI-flavor · auxiliary, capped at minor
         adversarial-case-builder   evidence-bound memo, no verdict · ARIS kill-argument
+        novelty-duplication-advisory  prior-work overlap memo, no verdict · ARIS novelty-check
    │
    ▼  [adjudicate_findings.py]  rules, not a model → REPORT.md + report.json            ← deterministic
 ```
 
 | Path | What |
 |------|------|
-| `skills/` | the seven auditor skills (LLM proposes findings, span-anchored) |
+| `skills/` | the nine auditor skills (LLM proposes findings, span-anchored) |
 | `workflows/anti-autoresearch/` | the end-to-end orchestrator |
 | `tools/` | deterministic spine: manifest/observability derivation · ledger builder · numeric checks · adjudicator |
 | `schemas/` | JSON contracts: claims · finding · report · artifact manifest |
@@ -259,8 +275,10 @@ against those failures from the inside. That is the perspective this repo brings
 and reframed for a **third party auditing an unknown submission** rather than an
 author checking their own work: `consistency-audit` ← `paper-claim-audit`,
 `experiment-forensics` ← `experiment-audit`, `citation-forensics` ← `citation-audit`,
-`baseline-comparison-audit` ← `paper-claim-audit`, `adversarial-case-builder` ←
-`kill-argument`, plus the new `evidence-ledger` spine and `presentation-signals`.
+`baseline-comparison-audit` ← `paper-claim-audit`, `proof-derivation-forensics` ←
+`proof-checker`, `adversarial-case-builder` ← `kill-argument`,
+`novelty-duplication-advisory` ← `novelty-check`, plus the new `evidence-ledger`
+spine and `presentation-signals`.
 
 ## 📖 Citation
 

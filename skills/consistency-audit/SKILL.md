@@ -68,14 +68,18 @@ rules 1–2). The model **proposes**; `tools/adjudicate_findings.py` **decides**
 | `experiment-forensics` | Are the reported numbers what the code actually computes? (fake GT, self-norm, phantom) | L2 |
 | `baseline-comparison-audit` | Are the right baselines present, tuned, and is "SOTA" earned? | L0 stated / L2 verified |
 | `citation-forensics` | Do the cited papers exist and support the claim made? | L0 |
+| `proof-derivation-forensics` | Does the WRITTEN proof/derivation actually establish its theorem? (gap / circularity / invalid step / symbol drift / smuggled assumption) | L1 |
 | `presentation-signals` | Surface "AI-flavor" hints (auxiliary, capped at minor) | L0 |
 | `adversarial-case-builder` | Strongest evidence-bound rejection memo (no verdict weight) | any |
 
 **Do NOT raise here** (hand off instead): code/result-level fraud → `experiment-forensics`
 (needs L2); "first / SOTA / beats prior work" external truth → `baseline-comparison-audit`
 + `citation-forensics` (emit `needs_external_check`); citation existence/context →
-`citation-forensics`; surface/AI-flavor → `presentation-signals`; the rejection memo
-→ `adversarial-case-builder`. This skill never reaches outside the paper.
+`citation-forensics`; proof / derivation validity (a theoretical relation that must be
+*derived*, not measured — gap / circularity / invalid step / symbol drift / smuggled
+assumption) → `proof-derivation-forensics` (family G); surface/AI-flavor →
+`presentation-signals`; the rejection memo → `adversarial-case-builder`. This skill
+never reaches outside the paper.
 
 ## Constants & Reviewer Calling Convention
 
@@ -85,7 +89,7 @@ REVIEWER_REASONING      = xhigh                    # always; effort never lowers
 REVIEWER_SANDBOX        = read-only                # detect-only; never mutate the paper
 REVIEWER_CWD            = <paper-dir>              # so it can read claims.json + sources directly
 THREAD_POLICY           = fresh mcp__codex__codex per run; NEVER mcp__codex__codex-reply
-TAXONOMY_VERSION        = 0.2                      # references/hack-pattern-taxonomy.md
+TAXONOMY_VERSION        = 0.3                      # references/hack-pattern-taxonomy.md
 DETERMINISTIC_FINDINGS  = consistency-audit.deterministic.findings.json   # Step 1 (tool)
 SEMANTIC_FINDINGS       = consistency-audit.findings.json                 # Step 4 (validated)
 TRACE_POLICY            = forensic (never silently dropped)
@@ -326,6 +330,31 @@ mcp__codex__codex:
         severity: major. FP: assumptions stated up front AND acknowledged in the
         abstract. level 0. (Flag the internal scope mismatch only; route the headline
         framing to adversarial-case-builder.)
+    11. ARGUMENT-CHAIN COHERENCE — the chain the paper claims to walk — motivation
+        (intro) -> mechanism (method) -> what the experiments MEASURE — has a
+        SUBSTANTIVE missing link: the problem motivated is not the one the method
+        addresses, or the method's claimed mechanism does not predict what the
+        experiments test. This is about the CONTENT of the chain, not its prose —
+        mere stylistic disjointedness / "前言不搭后语" reading / filler wording is the
+        surface tell HP-NARRATIVE-ARC-BREAK (presentation-signals, capped minor), NOT this.
+                                                            [HP-ARGUMENT-CHAIN-BREAK]
+        severity: major; critical if the headline contribution rests on the broken
+        link. FP: a dense-but-valid argument the reader must work through; a modular
+        paper with explicit cross-references; non-native phrasing. level 0. If the
+        missing link is a THEORETICAL relation that must be DERIVED (not narrated), do
+        NOT adjudicate the math here — route it to proof-derivation-forensics (family G).
+    12. CAUSAL / EVIDENCE LEAP — a relation is CONCLUDED that no experiment in the
+        paper actually tests: "A and B correlate, therefore equivalent / causal"; the
+        paper studies C but concludes "D affects C" with no experiment that VARIES D;
+        equivalence or causation asserted from a correlation or a single setting.
+                                                            [HP-CAUSAL-EVIDENCE-LEAP]
+        severity: major; critical if it is the central claim. FP: the supporting
+        experiment exists elsewhere in the paper (cite it); a deliberately
+        observational study that does not claim causation. level 0 (the unsupported
+        leap is visible in the text); set level 2 only if confirming NO run varies D
+        needs the code/results. If the relation is instead established THEORETICALLY
+        (a proof/derivation is given), it is NOT an evidence leap — it is a proof
+        obligation: route to proof-derivation-forensics (family G).
     BONUS. SUSPICIOUS REGULARITY — numbers across rows related by a too-clean
         arithmetic pattern (a constant additive/multiplicative offset, implausibly
         smooth monotonicity, identical decimals across unrelated settings).
@@ -393,10 +422,11 @@ ledger_path, proposed_path, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
 def nw(s):                                   # mirror adjudicator _norm_ws (whitespace only)
     return " ".join((s or "").split())
 
-# fallback observability level if the reviewer omitted it (taxonomy 0.2 decidable tier)
+# fallback observability level if the reviewer omitted it (taxonomy 0.3 decidable tier)
 OBS = {"HP-NUM-INFLATE":0,"HP-APPENDIX-CONTRA":0,"HP-UNIT-DIR-MISMATCH":0,
        "HP-AGG-DRIFT":0,"HP-DENOM-DRIFT":0,"HP-METHOD-DRIFT":0,"HP-ABLATION-ATTRIB":0,
        "HP-CAPTION-MISMATCH":0,"HP-SCOPE-INFLATE":0,"HP-THEOREM-SCOPE-DRIFT":0,
+       "HP-ARGUMENT-CHAIN-BREAK":0,"HP-CAUSAL-EVIDENCE-LEAP":0,
        "HP-DELTA-ERROR":0,"HP-SUSPICIOUS-REGULARITY":2}
 SURFACE = {"HP-DUP-TABLE","HP-THIN-FLOAT","HP-LLM-FIGURE","HP-PAGE-PADDING",
            "HP-JARGON-STUFF","HP-AI-FLAVOR"}   # owned by presentation-signals; drop here
@@ -529,7 +559,7 @@ python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "$D/consistency-audit.deterministic.findings.json" \
                "$D/consistency-audit.findings.json" \
     --ledger "$LEDGER" \
-    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.2 \
+    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.3 \
     --out "$D/report.json" --md "$D/REPORT.md"
 ```
 
@@ -575,7 +605,7 @@ human-readable rendering is the orchestrator's job, not this skill's.
 - **Hand off external claims.** "SOTA / first" → `needs_external_check` +
   `requires_external_check: true`; to baseline / citation forensics, not a guess.
 - **Taxonomy is a mapping layer, not a detector.** Detect from the ledger +
-  checklist, then map to a `pattern_id` (v0.2); never start from "go find HP-X."
+  checklist, then map to a `pattern_id` (v0.3); never start from "go find HP-X."
 - **Two files, no merge.** Deterministic and semantic findings stay in separate
   files (disjoint ids) to avoid double-counting under the orchestrator's glob.
 - **Detect-only.** Never edit the audited paper (reviewer sandbox is read-only).
@@ -592,6 +622,10 @@ human-readable rendering is the orchestrator's job, not this skill's.
   `/baseline-comparison-audit` (+ `/citation-forensics`); hand off via
   `needs_external_check`.
 - **You need citation existence / wrong-context** → `/citation-forensics`.
+- **You need to audit whether a PROOF/derivation actually holds** (a theorem with a
+  missing obligation, a circular argument, an invalid step, a drifted symbol, or a
+  smuggled assumption) → `/proof-derivation-forensics` (**family G**, L1); a
+  theoretical relation that should be *derived* is its dimension, not this skill's.
 - **You want an AI-text / "looks machine-written" verdict** → out of scope. Surface
   hints live in `/presentation-signals` (auxiliary, capped at minor); this repo is
   **not** an AI-text classifier.
