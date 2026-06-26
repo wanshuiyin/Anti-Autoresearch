@@ -6,7 +6,7 @@
 
 ### 🔬 The field has tolerated unreliable autoresearch long enough — Anti-Autoresearch is the read that finally catches it.
 
-***天下苦 autoresearch 久矣 —— Anti-Autoresearch 替审稿人一眼看穿不靠谱的工作。***
+***天下苦 autoresearch 久矣 —— Anti-Autoresearch 替研究者们一眼看穿不靠谱的工作。***
 
 </div>
 
