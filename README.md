@@ -13,138 +13,6 @@
 
 ---
 
-## 🎯 Why this exists
-
-Machine-generated papers and reviews are now a measurable share of the literature,
-and the failure that matters for an area chair is rarely *"was this text written by
-an LLM?"* (a human can write a dishonest paper; an LLM can write an honest one). It
-is: **does the paper contradict itself, and is it backed by its own evidence?**
-
-That is what autoresearch pipelines get wrong — they hallucinate *local* coherence:
-an abstract number that no table reports, a "16% improvement" that the operands say
-is 6%, a citation for a claim the cited paper never makes, a method described one
-way and evaluated another.
-
-Those are checkable under a declared observability level. Concretely, taxonomy v0.2
-names **27 hack-patterns across 6 families** (numeric self-consistency · method /
-scope · baseline integrity · experiment integrity · citation integrity ·
-presentation / surface signals). Treat that as the repo's **coverage vocabulary**,
-not a 27-detector benchmark: the zero-dependency deterministic eval currently gates
-**3** of them (`HP-DELTA-ERROR`, `HP-NUM-INFLATE`, `HP-DUP-TABLE`); the other **24**
-are agent-layer checks — cross-model auditors propose span-anchored findings, and the
-deterministic adjudicator scores or demotes them by evidence, observability, and
-false-positive risk.
-
-A representative slice (✓ = gated by the deterministic eval today; the rest are
-agent-layer; full catalog in [the taxonomy](references/hack-pattern-taxonomy.md)):
-
-- `HP-NUM-INFLATE` — headline number exceeds its own table ✓
-- `HP-DELTA-ERROR` — relative-improvement arithmetic is wrong ✓
-- `HP-DUP-TABLE` — duplicate / near-identical tables ✓
-- `HP-METHOD-DRIFT` — described method ≠ evaluated method
-- `HP-SCOPE-INFLATE` — scope language exceeds the evidence
-- `HP-MISSING-BASELINE` — a required SOTA comparison is absent
-- `HP-FAKE-GT` — "ground truth" derived from model outputs (L2)
-- `HP-PHANTOM-RESULT` — a reported number with no backing artifact (L2)
-- `HP-SUSPICIOUS-REGULARITY` — results too arithmetically regular to be real runs
-- `HP-CITE-HALLUC` — a fabricated / non-existent reference
-
-<details>
-<summary><b>… and 17 more, across all 6 families</b></summary>
-
-- **A · Numeric self-consistency** — `HP-AGG-DRIFT` (best reported as mean) · `HP-DENOM-DRIFT` (population drift) · `HP-UNIT-DIR-MISMATCH` (unit / direction confusion) · `HP-CAPTION-MISMATCH` (caption ≠ content) · `HP-APPENDIX-CONTRA` (appendix contradicts main)
-- **B · Method & scope** — `HP-ABLATION-ATTRIB` (gain not isolated by the ablation) · `HP-THEOREM-SCOPE-DRIFT` (abstract general, theorem narrow)
-- **C · Baseline integrity** — `HP-WEAK-BASELINE` (undertuned / config mismatch) · `HP-SIG-OVERLAP` ("outperforms" with overlapping error bars)
-- **D · Experiment integrity (L2)** — `HP-SELF-NORM` (score normalized by the model's own stats) · `HP-DEAD-METRIC` (metric defined but never computed)
-- **E · Citation integrity** — `HP-CITE-CONTEXT` (real paper, cited for a claim it does not make)
-- **F · Presentation / surface — capped at `minor`** — `HP-THIN-FLOAT` (too few figures/tables) · `HP-LLM-FIGURE` (machine-generated figure) · `HP-PAGE-PADDING` (filler to hit the page limit) · `HP-JARGON-STUFF` (term-stuffing) · `HP-AI-FLAVOR` (generic LLM prose)
-
-</details>
-
-**This is not hypothetical.** Paraphrased from a public reviewer account during the
-NeurIPS 2026 cycle (illustrative, not a citation), one batch maps almost one-to-one
-onto the taxonomy this repo encodes:
-
-> - *Paper 1* — "data tables don't match the text; several rows are misaligned;
->   there's an obvious add/subtract regularity across backbones — it doesn't look
->   like it was actually run." → consistency · `HP-SUSPICIOUS-REGULARITY`
-> - *Paper 2* — "two tables fill a page and are identical; the one figure is
->   LLM-generated; and it *still* didn't fill 9 pages." → `HP-DUP-TABLE` ·
->   presentation signals
-> - *Paper 3* — "formula derivations don't hold; the experiments look complete but
->   the math can't give those results." → claim-vs-derivation
-> - *Paper 4* — "open-sourced, beautifully written and drawn — but I ran the code
->   and it gives completely different results from the paper." → experiment-forensics (L2)
-
-The fourth case is this repo's thesis in one line: **surface polish is not integrity.**
-
-## 🧩 The gap it fills
-
-Existing work clusters into (A) **AI-text detectors** — stylometry, "is it
-LLM-written"; (B) **AI-review detectors**; (C) **general claim/rigor checkers**
-(FactReview, RIGOURATE, citation-fabrication taxonomies). The gap this repo targets
-is the combination of **autoresearch-specific substantive-integrity forensics**:
-internal-consistency forensics *plus* a curated taxonomy of the *specific*
-hack-patterns that LLM-driven research pipelines produce. We verify the paper
-**against itself** (no external ground truth needed — exactly where machine output
-cracks) and specialize the failure catalog to autoresearch. It is **not** an AI-text
-classifier (Pangram / GPTZero / Binoculars), an AI-review detector, a misconduct
-verdict, or a co-author that edits the paper. See
-[docs/positioning.md](docs/positioning.md).
-
-## 🚦 Status — what v0 actually ships
-
-Being precise about what runs today vs what is an agent-orchestrated contract
-(this distinction is the point — see [DESIGN.md](DESIGN.md)):
-
-- **Deterministic core — runs now, zero-dependency, tested.** The evidence-ledger
-  extractor, the artifact-manifest / observability derivation, the numeric
-  self-consistency checks (`HP-DELTA-ERROR`, `HP-NUM-INFLATE`), and the rule-based
-  adjudicator. The `eval/` harness gates these: **100% recall on the three
-  deterministic patterns** (`HP-DELTA-ERROR`, `HP-NUM-INFLATE`, `HP-DUP-TABLE`)
-  across the bundled fixtures, **zero clean false-positives**, every above-info
-  finding ledger-anchored. This is the load-bearing, reproducible part — no model
-  in the loop.
-- **Agent-layer audits — alpha, require Claude + a cross-model reviewer.** The
-  *semantic* skills (method-drift, ablation attribution, wrong-context citation,
-  baseline adequacy, experiment-code integrity, and the auxiliary surface/AI-flavor
-  signals) are `SKILL.md` contracts run by an agent via `/anti-autoresearch`. They
-  propose span-anchored findings that the *same* deterministic adjudicator scores;
-  they are not yet covered by the bundled deterministic eval — adding fixtures for
-  these semantic patterns is roadmap work, not a shipped claim.
-
-The **verdict machinery and the numeric core are real and tested**; semantic
-coverage is an agent contract that grows as the taxonomy and eval grow. The shipped
-v0 claim is deliberately narrow and testable; broader "fabrication forensics" is the
-direction, scoped honestly above.
-
-## 🔒 How it stays honest (the anti-"LLM-slop" design)
-
-The obvious dismissal of any such tool is *"an LLM grading another LLM's paper is
-just noise."* Three structural defenses, not just a disclaimer:
-
-1. **Evidence ledger.** One deterministic pass turns the paper into `claims.json` —
-   span-anchored, hashed claims. Every finding must cite a `claim_id` + verbatim
-   span. **No span → it cannot be a high-severity finding.**
-2. **The LLM never grades.** Auditors *propose* findings; a **deterministic
-   adjudicator** (`tools/adjudicate_findings.py`, pure rules) computes the verdict.
-   Same findings → same verdict, with no model in the final decision.
-3. **Observability levels.** A run declares what it could see (L0 PDF-only → L2
-   repo+results); findings that need code are **auto-demoted** on a PDF-only run.
-   You can never shout "fraud" from a PDF. See
-   [references/observability-levels.md](references/observability-levels.md).
-
-**Surface / AI-flavor signals have a separate firewall.** AI-flavor prose, duplicate
-tables, LLM-generated figures, and page-padding are reported only as
-*high-false-positive context*: the adjudicator hard-caps `presentation-signals` and
-every taxonomy-F `pattern_id` at `minor`, so they can reach at most `SOFT_FLAGS` —
-never an authorship or misconduct verdict. That cap is enforced in code
-(`SURFACE_ONLY_SKILLS` in `tools/adjudicate_findings.py`), not just promised.
-
-And an **eval harness** (`eval/`) proves the deterministic core on clean +
-synthetically-corrupted fixtures every change — measured false-positive / recall,
-not vibes.
-
 ## 🚀 Quickstart
 
 ### Agent workflow (normal use)
@@ -193,6 +61,122 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
     --paper-id mypaper --observability-level 1 --out report.json --md REPORT.md
 #   --ledger is REQUIRED: a finding must quote a verbatim ledger span or it fails closed to info.
 ```
+
+## 🎯 Why this exists
+
+Machine-generated papers and reviews are now a measurable share of the literature,
+and the failure that matters for an area chair is rarely *"was this text written by
+an LLM?"* (a human can write a dishonest paper; an LLM can write an honest one). It
+is: **does the paper contradict itself, and is it backed by its own evidence?**
+
+That is what autoresearch pipelines get wrong — they hallucinate *local* coherence:
+an abstract number that no table reports, a "16% improvement" that the operands say
+is 6%, a citation for a claim the cited paper never makes, a method described one
+way and evaluated another.
+
+Those are checkable under a declared observability level. Concretely, taxonomy v0.2
+names **27 hack-patterns across 6 families** (numeric self-consistency · method /
+scope · baseline integrity · experiment integrity · citation integrity ·
+presentation / surface signals) — the repo's **coverage vocabulary**, not a
+27-detector benchmark.
+
+> **Shipped v0:** the deterministic spine and the three ✓ patterns below are
+> eval-tested; the other 24 are agent-layer contracts (a cross-model reviewer
+> proposes span-anchored findings, the deterministic adjudicator scores or demotes
+> them) — not bundled-eval detector claims.
+
+The full catalog, with detection signals and false-positive cases, lives in
+[the taxonomy](references/hack-pattern-taxonomy.md). A representative ten (✓ = gated
+by the deterministic eval today):
+
+- `HP-NUM-INFLATE` — abstract says 85.3%, but Table 2 never gets past 84.7%. ✓
+- `HP-DELTA-ERROR` — a "16% improvement" from 73.1 to 78.0 is really 6.7%. ✓
+- `HP-DUP-TABLE` — two tables carry the identical ordered numbers — usually copy-paste padding. ✓
+- `HP-METHOD-DRIFT` — the method section says "no labels"; the eval quietly uses gold-label calibration.
+- `HP-SCOPE-INFLATE` — "comprehensive" turns out to be two datasets, one domain, maybe one seed.
+- `HP-MISSING-BASELINE` — SOTA is claimed while the obvious recent baseline never appears in the table.
+- `HP-FAKE-GT` — (L2) the "reference" targets are model outputs, then reported as ground truth.
+- `HP-PHANTOM-RESULT` — (L2) a headline number points at a result file or metric key that isn't there.
+- `HP-SUSPICIOUS-REGULARITY` — (L2) rows differ by a suspiciously clean offset — check the files before calling it fake.
+- `HP-CITE-HALLUC` — the DOI / arXiv id / venue / author list simply doesn't exist.
+
+<details>
+<summary><b>… the other 17, listed in full (across all 6 families)</b></summary>
+
+**A · Numeric self-consistency**
+- `HP-AGG-DRIFT` — they write "mean over seeds", but the number is really the best seed.
+- `HP-DENOM-DRIFT` — one table averages all tasks; the conclusion quietly uses the applicable-only subset.
+- `HP-UNIT-DIR-MISMATCH` — points silently become percent, or a lower-better metric is celebrated upward.
+- `HP-CAPTION-MISMATCH` — the caption promises N=5 and method B; the plot shows neither.
+- `HP-APPENDIX-CONTRA` — the appendix reruns the same quantity and disagrees with the main text.
+
+**B · Method & scope**
+- `HP-ABLATION-ATTRIB` — they credit component X, but every ablation keeps X bundled with Y.
+- `HP-THEOREM-SCOPE-DRIFT` — the abstract sells a general theorem; the assumptions do nearly all the work.
+
+**C · Baseline integrity**
+- `HP-WEAK-BASELINE` — the new method gets tuning and compute the baseline plainly did not.
+- `HP-SIG-OVERLAP` — "outperforms" by crumbs, with overlapping error bars or no seeds shown.
+
+**D · Experiment integrity** (needs code/results — L2)
+- `HP-SELF-NORM` — (L2) the score nears 1.0 because it's divided by the model's own max.
+- `HP-DEAD-METRIC` — (L2) a metric function exists with no call site and no result, yet is discussed.
+
+**E · Citation integrity**
+- `HP-CITE-CONTEXT` — real paper, wrong job: cited for a claim it explicitly doesn't make.
+
+**F · Presentation & surface signals** (capped at `minor` — never a verdict)
+- `HP-THIN-FLOAT` — a "broad empirical study" somehow has two tables and one lonely figure.
+- `HP-LLM-FIGURE` — the "figure" is decorative model art, not a plot or a real diagram.
+- `HP-PAGE-PADDING` — oversized floats, repeated text, or empty prose doing page-count labor.
+- `HP-JARGON-STUFF` — dense buzzwords pile up while the surrounding argument adds almost nothing.
+- `HP-AI-FLAVOR` — boilerplate transitions and identical paragraph rhythms; context, not evidence.
+
+</details>
+
+**This is not hypothetical.** Paraphrased from a public reviewer account during the
+NeurIPS 2026 cycle (illustrative, not a citation), one batch maps almost one-to-one
+onto the taxonomy this repo encodes:
+
+> - *Paper 1* — "data tables don't match the text; several rows are misaligned;
+>   there's an obvious add/subtract regularity across backbones — it doesn't look
+>   like it was actually run." → consistency · `HP-SUSPICIOUS-REGULARITY`
+> - *Paper 2* — "two tables fill a page and are identical; the one figure is
+>   LLM-generated; and it *still* didn't fill 9 pages." → `HP-DUP-TABLE` ·
+>   presentation signals
+> - *Paper 3* — "formula derivations don't hold; the experiments look complete but
+>   the math can't give those results." → claim-vs-derivation
+> - *Paper 4* — "open-sourced, beautifully written and drawn — but I ran the code
+>   and it gives completely different results from the paper." → experiment-forensics (L2)
+
+The fourth case is this repo's thesis in one line: **surface polish is not integrity.**
+
+## 🔒 How it stays honest (the anti-"LLM-slop" design)
+
+The obvious dismissal of any such tool is *"an LLM grading another LLM's paper is
+just noise."* Three structural defenses, not just a disclaimer:
+
+1. **Evidence ledger.** One deterministic pass turns the paper into `claims.json` —
+   span-anchored, hashed claims. Every finding must cite a `claim_id` + verbatim
+   span. **No span → it cannot be a high-severity finding.**
+2. **The LLM never grades.** Auditors *propose* findings; a **deterministic
+   adjudicator** (`tools/adjudicate_findings.py`, pure rules) computes the verdict.
+   Same findings → same verdict, with no model in the final decision.
+3. **Observability levels.** A run declares what it could see (L0 PDF-only → L2
+   repo+results); findings that need code are **auto-demoted** on a PDF-only run.
+   You can never shout "fraud" from a PDF. See
+   [references/observability-levels.md](references/observability-levels.md).
+
+**Surface / AI-flavor signals have a separate firewall.** AI-flavor prose, duplicate
+tables, LLM-generated figures, and page-padding are reported only as
+*high-false-positive context*: the adjudicator hard-caps `presentation-signals` and
+every taxonomy-F `pattern_id` at `minor`, so they can reach at most `SOFT_FLAGS` —
+never an authorship or misconduct verdict. That cap is enforced in code
+(`SURFACE_ONLY_SKILLS` in `tools/adjudicate_findings.py`), not just promised.
+
+And an **eval harness** (`eval/`) proves the deterministic core on clean +
+synthetically-corrupted fixtures every change — measured false-positive / recall,
+not vibes.
 
 ## 🏗️ Architecture
 

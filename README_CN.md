@@ -12,117 +12,6 @@ AI-Scientist 式）的论文产出。**
 
 ---
 
-## 🎯 为什么需要它
-
-机器生成的论文/审稿已成为文献中可测量的一部分,但对 AC 真正要紧的,从来不是
-"这段文字是不是 LLM 写的"(人能写出造假论文,LLM 也能写出诚实论文),而是:
-
-> **论文是否自相矛盾、是否被它自己的证据支撑?**
-
-这恰恰是 autoresearch 流水线最容易出错的地方 —— 它们为叙事做优化,幻觉出
-**局部**自洽:摘要里一个任何表格都没有的数字、号称"提升 16%"而操作数算出来只有
-6%、为某条主张引用了一篇根本没这么说的论文、方法描述与实际评测不一致。
-
-这些都是在**声明的可观测性层级下可核查**的。具体地,taxonomy v0.2 编码了
-**6 个家族、27 个 hack-pattern**(数值自洽 · 方法/范围 · baseline 诚信 · 实验诚信 ·
-引用诚信 · 表象/surface 信号)。请把它当作本仓库的**覆盖词表(coverage vocabulary)**,
-而**不是**一个"27 个检测器的 benchmark":零依赖的确定性 eval 目前只把关其中 **3 个**
-(`HP-DELTA-ERROR`、`HP-NUM-INFLATE`、`HP-DUP-TABLE`);其余 **24 个**是 agent 层检查 ——
-跨模型审计员提出带 span 锚点的 finding,再由确定性裁决器按证据、可观测性、假阳风险
-打分或降级。
-
-代表性的一小撮(✓ = 当前已被确定性 eval 把关;其余为 agent 层;完整目录见
-[taxonomy](references/hack-pattern-taxonomy.md)):
-
-- `HP-NUM-INFLATE` — 头条数字大于它自己的表格 ✓
-- `HP-DELTA-ERROR` — 相对提升的算术对不上 ✓
-- `HP-DUP-TABLE` — 重复 / 近乎一样的表格 ✓
-- `HP-METHOD-DRIFT` — 描述的方法 ≠ 实际评测的方法
-- `HP-SCOPE-INFLATE` — 范围措辞超过证据
-- `HP-MISSING-BASELINE` — 该有的 SOTA 对比缺席
-- `HP-FAKE-GT` — "ground truth" 由模型输出派生(L2)
-- `HP-PHANTOM-RESULT` — 报告的数字没有任何产物支撑(L2)
-- `HP-SUSPICIOUS-REGULARITY` — 结果太规整,不像真跑出来的
-- `HP-CITE-HALLUC` — 编造 / 不存在的引用
-
-<details>
-<summary><b>……另外 17 个,覆盖全部 6 个家族</b></summary>
-
-- **A · 数值自洽** — `HP-AGG-DRIFT`(best 当 mean 报)· `HP-DENOM-DRIFT`(统计口径漂移)· `HP-UNIT-DIR-MISMATCH`(单位/方向混淆)· `HP-CAPTION-MISMATCH`(caption ≠ 内容)· `HP-APPENDIX-CONTRA`(附录与正文矛盾)
-- **B · 方法 & 范围** — `HP-ABLATION-ATTRIB`(增益未被 ablation 隔离)· `HP-THEOREM-SCOPE-DRIFT`(摘要泛化、定理却很窄)
-- **C · baseline 诚信** — `HP-WEAK-BASELINE`(baseline 欠调 / 配置不一致)· `HP-SIG-OVERLAP`("超过"但误差棒重叠)
-- **D · 实验诚信(L2)** — `HP-SELF-NORM`(用模型自己的统计量归一化分数)· `HP-DEAD-METRIC`(指标定义了却从未计算)
-- **E · 引用诚信** — `HP-CITE-CONTEXT`(真论文,却被用来支持它没说的主张)
-- **F · 表象 / surface — 封顶在 `minor`** — `HP-THIN-FLOAT`(图表太少)· `HP-LLM-FIGURE`(机器生成的图)· `HP-PAGE-PADDING`(凑页数的填充)· `HP-JARGON-STUFF`(堆砌名词)· `HP-AI-FLAVOR`(泛泛的 LLM 文风)
-
-</details>
-
-**这不是假想。** 转述自 NeurIPS 2026 周期一则公开的审稿人吐槽(示意,非正式引用),
-一批稿件几乎逐条命中本仓库编码的 taxonomy:
-
-> - *第一篇* — "数据表和正文对不上,好几行错位,不同 backbone 间明显的加减乘除
->   规律性,不像跑出来的。" → consistency · `HP-SUSPICIOUS-REGULARITY`
-> - *第二篇* — "两张表占满一页且一模一样,唯一的图还是大模型生成的,就这还没写满
->   9 页。" → `HP-DUP-TABLE` · 表象信号
-> - *第三篇* — "公式推导不通,关键问题数学上不正确,实验看着完整但公式错了结果不知
->   道怎么对上的。" → claim 与推导不一致
-> - *第四篇* — "开源了,结构完整绘图精美书写流畅 —— 但我把代码跑了,和正文结果南辕
->   北辙。" → experiment-forensics (L2)
-
-第四篇就是本仓库的论点一句话版:**表面光鲜 ≠ 诚信。**
-
-## 🧩 它填补的空白
-
-现有工作分三簇:(A) **AI 文本检测**(文体学,"是不是 LLM 写的");(B) **AI 审稿
-检测**;(C) **通用 claim/严谨性核查**(FactReview、RIGOURATE、引用造假分类法)。
-本仓库瞄准的空白是它们的**组合**:**autoresearch 专属的实质性诚信取证** —— 即"内部
-自洽取证 + autoresearch 专属 hack-pattern 分类法"。我们把论文**与它自己**对照(不需要
-外部 ground truth,而这正是机器产出露馅的地方),并把失败目录专门化到 autoresearch。
-它**不是** AI 文本分类器(Pangram/GPTZero/Binoculars)、不是 AI 审稿检测器、不下学术
-不端判决、也不是会改论文的"合著者"。详见 [docs/positioning.md](docs/positioning.md)。
-
-## 🚦 状态 —— v0 到底交付了什么
-
-把"今天就能跑"和"agent 编排合同"分清楚(这正是本仓库的要点 —— 见 [DESIGN.md](DESIGN.md)):
-
-- **确定性内核 —— 现在就能跑、零依赖、有测试。** 证据账本抽取器、artifact-manifest /
-  可观测性推导、数值自洽检查(`HP-DELTA-ERROR`、`HP-NUM-INFLATE`)、规则裁决器。`eval/`
-  测试台为它们把关:在自带 fixture 上对 **3 个确定性模式**(`HP-DELTA-ERROR`、
-  `HP-NUM-INFLATE`、`HP-DUP-TABLE`)**100% 召回、零干净假阳**,每条 above-info finding
-  都有 ledger 锚点。这是承重的、可复现的部分 —— 全程无模型。
-- **agent 层审计 —— alpha,需要 Claude + 跨模型 reviewer。** 语义 skill(方法漂移、
-  ablation 归因、错引上下文、baseline 充分性、实验代码诚信,以及辅助的表象/AI 味信号)
-  是经 `/anti-autoresearch` 由 agent 执行的 `SKILL.md` 合同。它们提出带 span 锚点的
-  finding,交由**同一个**确定性裁决器打分;**目前还没进自带的确定性 eval** —— 为这些
-  语义模式补 fixture 是 roadmap,不是已交付的 claim。
-
-**裁决机制和数值内核是真实且经测试的**;语义覆盖是一份随 taxonomy 与 eval 一起生长的
-agent 合同。v0 已交付的 claim 刻意收窄、可测试;更广义的"造假取证"是方向,如上诚实标注。
-
-## 🔒 它如何保持诚实(反"LLM 互查互骗"设计)
-
-对这类工具最常见的质疑是"一个 LLM 给另一个 LLM 的论文打分,就是噪声"。我们有三道
-**结构性**防线,而非一句免责声明:
-
-1. **证据账本(evidence ledger)**:一次确定性抽取把论文变成 `claims.json` ——
-   带 span 锚点、带哈希的 claim。每条 finding 必须引用 `claim_id` + 原文 span,
-   **没有 span 就不能是高严重度 finding**。
-2. **LLM 永不打分**:审计 skill 只**提出** finding;**确定性裁决器**
-   (`tools/adjudicate_findings.py`,纯规则)算出 verdict。相同 finding → 相同
-   verdict,最终决策里没有任何模型。
-3. **可观测性分层**:每次运行声明它能看到什么(L0 仅 PDF → L2 含代码+结果);
-   需要代码才能判的 finding 在仅 PDF 运行时**自动降级** —— 你永远无法"从一份
-   PDF 喊造假"。见 [references/observability-levels.md](references/observability-levels.md)。
-
-**表象 / AI 味信号有一道单独的防火墙。** AI 味文风、重复表格、LLM 配图、凑页数,只作为
-**高假阳的上下文**报告:裁决器把 `presentation-signals` 以及所有 taxonomy-F 的
-`pattern_id` **硬封顶在 `minor`**,所以它们最多触发 `SOFT_FLAGS` —— 绝不会成为作者身份
-或学术不端的判决。这个封顶是**代码强制**的(`tools/adjudicate_findings.py` 里的
-`SURFACE_ONLY_SKILLS`),不是口头承诺。
-
-外加一个 **eval 测试台**(`eval/`):每次改动都在干净 + 人工注入缺陷的 fixture 上
-验证确定性核心 —— 量出假阳/召回,而不是凭感觉。
-
 ## 🚀 快速开始
 
 ### Agent 工作流(常规用法)
@@ -169,6 +58,112 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
     --paper-id mypaper --observability-level 1 --out report.json --md REPORT.md
 #   --ledger 必填:finding 必须引用逐字 ledger span,否则 fail-closed 降到 info。
 ```
+
+## 🎯 为什么需要它
+
+机器生成的论文/审稿已成为文献中可测量的一部分,但对 AC 真正要紧的,从来不是
+"这段文字是不是 LLM 写的"(人能写出造假论文,LLM 也能写出诚实论文),而是:
+
+> **论文是否自相矛盾、是否被它自己的证据支撑?**
+
+这恰恰是 autoresearch 流水线最容易出错的地方 —— 它们为叙事做优化,幻觉出
+**局部**自洽:摘要里一个任何表格都没有的数字、号称"提升 16%"而操作数算出来只有
+6%、为某条主张引用了一篇根本没这么说的论文、方法描述与实际评测不一致。
+
+这些都是在**声明的可观测性层级下可核查**的。具体地,taxonomy v0.2 编码了
+**6 个家族、27 个 hack-pattern**(数值自洽 · 方法/范围 · baseline 诚信 · 实验诚信 ·
+引用诚信 · 表象/surface 信号)—— 这是本仓库的**覆盖词表**,而不是"27 个检测器的
+benchmark"。
+
+> **已交付 v0:**确定性脊柱 + 下面带 ✓ 的 3 个模式经 eval 测试;其余 24 个是 agent
+> 层合同(跨模型 reviewer 提出带 span 锚点的 finding,确定性裁决器打分或降级)——
+> 不是"自带 eval 的检测器"承诺。
+
+完整目录(含检测信号与假阳案例)见 [taxonomy](references/hack-pattern-taxonomy.md)。
+下面是代表性的十个(✓ = 当前已被确定性 eval 把关):
+
+- `HP-NUM-INFLATE` — 摘要写 85.3%,可表 2 最高才 84.7%。✓
+- `HP-DELTA-ERROR` — 号称"提升 16%",73.1→78.0 其实只有 6.7%。✓
+- `HP-DUP-TABLE` — 两张表数字逐位相同 —— 多半是复制粘贴凑数。✓
+- `HP-METHOD-DRIFT` — 方法说"不用标签",评测却悄悄用了 gold-label 校准。
+- `HP-SCOPE-INFLATE` — "comprehensive" 一看就是两个数据集、一个领域、可能就一个 seed。
+- `HP-MISSING-BASELINE` — 号称 SOTA,可那个该有的近期 baseline 表里压根没出现。
+- `HP-FAKE-GT` — (L2) "参考答案"是模型自己的输出,却当成 ground truth 报。
+- `HP-PHANTOM-RESULT` — (L2) 头条数字指向一个并不存在的结果文件 / 指标键。
+- `HP-SUSPICIOUS-REGULARITY` — (L2) 行与行差一个太整齐的常数 —— 先看文件再说"假"。
+- `HP-CITE-HALLUC` — DOI / arXiv 号 / venue / 作者名,根本查无此文。
+
+<details>
+<summary><b>……另外 17 个,逐条列全(覆盖全部 6 个家族)</b></summary>
+
+**A · 数值自洽**
+- `HP-AGG-DRIFT` — 写着"多 seed 平均",那个数其实是最好的一个 seed。
+- `HP-DENOM-DRIFT` — 一张表对所有任务平均,结论却偷换成"适用任务"子集。
+- `HP-UNIT-DIR-MISMATCH` — 百分点悄悄变百分比,或把"越低越好"的指标当越高越好夸。
+- `HP-CAPTION-MISMATCH` — caption 说 N=5、方法 B,图里两样都没有。
+- `HP-APPENDIX-CONTRA` — 附录把同一个量重算一遍,和正文对不上。
+
+**B · 方法 & 范围**
+- `HP-ABLATION-ATTRIB` — 把功劳记给组件 X,但每个 ablation 里 X 都和 Y 绑在一起。
+- `HP-THEOREM-SCOPE-DRIFT` — 摘要卖一个通用定理,真正干活的全是那些假设。
+
+**C · baseline 诚信**
+- `HP-WEAK-BASELINE` — 新方法拿到的调参和算力,baseline 明显没给。
+- `HP-SIG-OVERLAP` — "超过"就那么一点点,误差棒重叠、或干脆没报 seed。
+
+**D · 实验诚信**(需要代码/结果 —— L2)
+- `HP-SELF-NORM` — (L2) 分数接近 1.0,因为除以了模型自己的 max。
+- `HP-DEAD-METRIC` — (L2) 指标函数有定义、没调用、没结果,却还在正文里讨论。
+
+**E · 引用诚信**
+- `HP-CITE-CONTEXT` — 真论文,用错地方:拿来支持一个它明确没说的主张。
+
+**F · 表象 / surface 信号**(封顶在 `minor` —— 永不定罪)
+- `HP-THIN-FLOAT` — "大规模实证"全文就两张表加一张孤零零的图。
+- `HP-LLM-FIGURE` — 那张"图"是装饰性的模型作画,不是图表也不是真示意图。
+- `HP-PAGE-PADDING` — 超大浮动图、重复段落、空话,都在替页数干活。
+- `HP-JARGON-STUFF` — 名词堆成山,周围的论证几乎没贡献什么。
+- `HP-AI-FLAVOR` — 模板化过渡 + 整齐划一的段落节奏;当上下文,不当证据。
+
+</details>
+
+**这不是假想。** 转述自 NeurIPS 2026 周期一则公开的审稿人吐槽(示意,非正式引用),
+一批稿件几乎逐条命中本仓库编码的 taxonomy:
+
+> - *第一篇* — "数据表和正文对不上,好几行错位,不同 backbone 间明显的加减乘除
+>   规律性,不像跑出来的。" → consistency · `HP-SUSPICIOUS-REGULARITY`
+> - *第二篇* — "两张表占满一页且一模一样,唯一的图还是大模型生成的,就这还没写满
+>   9 页。" → `HP-DUP-TABLE` · 表象信号
+> - *第三篇* — "公式推导不通,关键问题数学上不正确,实验看着完整但公式错了结果不知
+>   道怎么对上的。" → claim 与推导不一致
+> - *第四篇* — "开源了,结构完整绘图精美书写流畅 —— 但我把代码跑了,和正文结果南辕
+>   北辙。" → experiment-forensics (L2)
+
+第四篇就是本仓库的论点一句话版:**表面光鲜 ≠ 诚信。**
+
+## 🔒 它如何保持诚实(反"LLM 互查互骗"设计)
+
+对这类工具最常见的质疑是"一个 LLM 给另一个 LLM 的论文打分,就是噪声"。我们有三道
+**结构性**防线,而非一句免责声明:
+
+1. **证据账本(evidence ledger)**:一次确定性抽取把论文变成 `claims.json` ——
+   带 span 锚点、带哈希的 claim。每条 finding 必须引用 `claim_id` + 原文 span,
+   **没有 span 就不能是高严重度 finding**。
+2. **LLM 永不打分**:审计 skill 只**提出** finding;**确定性裁决器**
+   (`tools/adjudicate_findings.py`,纯规则)算出 verdict。相同 finding → 相同
+   verdict,最终决策里没有任何模型。
+3. **可观测性分层**:每次运行声明它能看到什么(L0 仅 PDF → L2 含代码+结果);
+   需要代码才能判的 finding 在仅 PDF 运行时**自动降级** —— 你永远无法"从一份
+   PDF 喊造假"。见 [references/observability-levels.md](references/observability-levels.md)。
+
+**表象 / AI 味信号有一道单独的防火墙。** AI 味文风、重复表格、LLM 配图、凑页数,只作为
+**高假阳的上下文**报告:裁决器把 `presentation-signals` 以及所有 taxonomy-F 的
+`pattern_id` **硬封顶在 `minor`**,所以它们最多触发 `SOFT_FLAGS` —— 绝不会成为作者身份
+或学术不端的判决。这个封顶是**代码强制**的(`tools/adjudicate_findings.py` 里的
+`SURFACE_ONLY_SKILLS`),不是口头承诺。
+
+外加一个 **eval 测试台**(`eval/`):每次改动都在干净 + 人工注入缺陷的 fixture 上
+验证确定性核心 —— 量出假阳/召回,而不是凭感觉。
 
 ## ⚠️ 局限(信任任何报告前必读)
 
