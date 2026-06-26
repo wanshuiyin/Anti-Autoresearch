@@ -157,18 +157,6 @@ Anti-Autoresearch **派生自 ARIS**,复用了它的审计 DNA。如果本仓库
 }
 ```
 
-如需专门引用本仓库:
-
-```bibtex
-@misc{antiautoresearch2026,
-  title={Anti-Autoresearch: Substantive Integrity Forensics for Autoresearch Papers},
-  author={Yang, Ruofeng},
-  year={2026},
-  howpublished={\url{https://github.com/wanshuiyin/Anti-Autoresearch}},
-  note={A sibling project of ARIS (arXiv:2605.03042)}
-}
-```
-
 ## 许可证
 
 MIT,见 [LICENSE](LICENSE)。

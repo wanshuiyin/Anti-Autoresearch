@@ -1,13 +1,12 @@
 cff-version: 1.2.0
 message: >-
   Anti-Autoresearch is derived from ARIS. If this repository helped your research /
-  paper / review, please cite the ARIS methodology paper (under "references" below);
-  you may also cite this repository directly.
+  paper / review, please cite ARIS — the methodology paper below (this is the
+  preferred citation; GitHub's "Cite this repository" emits it).
 title: "Anti-Autoresearch: Substantive Integrity Forensics for Autoresearch Papers"
 authors:
   - family-names: Yang
     given-names: Ruofeng
-year: 2026
 url: "https://github.com/wanshuiyin/Anti-Autoresearch"
 repository-code: "https://github.com/wanshuiyin/Anti-Autoresearch"
 license: MIT
@@ -17,17 +16,16 @@ keywords:
   - AI-generated papers
   - peer review
   - forensics
-references:
-  - type: article
-    title: "ARIS: Autonomous Research via Adversarial Multi-Agent Collaboration"
-    authors:
-      - family-names: Yang
-        given-names: Ruofeng
-      - family-names: Li
-        given-names: Yongcan
-      - family-names: Li
-        given-names: Shuai
-    year: 2026
-    journal: "arXiv preprint arXiv:2605.03042"
-    url: "https://arxiv.org/abs/2605.03042"
-    notes: "ARIS — the parent project / methodology paper."
+preferred-citation:
+  type: article
+  title: "ARIS: Autonomous Research via Adversarial Multi-Agent Collaboration"
+  authors:
+    - family-names: Yang
+      given-names: Ruofeng
+    - family-names: Li
+      given-names: Yongcan
+    - family-names: Li
+      given-names: Shuai
+  year: 2026
+  journal: "arXiv preprint arXiv:2605.03042"
+  url: "https://arxiv.org/abs/2605.03042"

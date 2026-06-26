@@ -240,18 +240,6 @@ paper:
 }
 ```
 
-To cite this repository specifically:
-
-```bibtex
-@misc{antiautoresearch2026,
-  title={Anti-Autoresearch: Substantive Integrity Forensics for Autoresearch Papers},
-  author={Yang, Ruofeng},
-  year={2026},
-  howpublished={\url{https://github.com/wanshuiyin/Anti-Autoresearch}},
-  note={A sibling project of ARIS (arXiv:2605.03042)}
-}
-```
-
 ## License
 
 MIT — see [LICENSE](LICENSE).
