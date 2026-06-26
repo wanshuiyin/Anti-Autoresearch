@@ -53,11 +53,11 @@ The run writes `REPORT.md` + `report.json` + `claims.json` + per-skill
 the paper to unlock L2 checks; PDF/source-only runs are observability-limited by
 design.
 
-### Single-skill / à la carte usage
+### Single-skill use
 
-Every auditor is also a standalone skill — the installer drops all nine plus the
-workflow, so you can run just the axis you care about (only citations, only the
-proof, only numeric consistency). They share one contract, so run it in order:
+Every auditor is also a standalone skill — the installer drops all of them plus the
+workflow, so you can run just the axis you care about. They share one contract, so
+run it in order:
 
 ```text
 claude
@@ -65,19 +65,30 @@ claude
 #    any auditor stops with:  NO_LEDGER: claims.json not found. Run /evidence-ledger FIRST
 > /evidence-ledger ~/papers/submission        # → claims.json + observability level (L0/L1/L2)
 
-# 2) Run just the auditor(s) you want, against that ledger → <skill>.findings.json
-> /consistency-audit ~/papers/submission      # or /proof-derivation-forensics · /citation-forensics · …
+# 2) Then run any auditor below against that ledger → <skill>.findings.json
 ```
 
-A single skill only ever **proposes** span-anchored findings — it never returns a
-verdict. To turn findings into one, feed them to the deterministic adjudicator (the
-`python3 tools/adjudicate_findings.py … --ledger …` command in the next section); the
-model never grades. Worth knowing:
+**The auditors** — each takes the paper dir, reads the ledger, writes `<skill>.findings.json`:
 
-- **`consistency-audit` / `presentation-signals`** also emit a `*.deterministic.findings.json` — usable with no cross-model reviewer wired.
-- **`adversarial-case-builder` / `novelty-duplication-advisory`** are memo-only — an advisory memo, zero verdict weight, standalone or not.
-- **`proof-derivation-forensics`** is verdict-bearing only at **L1** (needs the LaTeX source); on a PDF-only run its findings stay `info` — PDF-extracted math is unreliable.
-- **`/anti-autoresearch`** adds what à la carte skips: ingest (arxiv-id / pdf → workdir + `pdftotext`), automatic observability derivation, auto-selecting auditors from the claim types present, and the final cross-dimension verdict + `REPORT.md`.
+| Skill | What it catches |
+|-------|-----------------|
+| `/consistency-audit` | the paper against itself: inflated / mismatched numbers, method & scope drift, appendix-vs-body contradictions |
+| `/citation-forensics` | citations: hallucinated references, and real papers cited for a claim they don't make |
+| `/baseline-comparison-audit` | the missing / weak / mistuned baselines hiding behind a "SOTA" or "outperforms" claim |
+| `/experiment-forensics` | *(L2 — needs code+results)* fake / derived ground truth, score self-normalization, phantom results, placeholder data, code output ≠ reported numbers |
+| `/proof-derivation-forensics` | *(L1 — needs LaTeX source)* the written proof: skipped obligations, circularity, invalid steps, symbol drift, smuggled assumptions |
+| `/presentation-signals` | *(capped at `minor`)* surface tells: duplicate tables, LLM-generated figures, page-padding, AI-flavor prose — context, never a verdict |
+| `/adversarial-case-builder` | *(memo, no verdict)* the single strongest evidence-bound rejection paragraph a hostile reviewer would write |
+| `/novelty-duplication-advisory` | *(memo, no verdict)* prior-work overlap: trivial-combination ("缝合 / stapling") and duplicate-publication candidates, laid out for a human to weigh |
+
+A single skill only **proposes** span-anchored findings — it never returns a verdict.
+To get one, feed the findings to the deterministic adjudicator (the
+`python3 tools/adjudicate_findings.py … --ledger …` command in the next section); the
+model never grades. Two more notes: `consistency-audit` and `presentation-signals` also
+write a `*.deterministic.findings.json` (works with no cross-model reviewer wired); and
+**`/anti-autoresearch`** runs every auditor above in one shot, adding ingest
+(arxiv-id / pdf → workdir + `pdftotext`), automatic observability, auto-selection of
+which auditors apply, and the final cross-dimension verdict + `REPORT.md`.
 
 ### Deterministic core (CI / offline / zero-dependency)
 

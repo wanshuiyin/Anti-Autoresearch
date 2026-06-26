@@ -50,11 +50,10 @@ claude
 `*.findings.json` 写进论文目录。把代码/结果产物和论文放一起即可解锁 L2 检查;仅
 PDF/源码的运行按设计受可观测性限制。
 
-### 单 skill / 按需取用(à la carte)
+### 单 skill 用法
 
-每个 auditor 也都是独立 skill —— 安装脚本会把全部九个 skill 加 workflow 一起装上,
-所以你可以只跑你关心的那个轴(只查引用、只查证明、只查数值自洽)。它们共享同一条契约,
-按顺序来:
+每个 auditor 也都是独立 skill —— 安装脚本会把它们和 workflow 一起装上,所以你可以只跑
+你关心的那个轴。它们共享同一条契约,按顺序来:
 
 ```text
 claude
@@ -62,18 +61,28 @@ claude
 #    NO_LEDGER: claims.json not found. Run /evidence-ledger FIRST
 > /evidence-ledger ~/papers/submission        # → claims.json + 可观测层级(L0/L1/L2)
 
-# 2) 只跑你要的那个 auditor,针对该账本 → <skill>.findings.json
-> /consistency-audit ~/papers/submission      # 或 /proof-derivation-forensics · /citation-forensics · …
+# 2) 然后针对该账本,跑下面任意一个 auditor → <skill>.findings.json
 ```
 
-单个 skill 永远只**提出**带 span 锚点的 findings,**不给 verdict**。要把 findings 变判决,
-得把它喂给确定性裁决器(下一节里那条 `python3 tools/adjudicate_findings.py … --ledger …`)——
-模型从不打分。几点要知道:
+**各 auditor** —— 都接收论文目录、读账本、写 `<skill>.findings.json`:
 
-- **`consistency-audit` / `presentation-signals`** 另外会出 `*.deterministic.findings.json` —— 没接跨模型 reviewer 也能用。
-- **`adversarial-case-builder` / `novelty-duplication-advisory`** 是 memo-only —— 出一份咨询 memo,零 verdict 权重,单跑也一样。
-- **`proof-derivation-forensics`** 只在 **L1** 有判决权重(需要 LaTeX 源);仅 PDF(L0)运行时它的 findings 停在 `info` —— PDF 抽数学不可靠。
-- **`/anti-autoresearch`** 帮你省掉的:ingest(arxiv-id / pdf → 工作目录 + `pdftotext`)、自动定可观测层级、按论文里实际有哪些 claim 类型自动选要跑哪些 auditor、以及最后的跨维度判决 + `REPORT.md`。
+| Skill | 抓什么 |
+|-------|--------|
+| `/consistency-audit` | 论文与自身比对:数字虚高 / 对不上、方法与范围漂移、附录与正文矛盾 |
+| `/citation-forensics` | 引用:查无此文的伪造引用,以及"真论文被拿来支持它没说过的主张" |
+| `/baseline-comparison-audit` | "SOTA" / "超过" 背后缺失 / 偏弱 / 调参不公的 baseline |
+| `/experiment-forensics` | *(L2 —— 需代码+结果)* 假 / 派生 GT、分数自归一化、幽灵结果、placeholder 数据、代码产出 ≠ 报告数字 |
+| `/proof-derivation-forensics` | *(L1 —— 需 LaTeX 源)* 写出来的证明:跳过的义务、循环论证、无效步骤、符号漂移、偷藏假设 |
+| `/presentation-signals` | *(封顶 `minor`)* 表象迹象:重复表、LLM 配图、页数注水、AI 味文风 —— 当上下文,永不定罪 |
+| `/adversarial-case-builder` | *(memo,不定罪)* 一个敌意审稿人会写的、最致命的、有证据支撑的拒稿段落 |
+| `/novelty-duplication-advisory` | *(memo,不定罪)* 与前作的重叠:trivial 组合("缝合")和重复发表候选,摆出来给人判断 |
+
+单个 skill 只**提出**带 span 锚点的 findings,**永远不给 verdict**。要判决,把 findings
+喂给确定性裁决器(下一节那条 `python3 tools/adjudicate_findings.py … --ledger …`)——
+模型从不打分。另外两点:`consistency-audit` 和 `presentation-signals` 还会写一份
+`*.deterministic.findings.json`(没接跨模型 reviewer 也能用);而 **`/anti-autoresearch`**
+一把跑完上面所有 auditor,并额外做 ingest(arxiv-id / pdf → 工作目录 + `pdftotext`)、
+自动定可观测层级、自动选哪些 auditor 适用、以及最后的跨维度判决 + `REPORT.md`。
 
 ### 确定性内核(CI / 离线 / 零依赖)
 
