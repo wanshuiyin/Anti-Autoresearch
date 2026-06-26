@@ -145,16 +145,15 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 
 ## 引用 Citation
 
-Anti-Autoresearch **派生自 ARIS**,复用了它的审计 DNA。如果你在学术工作中用到本仓库,
-**请引用 ARIS**(母项目):
+Anti-Autoresearch **派生自 ARIS**,复用了它的审计 DNA。如果本仓库对你的研究 / 论文 /
+审稿有帮助,请引用 ARIS 方法论论文:
 
 ```bibtex
-@article{aris2026,
-  title={Auto-claude-code-research-in-sleep (ARIS): Autonomous ML Research via Cross-Model Collaboration},
-  author={Yin, Wanshu and others},
-  year={2026},
-  howpublished={\url{https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep}},
-  note={Technical Report arXiv:2605.03042}
+@article{yang2026aris,
+  title={ARIS: Autonomous Research via Adversarial Multi-Agent Collaboration},
+  author={Yang, Ruofeng and Li, Yongcan and Li, Shuai},
+  journal={arXiv preprint arXiv:2605.03042},
+  year={2026}
 }
 ```
 
@@ -163,7 +162,7 @@ Anti-Autoresearch **派生自 ARIS**,复用了它的审计 DNA。如果你在学
 ```bibtex
 @misc{antiautoresearch2026,
   title={Anti-Autoresearch: Substantive Integrity Forensics for Autoresearch Papers},
-  author={Yin, Wanshu and others},
+  author={Yang, Ruofeng},
   year={2026},
   howpublished={\url{https://github.com/wanshuiyin/Anti-Autoresearch}},
   note={A sibling project of ARIS (arXiv:2605.03042)}

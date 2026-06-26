@@ -1,11 +1,12 @@
 cff-version: 1.2.0
 message: >-
-  Anti-Autoresearch is derived from ARIS. If you use this repository, please cite
-  ARIS (listed under "references" below); you may also cite this repository directly.
+  Anti-Autoresearch is derived from ARIS. If this repository helped your research /
+  paper / review, please cite the ARIS methodology paper (under "references" below);
+  you may also cite this repository directly.
 title: "Anti-Autoresearch: Substantive Integrity Forensics for Autoresearch Papers"
 authors:
-  - family-names: Yin
-    given-names: Wanshu
+  - family-names: Yang
+    given-names: Ruofeng
 year: 2026
 url: "https://github.com/wanshuiyin/Anti-Autoresearch"
 repository-code: "https://github.com/wanshuiyin/Anti-Autoresearch"
@@ -18,10 +19,15 @@ keywords:
   - forensics
 references:
   - type: article
-    title: "Auto-claude-code-research-in-sleep (ARIS): Autonomous ML Research via Cross-Model Collaboration"
+    title: "ARIS: Autonomous Research via Adversarial Multi-Agent Collaboration"
     authors:
-      - family-names: Yin
-        given-names: Wanshu
+      - family-names: Yang
+        given-names: Ruofeng
+      - family-names: Li
+        given-names: Yongcan
+      - family-names: Li
+        given-names: Shuai
     year: 2026
-    url: "https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep"
-    notes: "Parent project. Technical Report arXiv:2605.03042"
+    journal: "arXiv preprint arXiv:2605.03042"
+    url: "https://arxiv.org/abs/2605.03042"
+    notes: "ARIS — the parent project / methodology paper."
