@@ -317,6 +317,26 @@ author checking their own work: `consistency-audit` ← `paper-claim-audit`,
 `novelty-duplication-advisory` ← `novelty-check`, plus the new `evidence-ledger`
 spine and `presentation-signals`.
 
+## 🤝 Community & contributing
+
+**The taxonomy grows with the community.** Caught an autoresearch / AI-Scientist paper
+pulling a trick that isn't in the [39-pattern catalog](references/hack-pattern-taxonomy.md)
+yet? That is the single most valuable contribution here — open an issue with the concrete
+example, or send a PR adding the pattern (with an eval fixture + a false-positive case so
+it doesn't over-fire). New auditor skills, adjudicator gates, and corruption fixtures are
+just as welcome. **[CONTRIBUTING.md](CONTRIBUTING.md)** explains how a pattern is
+structured and the honesty rules every flag must follow (describe a checkable discrepancy,
+never impute misconduct or authorship).
+
+Join the WeChat group (shared with the [ARIS](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep)
+community) to swap autoresearch failure modes:
+
+<p align="center">
+  <img src="docs/wechat_group.jpg" alt="WeChat group QR code (shared with the ARIS community)" width="300">
+</p>
+
+*(The group QR rotates weekly — if it's expired, open an issue and we'll post a fresh one.)*
+
 ## 📖 Citation
 
 Anti-Autoresearch is **derived from ARIS** and reuses its audit DNA. If this

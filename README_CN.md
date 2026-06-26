@@ -262,6 +262,24 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 `novelty-duplication-advisory` ← `novelty-check`,外加新的 `evidence-ledger` 脊柱
 与 `presentation-signals`。
 
+## 🤝 交流群 & 贡献
+
+**这套分类法靠社区一起长大。** 看到某篇 autoresearch / AI-Scientist 论文耍了个
+[39 模式目录](references/hack-pattern-taxonomy.md)里还没有的花招?那是这里最有价值的贡献
+—— 开个 issue 贴上具体例子,或直接发 PR 把这个模式补进去(配一条 eval fixture + 一个假阳
+案例,免得它乱开火)。新的 auditor skill、裁决器 gate、corruption fixture 同样欢迎。
+**[CONTRIBUTING.md](CONTRIBUTING.md)** 讲清了一个 pattern 怎么写、以及每条 flag 必须守的
+诚实底线(描述可核查的矛盾,绝不臆断学术不端或作者身份)。
+
+加入微信群(与 [ARIS](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep)
+社区共享),一起交流 autoresearch 的各种翻车现象:
+
+<p align="center">
+  <img src="docs/wechat_group.jpg" alt="微信群二维码(与 ARIS 社区共享)" width="300">
+</p>
+
+*(群二维码每周轮换 —— 过期了就开个 issue,我们会贴新的。)*
+
 ## 📖 引用 Citation
 
 Anti-Autoresearch **派生自 ARIS**,复用了它的审计 DNA。如果本仓库对你的研究 / 论文 /
