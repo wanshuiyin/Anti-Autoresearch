@@ -2,22 +2,25 @@
 
 [![Parent ARIS stars](https://img.shields.io/github/stars/wanshuiyin/Auto-claude-code-research-in-sleep?style=flat&logo=github&logoColor=white&color=gold&label=Parent%20ARIS%20%E2%98%85)](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep/stargazers) · [![ARIS Report arXiv:2605.03042](https://img.shields.io/badge/ARIS%20Report-arXiv%3A2605.03042-b31b1b?style=flat&logo=arxiv)](https://arxiv.org/abs/2605.03042) · [![ARIS · HF Daily #1](https://img.shields.io/badge/ARIS%20%F0%9F%A4%97%20HF%20Daily-%231-ffcc4d?style=flat)](https://huggingface.co/papers/2605.03042) · [![ARIS on PaperWeekly](https://img.shields.io/badge/ARIS%20on-PaperWeekly-red?style=flat)](https://mp.weixin.qq.com/s/tDniVryVGjDkkkWl-5sTkQ) · [![ARIS in awesome-agent-skills](https://img.shields.io/badge/ARIS%20in-awesome--agent--skills-blue?style=flat&logo=github)](https://github.com/VoltAgent/awesome-agent-skills) · [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat)](LICENSE) · [![README English](https://img.shields.io/badge/README-English-blue?style=flat)](README.md)
 
-> 🏆 **建立在久经考验的根基上 —— [ARIS](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep) 的审稿侧对偶。** 本仓库的母仓 **ARIS** 有 **~12.5k★**、是 **HuggingFace Daily Papers #1**、拿过 **AI Digital Crew Project of the Day**、并提供 **78+ 研究技能 / 7+ 平台**(上方 arXiv / HF / PaperWeekly 等 badge 即指向它)。ARIS 做自动科研是*负责任*的 —— 多层审计栈(experiment-integrity · result-to-claim · paper-claim · citation)让它*自己*的产出保持诚实。**Anti-Autoresearch 就是这套生产级审计 DNA 朝外** —— 抓那些**没有**这些护栏就产出的自动科研论文。
+<div align="center">
 
-**面向研究论文的"实质性诚信取证"工具 —— 尤其针对机器生成（autoresearch /
-AI-Scientist 式）的论文产出。**
+### 🔬 天下苦 autoresearch 久矣 —— Anti-Autoresearch 替审稿人一眼看穿不靠谱的工作。
+
+***The field has tolerated unreliable autoresearch long enough — Anti-Autoresearch is the read that finally catches it.***
+
+</div>
+
+> 🏆 **建立在久经考验的根基上:[ARIS](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep)**(~12.5k★ · HuggingFace Daily Papers #1 · 78+ 技能 / 7+ 平台)。Anti-Autoresearch 把 ARIS 的生产级审计 DNA(experiment-audit · paper-claim-audit · citation-audit · kill-argument)**朝外** —— 审第三方的投稿,而不是你自己的。
 
 自动科研(autoresearch)正在泛滥,投稿堆里越来越多的论文出自机器之手 —— 而其中相当
 一部分**经不起细看**:表格和正文对不上、该有的 baseline 不见了、开源的代码跑出来和
 论文南辕北辙。审稿人、AC、以及诚实的作者,越来越需要一种办法去**验证**这件事,而不
-只是凭感觉怀疑。这正是本仓库要填的空白。
+只是凭感觉怀疑。
 
 > 不管论文是谁、是什么写的,它的科学结论是否自洽、是否被自己的证据支撑?
 > Anti-Autoresearch 审查一篇投稿的**自洽性**与**造假迹象**,产出带证据锚点、
 > 可供审稿人直接使用的报告。它**不是** AI 文本检测器,也**不下学术不端的结论**——
 > 它只把"值得人去核实的矛盾点"摆出来。
-
-<p align="center"><em>天下苦 autoresearch 久矣 —— Anti-Autoresearch 替审稿人一眼看穿不靠谱的工作。</em></p>
 
 ---
 
