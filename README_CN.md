@@ -3,6 +3,11 @@
 **面向研究论文的"实质性诚信取证"工具 —— 尤其针对机器生成（autoresearch /
 AI-Scientist 式）的论文产出。**
 
+自动科研(autoresearch)正在泛滥,投稿堆里越来越多的论文出自机器之手 —— 而其中相当
+一部分**经不起细看**:表格和正文对不上、该有的 baseline 不见了、开源的代码跑出来和
+论文南辕北辙。审稿人、AC、以及诚实的作者,越来越需要一种办法去**验证**这件事,而不
+只是凭感觉怀疑。这正是本仓库要填的空白。
+
 > **[ARIS](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep)（~12.5k★ 自动科研 agent 平台）的对偶。** ARIS 做自动科研是**负责任**的:它内置了多层审计栈(experiment-integrity · result-to-claim · 零上下文 paper-claim 审 · citation 审),让自己的产出保持诚实。**Anti-Autoresearch 就是这枚硬币的另一面** —— 把同一套审计 DNA 朝外,抓那些**没有**这些护栏就产出的自动科研论文。(English [README.md](README.md) · ARIS 来源见下文)
 
 > 不管论文是谁、是什么写的,它的科学结论是否自洽、是否被自己的证据支撑?

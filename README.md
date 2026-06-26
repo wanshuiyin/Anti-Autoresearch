@@ -3,6 +3,12 @@
 **Substantive integrity-forensics for research papers — especially machine-generated
 (autoresearch / AI-Scientist-style) output.**
 
+Autoresearch has gone mainstream, and a fast-growing share of what reaches the review
+pile is machine-generated — and a lot of it **doesn't hold up**: tables that don't
+match the text, baselines that aren't there, open-sourced code that won't reproduce
+its own paper. Reviewers, area chairs, and honest authors increasingly need to
+**verify** that, not just suspect it. That is the gap this repo is built for.
+
 > **The dual of [ARIS](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep)** — the ~12.5k★ autoresearch agent platform. ARIS is built to do autoresearch *responsibly*: it ships a multi-layer audit stack (experiment-integrity · result-to-claim · zero-context paper-claim audit · citation audit) so its **own** output stays honest. **Anti-Autoresearch is the other side of that coin** — the reviewer-side tool that catches autoresearch produced *without* those guardrails. Same audit DNA, pointed outward. (中文 [README_CN.md](README_CN.md) · ARIS provenance below)
 
 > Regardless of *who or what* wrote a paper, does the science hold together and
