@@ -3,7 +3,7 @@
 **Substantive integrity-forensics for research papers — especially machine-generated
 (autoresearch / AI-Scientist-style) output.**
 
-> **The dual of [ARIS](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep)** — the ~12.5k★ autoresearch agent platform. ARIS is built to do autoresearch *responsibly*: it ships a multi-layer audit stack (experiment-integrity · result-to-claim · zero-context paper-claim audit · citation audit) so its **own** output stays honest. **Anti-Autoresearch is the other side of that coin** — the reviewer-side tool that catches autoresearch produced *without* those guardrails. Same audit DNA, pointed outward. ([What is ARIS?](#provenance-derived-from-aris) · 中文 [README_CN.md](README_CN.md))
+> **The dual of [ARIS](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep)** — the ~12.5k★ autoresearch agent platform. ARIS is built to do autoresearch *responsibly*: it ships a multi-layer audit stack (experiment-integrity · result-to-claim · zero-context paper-claim audit · citation audit) so its **own** output stays honest. **Anti-Autoresearch is the other side of that coin** — the reviewer-side tool that catches autoresearch produced *without* those guardrails. Same audit DNA, pointed outward. (中文 [README_CN.md](README_CN.md) · ARIS provenance below)
 
 > Regardless of *who or what* wrote a paper, does the science hold together and
 > reflect its own evidence? Anti-Autoresearch audits a submission for
@@ -13,7 +13,7 @@
 
 ---
 
-## Why this exists
+## 🎯 Why this exists
 
 Machine-generated papers and reviews are now a measurable share of the literature,
 and the failure that matters for an area chair is rarely *"was this text written by
@@ -35,6 +35,32 @@ are agent-layer checks — cross-model auditors propose span-anchored findings, 
 deterministic adjudicator scores or demotes them by evidence, observability, and
 false-positive risk.
 
+A representative slice (✓ = gated by the deterministic eval today; the rest are
+agent-layer; full catalog in [the taxonomy](references/hack-pattern-taxonomy.md)):
+
+- `HP-NUM-INFLATE` — headline number exceeds its own table ✓
+- `HP-DELTA-ERROR` — relative-improvement arithmetic is wrong ✓
+- `HP-DUP-TABLE` — duplicate / near-identical tables ✓
+- `HP-METHOD-DRIFT` — described method ≠ evaluated method
+- `HP-SCOPE-INFLATE` — scope language exceeds the evidence
+- `HP-MISSING-BASELINE` — a required SOTA comparison is absent
+- `HP-FAKE-GT` — "ground truth" derived from model outputs (L2)
+- `HP-PHANTOM-RESULT` — a reported number with no backing artifact (L2)
+- `HP-SUSPICIOUS-REGULARITY` — results too arithmetically regular to be real runs
+- `HP-CITE-HALLUC` — a fabricated / non-existent reference
+
+<details>
+<summary><b>… and 17 more, across all 6 families</b></summary>
+
+- **A · Numeric self-consistency** — `HP-AGG-DRIFT` (best reported as mean) · `HP-DENOM-DRIFT` (population drift) · `HP-UNIT-DIR-MISMATCH` (unit / direction confusion) · `HP-CAPTION-MISMATCH` (caption ≠ content) · `HP-APPENDIX-CONTRA` (appendix contradicts main)
+- **B · Method & scope** — `HP-ABLATION-ATTRIB` (gain not isolated by the ablation) · `HP-THEOREM-SCOPE-DRIFT` (abstract general, theorem narrow)
+- **C · Baseline integrity** — `HP-WEAK-BASELINE` (undertuned / config mismatch) · `HP-SIG-OVERLAP` ("outperforms" with overlapping error bars)
+- **D · Experiment integrity (L2)** — `HP-SELF-NORM` (score normalized by the model's own stats) · `HP-DEAD-METRIC` (metric defined but never computed)
+- **E · Citation integrity** — `HP-CITE-CONTEXT` (real paper, cited for a claim it does not make)
+- **F · Presentation / surface — capped at `minor`** — `HP-THIN-FLOAT` (too few figures/tables) · `HP-LLM-FIGURE` (machine-generated figure) · `HP-PAGE-PADDING` (filler to hit the page limit) · `HP-JARGON-STUFF` (term-stuffing) · `HP-AI-FLAVOR` (generic LLM prose)
+
+</details>
+
 **This is not hypothetical.** Paraphrased from a public reviewer account during the
 NeurIPS 2026 cycle (illustrative, not a citation), one batch maps almost one-to-one
 onto the taxonomy this repo encodes:
@@ -52,7 +78,7 @@ onto the taxonomy this repo encodes:
 
 The fourth case is this repo's thesis in one line: **surface polish is not integrity.**
 
-## The gap it fills
+## 🧩 The gap it fills
 
 Existing work clusters into (A) **AI-text detectors** — stylometry, "is it
 LLM-written"; (B) **AI-review detectors**; (C) **general claim/rigor checkers**
@@ -66,7 +92,7 @@ classifier (Pangram / GPTZero / Binoculars), an AI-review detector, a misconduct
 verdict, or a co-author that edits the paper. See
 [docs/positioning.md](docs/positioning.md).
 
-## Status — what v0 actually ships
+## 🚦 Status — what v0 actually ships
 
 Being precise about what runs today vs what is an agent-orchestrated contract
 (this distinction is the point — see [DESIGN.md](DESIGN.md)):
@@ -92,7 +118,7 @@ coverage is an agent contract that grows as the taxonomy and eval grow. The ship
 v0 claim is deliberately narrow and testable; broader "fabrication forensics" is the
 direction, scoped honestly above.
 
-## How it stays honest (the anti-"LLM-slop" design)
+## 🔒 How it stays honest (the anti-"LLM-slop" design)
 
 The obvious dismissal of any such tool is *"an LLM grading another LLM's paper is
 just noise."* Three structural defenses, not just a disclaimer:
@@ -119,7 +145,7 @@ And an **eval harness** (`eval/`) proves the deterministic core on clean +
 synthetically-corrupted fixtures every change — measured false-positive / recall,
 not vibes.
 
-## Quickstart
+## 🚀 Quickstart
 
 ### Agent workflow (normal use)
 
@@ -168,7 +194,7 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 #   --ledger is REQUIRED: a finding must quote a verbatim ledger span or it fails closed to info.
 ```
 
-## Architecture
+## 🏗️ Architecture
 
 ```
 input (pdf | pdf+latex | pdf+repo+results)
@@ -197,7 +223,7 @@ input (pdf | pdf+latex | pdf+repo+results)
 | `tests/` | gate unit tests for the adjudicator (the anti-slop invariants) |
 | `docs/` | positioning vs existing work · limitations |
 
-## Honest limitations
+## ⚠️ Honest limitations
 
 - **Forensics ≠ proof of misconduct.** Output is *flags for a human*, never an accusation.
 - **PDF-only (L0) catches inconsistency + tells, not all fabrication** — it cannot
@@ -208,7 +234,7 @@ input (pdf | pdf+latex | pdf+repo+results)
 - **The taxonomy is a living document.** Adversaries who know a signal can route
   around it; this is a safety net, not a guarantee. See [docs/limitations.md](docs/limitations.md).
 
-## Provenance: derived from ARIS
+## 🧬 Provenance: derived from ARIS
 
 [**ARIS — Auto Research in Sleep**](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep)
 is an AI research-agent skill platform that runs end-to-end research pipelines
@@ -239,7 +265,7 @@ author checking their own work: `consistency-audit` ← `paper-claim-audit`,
 `baseline-comparison-audit` ← `paper-claim-audit`, `adversarial-case-builder` ←
 `kill-argument`, plus the new `evidence-ledger` spine and `presentation-signals`.
 
-## Citation
+## 📖 Citation
 
 Anti-Autoresearch is **derived from ARIS** and reuses its audit DNA. If this
 repository helped your research / paper / review, please cite the ARIS methodology
@@ -254,6 +280,6 @@ paper:
 }
 ```
 
-## License
+## ⚖️ License
 
 MIT — see [LICENSE](LICENSE).
