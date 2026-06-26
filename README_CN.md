@@ -50,6 +50,31 @@ claude
 `*.findings.json` 写进论文目录。把代码/结果产物和论文放一起即可解锁 L2 检查;仅
 PDF/源码的运行按设计受可观测性限制。
 
+### 单 skill / 按需取用(à la carte)
+
+每个 auditor 也都是独立 skill —— 安装脚本会把全部九个 skill 加 workflow 一起装上,
+所以你可以只跑你关心的那个轴(只查引用、只查证明、只查数值自洽)。它们共享同一条契约,
+按顺序来:
+
+```text
+claude
+# 1) 先建一次证据账本 —— 所有 auditor 都锚定它。不建的话任一 auditor 会停在:
+#    NO_LEDGER: claims.json not found. Run /evidence-ledger FIRST
+> /evidence-ledger ~/papers/submission        # → claims.json + 可观测层级(L0/L1/L2)
+
+# 2) 只跑你要的那个 auditor,针对该账本 → <skill>.findings.json
+> /consistency-audit ~/papers/submission      # 或 /proof-derivation-forensics · /citation-forensics · …
+```
+
+单个 skill 永远只**提出**带 span 锚点的 findings,**不给 verdict**。要把 findings 变判决,
+得把它喂给确定性裁决器(下一节里那条 `python3 tools/adjudicate_findings.py … --ledger …`)——
+模型从不打分。几点要知道:
+
+- **`consistency-audit` / `presentation-signals`** 另外会出 `*.deterministic.findings.json` —— 没接跨模型 reviewer 也能用。
+- **`adversarial-case-builder` / `novelty-duplication-advisory`** 是 memo-only —— 出一份咨询 memo,零 verdict 权重,单跑也一样。
+- **`proof-derivation-forensics`** 只在 **L1** 有判决权重(需要 LaTeX 源);仅 PDF(L0)运行时它的 findings 停在 `info` —— PDF 抽数学不可靠。
+- **`/anti-autoresearch`** 帮你省掉的:ingest(arxiv-id / pdf → 工作目录 + `pdftotext`)、自动定可观测层级、按论文里实际有哪些 claim 类型自动选要跑哪些 auditor、以及最后的跨维度判决 + `REPORT.md`。
+
 ### 确定性内核(CI / 离线 / 零依赖)
 
 它绕过 agent 层,只跑经 eval 测试过的确定性检查 —— 用于 CI、回归测试,或没有跨模型

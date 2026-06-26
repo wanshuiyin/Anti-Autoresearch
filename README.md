@@ -53,6 +53,32 @@ The run writes `REPORT.md` + `report.json` + `claims.json` + per-skill
 the paper to unlock L2 checks; PDF/source-only runs are observability-limited by
 design.
 
+### Single-skill / à la carte usage
+
+Every auditor is also a standalone skill — the installer drops all nine plus the
+workflow, so you can run just the axis you care about (only citations, only the
+proof, only numeric consistency). They share one contract, so run it in order:
+
+```text
+claude
+# 1) Build the evidence ledger ONCE — the spine every auditor anchors to. Skip it and
+#    any auditor stops with:  NO_LEDGER: claims.json not found. Run /evidence-ledger FIRST
+> /evidence-ledger ~/papers/submission        # → claims.json + observability level (L0/L1/L2)
+
+# 2) Run just the auditor(s) you want, against that ledger → <skill>.findings.json
+> /consistency-audit ~/papers/submission      # or /proof-derivation-forensics · /citation-forensics · …
+```
+
+A single skill only ever **proposes** span-anchored findings — it never returns a
+verdict. To turn findings into one, feed them to the deterministic adjudicator (the
+`python3 tools/adjudicate_findings.py … --ledger …` command in the next section); the
+model never grades. Worth knowing:
+
+- **`consistency-audit` / `presentation-signals`** also emit a `*.deterministic.findings.json` — usable with no cross-model reviewer wired.
+- **`adversarial-case-builder` / `novelty-duplication-advisory`** are memo-only — an advisory memo, zero verdict weight, standalone or not.
+- **`proof-derivation-forensics`** is verdict-bearing only at **L1** (needs the LaTeX source); on a PDF-only run its findings stay `info` — PDF-extracted math is unreliable.
+- **`/anti-autoresearch`** adds what à la carte skips: ingest (arxiv-id / pdf → workdir + `pdftotext`), automatic observability derivation, auto-selecting auditors from the claim types present, and the final cross-dimension verdict + `REPORT.md`.
+
 ### Deterministic core (CI / offline / zero-dependency)
 
 This bypasses the agent layer and exercises only the eval-tested deterministic
