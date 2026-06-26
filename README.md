@@ -19,6 +19,8 @@ its own paper. Reviewers, area chairs, and honest authors increasingly need to
 > reviewer-ready report. It is **not** an AI-text detector, and it does **not**
 > judge misconduct — it surfaces discrepancies a human reviewer should investigate.
 
+<p align="center"><em>The field has put up with unreliable autoresearch long enough —<br>Anti-Autoresearch is the read that finally catches it.</em></p>
+
 ---
 
 ## 🚀 Quickstart
