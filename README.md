@@ -1,9 +1,9 @@
-# Anti-Autoresearch
+# Anti-Autoresearch 🛡️
 
 **Substantive integrity-forensics for research papers — especially machine-generated
 (autoresearch / AI-Scientist-style) output.**
 
-> 🛡️ **The dual of [ARIS](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep)** — the ~12.5k★ autoresearch agent platform. ARIS is built to do autoresearch *responsibly*: it ships a multi-layer audit stack (experiment-integrity · result-to-claim · zero-context paper-claim audit · citation audit) so its **own** output stays honest. **Anti-Autoresearch is the other side of that coin** — the reviewer-side tool that catches autoresearch produced *without* those guardrails. Same audit DNA, pointed outward. ([What is ARIS?](#-what-is-aris--a-quick-pitch) · 中文 [README_CN.md](README_CN.md))
+> **The dual of [ARIS](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep)** — the ~12.5k★ autoresearch agent platform. ARIS is built to do autoresearch *responsibly*: it ships a multi-layer audit stack (experiment-integrity · result-to-claim · zero-context paper-claim audit · citation audit) so its **own** output stays honest. **Anti-Autoresearch is the other side of that coin** — the reviewer-side tool that catches autoresearch produced *without* those guardrails. Same audit DNA, pointed outward. ([What is ARIS?](#provenance-derived-from-aris) · 中文 [README_CN.md](README_CN.md))
 
 > Regardless of *who or what* wrote a paper, does the science hold together and
 > reflect its own evidence? Anti-Autoresearch audits a submission for
@@ -23,11 +23,21 @@ is: **does the paper contradict itself, and is it backed by its own evidence?**
 That is what autoresearch pipelines get wrong — they hallucinate *local* coherence:
 an abstract number that no table reports, a "16% improvement" that the operands say
 is 6%, a citation for a claim the cited paper never makes, a method described one
-way and evaluated another. Those are checkable. This repo checks them.
+way and evaluated another.
+
+Those are checkable under a declared observability level. Concretely, taxonomy v0.2
+names **27 hack-patterns across 6 families** (numeric self-consistency · method /
+scope · baseline integrity · experiment integrity · citation integrity ·
+presentation / surface signals). Treat that as the repo's **coverage vocabulary**,
+not a 27-detector benchmark: the zero-dependency deterministic eval currently gates
+**3** of them (`HP-DELTA-ERROR`, `HP-NUM-INFLATE`, `HP-DUP-TABLE`); the other **24**
+are agent-layer checks — cross-model auditors propose span-anchored findings, and the
+deterministic adjudicator scores or demotes them by evidence, observability, and
+false-positive risk.
 
 **This is not hypothetical.** Paraphrased from a public reviewer account during the
-NeurIPS 2026 cycle (illustrative, not a citation), one batch maps almost
-one-to-one onto the taxonomy this repo encodes:
+NeurIPS 2026 cycle (illustrative, not a citation), one batch maps almost one-to-one
+onto the taxonomy this repo encodes:
 
 > - *Paper 1* — "data tables don't match the text; several rows are misaligned;
 >   there's an obvious add/subtract regularity across backbones — it doesn't look
@@ -40,33 +50,21 @@ one-to-one onto the taxonomy this repo encodes:
 > - *Paper 4* — "open-sourced, beautifully written and drawn — but I ran the code
 >   and it gives completely different results from the paper." → experiment-forensics (L2)
 
-The fourth case is this repo's thesis in one line: **surface polish is not
-integrity.** (The reviewers' own summary: "LLM and multimodal are the disaster
-zone; theory too — conclusions look solid, then the appendix is just GPT.")
+The fourth case is this repo's thesis in one line: **surface polish is not integrity.**
 
-## What it is — and is not
-
-| | |
-|---|---|
-| ✅ **is** | self-consistency + fabrication forensics; evidence-ledger-anchored; observability-aware; reviewer/AC decision support; **+ auxiliary surface/AI-flavor signals (capped, never a verdict)** |
-| ❌ **is not** | an AI-text classifier (Pangram / GPTZero / Binoculars), an AI-review detector, a misconduct verdict, or a co-author that edits the paper |
-
-> On the surface signals (AI-flavor prose, duplicate tables, LLM-generated figures,
-> page-padding): we **do** report them — reviewers ask for them — but as *weak,
-> high-false-positive context* that the adjudicator caps at `minor` (so they can
-> only ever say "look closer", never "this is broken" or "this is AI-written").
-> That cap is enforced in code (`SURFACE_ONLY_SKILLS`), not just promised.
-
-### The gap it fills
+## The gap it fills
 
 Existing work clusters into (A) **AI-text detectors** — stylometry, "is it
 LLM-written"; (B) **AI-review detectors**; (C) **general claim/rigor checkers**
-(FactReview, RIGOURATE, citation-fabrication taxonomies). None do
-**autoresearch-specific substantive-integrity forensics**: internal-consistency
-forensics *plus* a curated taxonomy of the *specific* hack-patterns that
-LLM-driven research pipelines produce. We verify the paper **against itself** (no
-external ground truth needed — exactly where machine output cracks) and specialize
-the failure catalog to autoresearch. See [docs/positioning.md](docs/positioning.md).
+(FactReview, RIGOURATE, citation-fabrication taxonomies). The gap this repo targets
+is the combination of **autoresearch-specific substantive-integrity forensics**:
+internal-consistency forensics *plus* a curated taxonomy of the *specific*
+hack-patterns that LLM-driven research pipelines produce. We verify the paper
+**against itself** (no external ground truth needed — exactly where machine output
+cracks) and specialize the failure catalog to autoresearch. It is **not** an AI-text
+classifier (Pangram / GPTZero / Binoculars), an AI-review detector, a misconduct
+verdict, or a co-author that edits the paper. See
+[docs/positioning.md](docs/positioning.md).
 
 ## Status — what v0 actually ships
 
@@ -86,12 +84,13 @@ Being precise about what runs today vs what is an agent-orchestrated contract
   baseline adequacy, experiment-code integrity, and the auxiliary surface/AI-flavor
   signals) are `SKILL.md` contracts run by an agent via `/anti-autoresearch`. They
   propose span-anchored findings that the *same* deterministic adjudicator scores;
-  they are not yet covered by the deterministic eval (semantic judgments can't be
-  unit-tested the same way).
+  they are not yet covered by the bundled deterministic eval — adding fixtures for
+  these semantic patterns is roadmap work, not a shipped claim.
 
 The **verdict machinery and the numeric core are real and tested**; semantic
-coverage is an agent contract that grows as the taxonomy and eval grow. The
-headline "fabrication forensics" is the *roadmap*, honestly scoped here.
+coverage is an agent contract that grows as the taxonomy and eval grow. The shipped
+v0 claim is deliberately narrow and testable; broader "fabrication forensics" is the
+direction, scoped honestly above.
 
 ## How it stays honest (the anti-"LLM-slop" design)
 
@@ -109,45 +108,65 @@ just noise."* Three structural defenses, not just a disclaimer:
    You can never shout "fraud" from a PDF. See
    [references/observability-levels.md](references/observability-levels.md).
 
+**Surface / AI-flavor signals have a separate firewall.** AI-flavor prose, duplicate
+tables, LLM-generated figures, and page-padding are reported only as
+*high-false-positive context*: the adjudicator hard-caps `presentation-signals` and
+every taxonomy-F `pattern_id` at `minor`, so they can reach at most `SOFT_FLAGS` —
+never an authorship or misconduct verdict. That cap is enforced in code
+(`SURFACE_ONLY_SKILLS` in `tools/adjudicate_findings.py`), not just promised.
+
 And an **eval harness** (`eval/`) proves the deterministic core on clean +
 synthetically-corrupted fixtures every change — measured false-positive / recall,
 not vibes.
 
 ## Quickstart
 
-The deterministic core runs with **zero dependencies** (Python 3 stdlib):
+### Agent workflow (normal use)
+
+Anti-Autoresearch runs as a Claude Code skill workflow — the Python tools are the
+deterministic spine *inside* that workflow, not the usual interface.
 
 ```bash
-# 1) Prove the pipeline on clean + corrupted fixtures (the regression gate)
-python3 eval/run_eval.py
-#   clean            CLEAN_GIVEN_EVIDENCE   PASS
-#   delta_inflate    SOFT_FLAGS             PASS   caught=HP-DELTA-ERROR
-#   dup_table        SOFT_FLAGS             PASS   caught=HP-DUP-TABLE
-#   headline_inflate SOFT_FLAGS             PASS   caught=HP-NUM-INFLATE
-#   injected-defect recall: 100% (3 deterministic patterns) · clean FP: none
+# 1) Install the skills + workflow (global, or pass a project's .claude/skills dir)
+git clone https://github.com/wanshuiyin/Anti-Autoresearch.git
+./Anti-Autoresearch/tools/install_anti_autoresearch.sh              # → ~/.claude/skills
+# project-local instead: ./Anti-Autoresearch/tools/install_anti_autoresearch.sh ./.claude/skills
 
-# 1b) gate unit tests (the anti-slop guarantee)
-python3 tests/test_adjudicator.py
+# 2) Wire the cross-model reviewer (end state: Claude Code exposes mcp__codex__codex)
+claude mcp add codex -- codex mcp-server
+claude mcp list
 
-# 2) Build an evidence ledger from a real paper's LaTeX
-python3 tools/build_claim_ledger.py --paper-id mypaper \
-    --latex main.tex sections/*.tex --observability-level 1 --out claims.json
-
-# 3) Run the deterministic consistency checks
-python3 tools/check_numeric_consistency.py --ledger claims.json --out findings.json
-
-# 4) Adjudicate into a report (deterministic verdict).
-#    --ledger is REQUIRED: every above-info finding must quote a verbatim ledger
-#    span, else it fails closed to info (the anti-slop guarantee).
-python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.json \
-    --paper-id mypaper --observability-level 1 --out report.json --md REPORT.md
+# 3) Audit a paper
+claude
+> /anti-autoresearch ~/papers/submission
 ```
 
-For the **full** sweep (adds the cross-model semantic audits via Claude + codex),
-run the agent workflow `/anti-autoresearch <paper-dir>` — see
-[workflows/anti-autoresearch/SKILL.md](workflows/anti-autoresearch/SKILL.md). The
-skills follow the [Claude Code / ARIS skill](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep)
-convention.
+The run writes `REPORT.md` + `report.json` + `claims.json` + per-skill
+`*.findings.json` into the paper directory. Put the code/result artifacts alongside
+the paper to unlock L2 checks; PDF/source-only runs are observability-limited by
+design.
+
+### Deterministic core (CI / offline / zero-dependency)
+
+This bypasses the agent layer and exercises only the eval-tested deterministic
+checks — use it for CI, regression tests, or environments with no cross-model
+reviewer (Python 3 stdlib, nothing to install):
+
+```bash
+# Prove the pipeline on clean + corrupted fixtures (the regression gate)
+python3 eval/run_eval.py
+#   clean / delta_inflate / dup_table / headline_inflate  → all PASS
+#   injected-defect recall: 100% (3 deterministic patterns) · clean FP: none
+python3 tests/test_adjudicator.py        # gate unit tests (the anti-slop guarantee)
+
+# Or run the spine by hand on a real paper:
+python3 tools/build_claim_ledger.py --paper-id mypaper --latex main.tex sections/*.tex \
+    --observability-level 1 --out claims.json
+python3 tools/check_numeric_consistency.py --ledger claims.json --out findings.json
+python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.json \
+    --paper-id mypaper --observability-level 1 --out report.json --md REPORT.md
+#   --ledger is REQUIRED: a finding must quote a verbatim ledger span or it fails closed to info.
+```
 
 ## Architecture
 
@@ -173,7 +192,7 @@ input (pdf | pdf+latex | pdf+repo+results)
 | `workflows/anti-autoresearch/` | the end-to-end orchestrator |
 | `tools/` | deterministic spine: manifest/observability derivation · ledger builder · numeric checks · adjudicator |
 | `schemas/` | JSON contracts: claims · finding · report · artifact manifest |
-| `references/` | hack-pattern taxonomy (the IP) · observability levels · reviewer independence · forensics contract |
+| `references/` | hack-pattern taxonomy (the core contribution) · observability levels · reviewer independence · forensics contract |
 | `eval/` | clean + synthetic-corruption fixtures + the regression harness |
 | `tests/` | gate unit tests for the adjudicator (the anti-slop invariants) |
 | `docs/` | positioning vs existing work · limitations |
@@ -189,39 +208,34 @@ input (pdf | pdf+latex | pdf+repo+results)
 - **The taxonomy is a living document.** Adversaries who know a signal can route
   around it; this is a safety net, not a guarantee. See [docs/limitations.md](docs/limitations.md).
 
-## 🌟 What is ARIS — A Quick Pitch
+## Provenance: derived from ARIS
 
 [**ARIS — Auto Research in Sleep**](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep)
-is a widely-used AI research-agent skill platform (2025–2026). It runs end-to-end
-research pipelines (literature → idea → experiment → paper) — and it does so **with
-integrity guardrails built in**, which is what makes it a credible base for the
-auditor:
+is an AI research-agent skill platform that runs end-to-end research pipelines
+(literature → idea → experiment → paper) — and does so **with integrity guardrails
+built in**, which is what makes it a credible base for the auditor:
 
-- ⭐ **~12.5k GitHub stars**, HuggingFace Daily Papers #1, 78+ research skills across 7+ platforms.
-- 🛡️ **A three-layer audit stack** so ARIS's *own* output stays honest:
+- 🛡️ **A three-layer audit stack** keeps ARIS's *own* output honest:
   `experiment-audit` (fake GT / score-normalization / phantom results),
   `result-to-claim` (is the claim scientifically supported?), and zero-context
   `paper-claim-audit` + `citation-audit` (do the reported numbers and references
   hold up?). Anti-Autoresearch is these same audits **pointed outward**.
 - 🔬 **Cross-model adversarial review** is the core doctrine: the executor and the
-  reviewer must be different model families (Claude × GPT-5.5 xhigh × Gemini), so no
-  LLM ever judges its own output. Anti-Autoresearch inherits this *and* hardens it —
-  here the model only **proposes** findings; a deterministic adjudicator decides.
+  reviewer must be different model families, so no LLM ever judges its own output.
+  Anti-Autoresearch inherits this *and* hardens it — here the model only **proposes**
+  findings; a deterministic adjudicator decides.
 
 **Two sides of one coin.** ARIS is how to do autoresearch *responsibly*;
-Anti-Autoresearch is how to flag autoresearch that wasn't. A generator that
-publishes its own audit stack knows precisely how these pipelines fail — because it
-engineered against those failures from the inside. That is the perspective this repo
-brings.
+Anti-Autoresearch is how to flag autoresearch that wasn't. A generator that publishes
+its own audit stack knows precisely how these pipelines fail — because it engineered
+against those failures from the inside. That is the perspective this repo brings.
 
 👉 **ARIS main repo**: https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep
 
-### How the skills map
-
-Anti-Autoresearch's skills are ARIS's audit skills, copied and reframed for a
-**third party auditing an unknown submission** rather than an author checking their
-own work: `consistency-audit` ← `paper-claim-audit`, `experiment-forensics` ←
-`experiment-audit`, `citation-forensics` ← `citation-audit`,
+**How the skills map** — Anti-Autoresearch's skills are ARIS's audit skills, copied
+and reframed for a **third party auditing an unknown submission** rather than an
+author checking their own work: `consistency-audit` ← `paper-claim-audit`,
+`experiment-forensics` ← `experiment-audit`, `citation-forensics` ← `citation-audit`,
 `baseline-comparison-audit` ← `paper-claim-audit`, `adversarial-case-builder` ←
 `kill-argument`, plus the new `evidence-ledger` spine and `presentation-signals`.
 
