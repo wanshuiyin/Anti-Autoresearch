@@ -47,7 +47,10 @@ wildly fake entries — those are easy to spot. The dangerous ones are:
 
 None of this needs the code, the data, or a re-run — only the citing sentence (from
 the ledger) checked against the cited work's public record (DBLP / arXiv /
-publisher). That is why this layer is **L0-decidable** and independently defensible.
+publisher). That is why this layer is **L0-decidable** (observability-wise — no repo
+or result files needed) and independently defensible. (The citing-sentence *claims* it
+anchors to still enter the ledger only via the LaTeX path; a pure PDF-text ledger
+yields none — see Step 0.)
 
 ## Core principle
 
@@ -239,8 +242,12 @@ for c in cites:
 # 2) best-effort: parse claimed metadata per key from any .bib (balanced-brace)
 bibtext, bibfiles = "", []
 for p in glob.glob(os.path.join(paper_dir, "**", "*.bib"), recursive=True):
+    try:                                         # best-effort: skip an unreadable .bib
+        txt = open(p, encoding="utf-8", errors="replace").read()
+    except OSError:
+        continue
     bibfiles.append(p)
-    bibtext += open(p, encoding="utf-8", errors="replace").read() + "\n"
+    bibtext += txt + "\n"
 
 def bib_entry(key):                          # @type{key, ... } with brace matching
     m = re.search(r"@\w+\s*\{\s*" + re.escape(key) + r"\s*,", bibtext)
@@ -280,7 +287,11 @@ facts, never a verdict**: whether a mismatch is fabrication, a typo, or a
 preprint→venue migration is the reviewer's call in Step 3. (Same executor-gathers /
 reviewer-weighs division as `baseline-comparison-audit` Step 2.)
 
-For each key, seed the queries from the dossier's bib title / authors / venue:
+For each key, seed the queries from the dossier's bib title / authors / venue. If
+`bib_entry` is null (no `.bib`, or only a `.bbl`), seed instead from the cite-key
+tokens (author / year / keyword) plus distinctive words from that key's citing
+sentence(s) in the dossier — existence + context stay checkable; the metadata layer is
+then partial (nothing claimed to compare against), which is honest, not a failure:
 
 - **DBLP fuzzy title** — `mcp__mcp-dblp__fuzzy_title_search` with `title=<bib title>`,
   `similarity_threshold=0.7` (lower to ~0.5 only if no hit). Returns canonical
@@ -352,10 +363,10 @@ mcp__codex__codex:
     cross-check the .bib's self-report against it. If the snapshot is "unavailable",
     or does not settle a key either way, say so and set verdict_local
     "needs_external_check"; do NOT guess existence, and NEVER fabricate the cited
-    paper's contents. Judge CONTEXT from the snapshot's abstract/title (and what the
-    work is plainly known to establish); if the snapshot lacks enough of the cited
-    paper's content to decide, set "needs_external_check" and tell the human which
-    section of the cited paper to read.
+    paper's contents. Judge CONTEXT only from the snapshot's abstract/title (the
+    fetched record — never from memory of the cited paper); if the snapshot lacks
+    enough of the cited paper's content to decide, set "needs_external_check" and tell
+    the human which section of the cited paper to read.
 
     ## THE ENTRY UNDER AUDIT (from the evidence ledger; claims.json is in your cwd —
     ## you MAY re-open it to confirm a span is real, but you may NOT introduce a
@@ -367,7 +378,7 @@ mcp__codex__codex:
     [RESOLUTION RECORD FOR THIS KEY — resolution.json["<key>"]]
 
     ## WHAT TO CHECK (run all three layers for THIS key; one finding per concrete discrepancy)
-    L1 EXISTENCE — does a paper exist at the claimed arXiv id / DOI / venue with the
+    (A) EXISTENCE — does a paper exist at the claimed arXiv id / DOI / venue with the
        claimed title (or, if bib_entry is null, the work implied by the key + the
        citing sentences)?                                            [HP-CITE-HALLUC]
        * No record resolves anywhere; authors/title/year fabricated -> severity critical.
@@ -375,11 +386,11 @@ mcp__codex__codex:
          minor (a FIX, not a fabrication), false_positive_risk medium.
        * Very recent work (<~2 weeks) not yet indexed / snapshot unavailable -> set
          needs_external_check, severity info; do NOT call it fabricated.
-    L2 METADATA — real paper, but wrong year / wrong venue (arXiv number used though it
+    (B) METADATA — real paper, but wrong year / wrong venue (arXiv number used though it
        appeared at NeurIPS) / wrong-or-missing authors / v1<->v3 retitle. [HP-CITE-HALLUC]
        * severity major. A preprint->published migration (arXiv 2023 -> CVPR 2024) is
          a COMMON legitimate case: severity minor, false_positive_risk high.
-    L3 CONTEXT — for EACH citing sentence: does the cited paper actually establish what
+    (C) CONTEXT — for EACH citing sentence: does the cited paper actually establish what
        the sentence uses it for? Flag a real paper cited to support a claim it does
        NOT make, or argues AGAINST.                                  [HP-CITE-CONTEXT]
        * severity major. In `description`, state what the cited paper actually
@@ -491,6 +502,14 @@ carry one key's conclusion into another.
   `needs_external_check` for existence/metadata. Do **not** upgrade them.
 
 ## Step 4 — Validate + anchor + emit (the anti-hallucination gate)
+
+**Coverage gate (fail closed).** First confirm Step 3 actually ran: count
+`ls "$TRACE_DIR"/*.response.md | wc -l` and require one `.response.md` per cited key
+(fewer only if you deliberately batched keys into a shared response — then each
+batched key must still appear in some `.response.md`). **Zero response files while
+`CITE_CLAIMS > 0` means Step 3 never ran — STOP and run it; do NOT emit a clean `[]`.**
+The *only* legitimate empty-findings path is the `CITE_CLAIMS = 0` short-circuit from
+Step 0.
 
 Enforce the ANCHOR gate **before** keeping anything — it mirrors the verbatim-span
 rule `tools/adjudicate_findings.py` re-applies (so nothing you keep is silently
@@ -738,10 +757,9 @@ only from `tools/adjudicate_findings.py` (Step 6 / the orchestrator).
 
 ## Review tracing
 
-After each `mcp__codex__codex` reviewer call, save the trace under
-`.aris/traces/citation-forensics/<YYYY-MM-DD>_run<NN>/` (Policy: **forensic** — never
-silently skip), as laid out in Step 5: `run.meta.json` + the `resolution.json`
-snapshot + per-key `NNN-<key>.request.json` / `.response.md` / `.meta.json`. The
-`request.json` must contain only the dossier record + the neutral resolution facts +
-the checklist that were sent (the reviewer-independence audit trail); the
-`response.md` is the immutable input that Step 4 validates.
+Policy: **forensic** — never silently skip. The full per-key trace layout
+(`run.meta.json` + the `resolution.json` snapshot + per-key
+`NNN-<key>.request.json` / `.response.md` / `.meta.json`) is defined in **Step 5**;
+write each `.response.md` during Step 3, immediately after its reviewer call. Each
+`request.json` must hold only the dossier record + neutral resolution facts + the
+checklist (the reviewer-independence audit trail) — never a hunch.

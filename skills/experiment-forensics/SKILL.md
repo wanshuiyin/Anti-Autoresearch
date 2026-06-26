@@ -1,6 +1,6 @@
 ---
 name: experiment-forensics
-description: "Audit experiment integrity against the evidence ledger. At L2 (repo + result files present) a fresh cross-model reviewer reads the eval code line-by-line for fake/derived ground truth, score self-normalization, phantom results (a paper number with no backing file/key), dead/uncalled metric code, verified-scope inflation, method-described ≠ method-evaluated drift, and synthesized-looking results — every finding span-anchored to a ledger claim_id. At L0/L1 (PDF / source only) the SAME patterns are emitted as info-level 'could-not-verify' signals (observability_level_required:2) — NEVER a fraud verdict from a PDF. The reviewer PROPOSES findings; tools/adjudicate_findings.py computes the verdict. Detect-only. Triggers: \"experiment forensics\", \"audit the results\", \"check the eval code\", \"实验诚实度\"."
+description: "Audit experiment integrity against the evidence ledger. At L2 (repo + result files present) a fresh cross-model reviewer reads the eval code line-by-line for fake/derived ground truth, score self-normalization, phantom results (a paper number with no backing file/key), dead/uncalled metric code, verified-scope inflation, method-described ≠ method-evaluated drift, and synthesized-looking results — every finding span-anchored to a ledger claim_id. At L0/L1 (PDF / source only) the same patterns are surfaced as info-level 'could-not-verify' signals where the ledger gives an anchor (observability_level_required:2) — NEVER a fraud verdict from a PDF. The reviewer PROPOSES findings; tools/adjudicate_findings.py computes the verdict. Detect-only. Triggers: \"experiment forensics\", \"audit the results\", \"check the eval code\", \"实验诚实度\"."
 argument-hint: [paper-dir | repo-dir]
 allowed-tools: Bash(*), Read, Write, Grep, Glob, mcp__codex__codex
 ---
@@ -155,6 +155,7 @@ Division of labor (`references/reviewer-independence.md`):
 ```bash
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 TARGET="$ARGUMENTS"          # paper-dir or repo-dir — ABSOLUTE path
+case "$TARGET" in /*) ;; *) echo "FATAL: TARGET must be a non-empty ABSOLUTE path (got: '$TARGET'). Pass the paper/repo dir as an absolute path."; exit 1 ;; esac
 
 # Toolchain must be reachable (invariant: ROOT = the Anti-Autoresearch checkout).
 test -f "$ROOT/tools/build_manifest.py" || { echo "FATAL: Anti-Autoresearch tools not under $ROOT. Run this skill from inside the Anti-Autoresearch checkout (or point ROOT at it)."; exit 1; }
@@ -282,40 +283,70 @@ absolute `$TARGET/...` paths.
 
 ```bash
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd); TARGET="$ARGUMENTS"
+mkdir -p "$TARGET/.aris"
 
-# (a) Eval / metric / test code and configs
+# (a) Eval / metric / test / score / benchmark / runner code + configs -> eval_paths.txt
 find "$TARGET" -type f \( -name '*eval*.py' -o -name '*metric*.py' -o -name '*test*.py' \
-   -o -name '*score*.py' -o -name '*benchmark*.py' -o -name '*.yaml' -o -name '*.toml' \) 2>/dev/null | sort
+   -o -name '*score*.py' -o -name '*benchmark*.py' -o -name 'run*.py' -o -name 'main.py' \
+   -o -name '*.yaml' -o -name '*.toml' \) 2>/dev/null | sort > "$TARGET/.aris/eval_paths.txt"
 
-# (b) Result files the paper's numbers should live in
-find "$TARGET/results" "$TARGET/outputs" "$TARGET/logs" -type f \( -name '*.json' -o -name '*.csv' \) 2>/dev/null | sort
+# (b) Result files the paper's numbers should live in -> result_paths.txt
+find "$TARGET/results" "$TARGET/outputs" "$TARGET/logs" -type f \( -name '*.json' -o -name '*.csv' \) 2>/dev/null | sort > "$TARGET/.aris/result_paths.txt"
 
-# (c) Likely GT / reference loaders (paths for the reviewer; do NOT judge them)
-grep -rInE 'ground.?truth|reference|target|label|gold|gt_|normaliz' --include='*.py' "$TARGET" 2>/dev/null | head -60
+# (c) Likely GT / reference loaders (FACT for the reviewer; do NOT judge) -> gt_grep.txt
+grep -rInE 'ground.?truth|reference|target|label|gold|gt_|normaliz' --include='*.py' "$TARGET" 2>/dev/null | head -60 > "$TARGET/.aris/gt_grep.txt"
 
-# (d) Phantom-result FACTS: for each headline numeric token in the ledger, does it
-#     appear anywhere under results/? (raw fact for the reviewer — repeat per number)
-grep -rIn -- '0.98' "$TARGET/results" "$TARGET/outputs" "$TARGET/logs" 2>/dev/null
+# (d) Phantom-result FACTS: grep EACH headline number from the ledger (no hardcoded token) -> number_grep.txt
+python3 - "$TARGET" > "$TARGET/.aris/number_grep.txt" <<'PY'
+import json, subprocess, sys
+t = sys.argv[1]
+claims = json.load(open(f"{t}/claims.json"))["claims"]
+toks, seen = [], set()
+for c in claims:
+    if c.get("type") not in ("number", "comparison"): continue
+    v = c.get("value") or {}
+    for tok in (str(v.get("raw") or ""), ("" if v.get("normalized") is None else repr(v["normalized"]))):
+        tok = tok.strip().rstrip("%").strip()
+        if tok and tok not in seen:
+            seen.add(tok); toks.append((c["claim_id"], tok))
+for cid, tok in toks:
+    hits = subprocess.run(["grep", "-rIn", "--", tok, f"{t}/results", f"{t}/outputs", f"{t}/logs"],
+                          capture_output=True, text=True).stdout.strip()
+    print(f"### {cid} token={tok!r}: {'FOUND' if hits else 'NOT FOUND under results/outputs/logs'}")
+    if hits: print(hits)
+PY
 
-# (e) Reproducibility anchors: hash the eval entrypoint + each result file cited
-shasum -a 256 "$TARGET"/src/eval.py "$TARGET"/results/main.json 2>/dev/null
+# (e) Reproducibility anchors: hash EVERY discovered eval script + result file -> hashes.txt
+{ while IFS= read -r f; do [ -n "$f" ] && shasum -a 256 "$f"; done < "$TARGET/.aris/eval_paths.txt"
+  while IFS= read -r f; do [ -n "$f" ] && shasum -a 256 "$f"; done < "$TARGET/.aris/result_paths.txt"; } 2>/dev/null > "$TARGET/.aris/hashes.txt"
+
+# (f) Ledger claim subset the reviewer must anchor to -> claim_subset.json
+python3 - "$TARGET" > "$TARGET/.aris/claim_subset.json" <<'PY'
+import json, sys
+t = sys.argv[1]
+KEEP = {"number", "comparison", "scope", "method", "artifact_ref"}
+claims = json.load(open(f"{t}/claims.json"))["claims"]
+print(json.dumps([{"claim_id": c["claim_id"], "type": c["type"],
+                   "text_span": c.get("text_span", ""), "location": c.get("location", {})}
+                  for c in claims if c.get("type") in KEEP], indent=2, ensure_ascii=False))
+PY
+
+# Machine validation gate: NO eval scripts AND NO result files => the manifest's L2 is
+# unsupported -> re-derive the level (then run Step 2 if it drops below 2).
+EV=$(grep -c . "$TARGET/.aris/eval_paths.txt"); RS=$(grep -c . "$TARGET/.aris/result_paths.txt")
+echo "eval_scripts=$EV result_files=$RS  (paths + facts + claim_subset written under $TARGET/.aris/)"
+if [ "$EV" -eq 0 ] && [ "$RS" -eq 0 ]; then
+  echo "L2 UNSUPPORTED (no eval scripts, no result files) — re-deriving level:"
+  python3 "$ROOT/tools/build_manifest.py" --paper-id "$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["paper_id"])' "$TARGET/claims.json")" --dir "$TARGET" --out "$TARGET/artifact_manifest.json"
+fi
 ```
 
-**Validation gate / failure handling.** If (a) lists **zero** eval/metric scripts AND
-(b) lists **zero** result files, the manifest's L2 is unsupported. Re-derive the level
-and fall back:
-
-```bash
-ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd); TARGET="$ARGUMENTS"
-python3 "$ROOT/tools/build_manifest.py" --paper-id "$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["paper_id"])' "$TARGET/claims.json")" --dir "$TARGET" --out "$TARGET/artifact_manifest.json"
-```
-
-Re-read L (Step 1's reader); if it is now `< 2`, run **Step 2** instead.
-
-Record three lists for the reviewer prompt: **eval scripts**, **result files**, and
-the **ledger claim subset** (the `number`/`comparison`/`scope`/`method`/`artifact_ref`
-claims, each with `claim_id` + verbatim `text_span` + location). **Do not summarize
-file contents** — the reviewer reads them directly via its `cwd`.
+Re-read L (Step 1's reader); if it is now `< 2`, run **Step 2** instead. The files
+written above (`eval_paths.txt`, `result_paths.txt`, `gt_grep.txt`, `number_grep.txt`,
+`hashes.txt`, `claim_subset.json`, all under `$TARGET/.aris/`) are the reviewer's
+inputs — inline their literal contents into the Step 4 prompt. **Do not summarize file
+CONTENTS** — the reviewer reads the code/results directly via its `cwd`; you only pass
+paths, raw greps/hashes, and the claim subset.
 
 ## Step 4 — L2: cross-model code audit (reviewer ≠ adjudicator)
 
@@ -324,7 +355,9 @@ The reviewer reads the eval code line-by-line and **proposes** findings; it does
 grade the paper. Call with: `model: "gpt-5.5"`, `config:
 {"model_reasoning_effort": "xhigh"}`, `sandbox: "read-only"`, `cwd: "<TARGET>"` (so
 it can read `./claims.json`, `./src/...`, `./results/...` directly), `prompt:` the
-block below. **One fresh thread; never `codex-reply`.**
+block below. Assemble that `prompt:` by inlining the Step 3 `.aris/` files at the
+`[inline …]` markers (read each, paste its literal contents — paths + raw facts + the
+claim subset, never a summary). **One fresh thread; never `codex-reply`.**
 
 ```
 You are an experiment-integrity forensics reviewer. Your working directory is the
@@ -333,13 +366,13 @@ eval script line by line, plus the result files. Observability level = L2 (repo 
 results present). For each check, PROPOSE findings — do NOT grade the paper, and
 describe a DISCREPANCY to verify, never an accusation of misconduct.
 
-Inputs (paths relative to your cwd):
+Inputs (paths relative to your cwd; the executor inlines the Step 3 files verbatim):
 - Ledger: ./claims.json   (anchor targets — use real claim_id + verbatim text_span)
-- Ledger claim subset (convenience copy): [paste number/comparison/scope/method/artifact_ref claims]
-- Eval / metric / test scripts: [list paths]
-- Result files: [list paths]
-- Config files: [list paths]
-- Mechanical facts already gathered (raw, uninterpreted): [paste grep/hash facts]
+- Ledger claim subset: [inline .aris/claim_subset.json]
+- Eval / metric / test / runner scripts + configs: [inline .aris/eval_paths.txt]
+- Result files: [inline .aris/result_paths.txt]
+- Mechanical facts already gathered (raw, uninterpreted — GT greps, per-number result
+  greps, file hashes): [inline .aris/gt_grep.txt + .aris/number_grep.txt + .aris/hashes.txt]
 
 ## Checklist (map each finding to a pattern_id)
 A. Ground-truth provenance  [HP-FAKE-GT, critical] — Where does "reference/target/
@@ -400,20 +433,28 @@ only when the relevant ledger claims exist:
   grade.
 
 **Save the handoff + failure handling.** Write the reviewer's full raw reply to
-`"$TARGET/.aris/last_reviewer_response.txt"` (use `Write`) before validating. If the
-codex call stalls or errors (long sessions can hang), re-invoke the **same** prompt in
-a **fresh** thread (never `codex-reply`); if it still fails, write `[]` to
-`experiment-forensics.findings.json` and proceed — never fabricate findings. If the
-repo is too large for one thread, split the result files into batches and run one
-**fresh** thread per batch (same prompt, different file lists), saving each reply to
-the handoff file and running Step 5 once per batch (the validator merges + dedupes).
+`"$TARGET/.aris/last_reviewer_response.txt"` (use `Write`) before validating, and
+**also** preserve each call's prompt + reply as a per-call pair that never clobbers
+across batches: `Write` them to
+`"$TARGET/.aris/traces/experiment-forensics/pending/prompt_<NN>.txt"` and
+`".../response_<NN>.txt"` (NN = 01, 02, … one per fresh thread; Step 6 moves `pending/`
+into the dated run dir). If the codex call stalls or errors (long sessions can hang),
+re-invoke the **same** prompt in a **fresh** thread (never `codex-reply`); if it still
+fails, write `[]` to `experiment-forensics.findings.json` and proceed — never fabricate
+findings. If the repo is too large for one thread, split the result files into batches,
+run one **fresh** thread per batch (same prompt, different file lists), overwrite
+`last_reviewer_response.txt` with that batch's reply, and run Step 5 once per batch (the
+validator merges + dedupes into the output) — the per-call `pending/` files keep every
+batch's raw trace.
 
 ## Step 5 — Validate every reviewer finding (the executor gate)
 
 The reviewer proposes; **you verify before keeping**. This mirrors the adjudicator's
 `_anchored` check exactly (`span` is a whitespace-normalized *substring of* the ledger
 claim, never the reverse), reads `L` from the manifest (not a persisted variable),
-extracts the JSON array robustly from the raw reply, and merges + re-ids:
+extracts the JSON array robustly from the raw reply, re-gates any previously-saved
+findings together with the new ones, and merges + re-ids (so no stale above-info
+survives a multi-batch merge):
 
 ```bash
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd); TARGET="$ARGUMENTS"
@@ -447,8 +488,11 @@ if proposed is None:
     print("PARSE-FAIL: no JSON array in reviewer response; merging nothing new."); proposed = []
 if isinstance(proposed, dict): proposed = proposed.get("findings", [])
 
-new = []
-for f in proposed:
+try: base = json.load(open(OUT))
+except Exception: base = []
+
+gated = []                                                        # re-gate BASE + new together
+for f in base + proposed:
     f["skill"] = "experiment-forensics"
     f.setdefault("title", f.get("pattern_id", "experiment-forensics finding"))
     f.setdefault("verdict_local", "needs_external_check")
@@ -474,12 +518,10 @@ for f in proposed:
         sev = "info"; notes.append("no-span")                    # (5) high sev needs a span
     f["severity"] = sev; f.setdefault("false_positive_risk", "medium")
     if notes: f["_executor_demotions"] = notes
-    new.append(f)
+    gated.append(f)
 
-try: base = json.load(open(OUT))
-except Exception: base = []
-seen, merged = set(), []                                          # merge + dedupe
-for f in base + new:
+seen, merged = set(), []                                          # dedupe (base already re-gated)
+for f in gated:
     e0 = (f.get("evidence") or [{}])[0]
     key = (f.get("pattern_id"), e0.get("claim_id"), e0.get("span"), f.get("title"))
     if key in seen: continue
@@ -490,20 +532,29 @@ print(f"kept={len(merged)} above_info={sum(1 for x in merged if x['severity']!='
 PY
 ```
 
-Then apply the judgment gates the script cannot (edit
-`experiment-forensics.findings.json`'s severities directly, or re-run Step 4+5):
+**The executor never re-grades a finding's severity by hand** (reviewer ≠ adjudicator:
+semantic FP calls belong to the reviewer, the verdict to `tools/adjudicate_findings.py`
+— the deterministic gates above are the only severity changes the executor makes). The
+FP cases below are already in the Step 4 checklist as the "FP:" clauses; the reviewer
+suppresses them at proposal time via `false_positive_risk` / `verdict_local` / `info`.
+If a proposed finding clearly matches one of them but the reviewer did **not** down-rank
+it, do **not** hand-edit the verdict — re-run Step 4 in a fresh thread so the *reviewer*
+re-judges:
 
-- **Eval-type ⇒ FP:** a finding whose eval-type is a **labeled** `synthetic_proxy` or
-  `self_supervised_proxy` is **not** `HP-FAKE-GT` — drop it or keep as `info`.
+- **Eval-type ⇒ FP:** a **labeled** `synthetic_proxy` / `self_supervised_proxy` is
+  **not** `HP-FAKE-GT`.
 - **HP-SELF-NORM FP:** standard min–max across **all** methods (incl. baselines), or
-  raw+normalized both shown → not a flag.
-- **HP-PHANTOM-RESULT FP:** the file was renamed/moved but is present, or the number
-  is a cited external reference → not a flag.
+  raw+normalized both shown.
+- **HP-PHANTOM-RESULT FP:** the file was renamed/moved but is present, or the number is
+  a cited external reference.
 - **HP-SUSPICIOUS-REGULARITY:** `false_positive_risk: high` by default; never a
   "fabricated" grade — a *prompt to check*.
-- Set `reviewer: {"model":"gpt-5.5","reasoning":"xhigh","thread_id":<id>,
-  "deterministic":false}` and, where useful, `evidence[].artifact_hash` = the ledger
-  claim's `evidence_anchor` (the code-file sha goes in the description).
+
+The only executor-side edits to `experiment-forensics.findings.json` are **mechanical,
+non-semantic** provenance stamps: set `reviewer: {"model":"gpt-5.5","reasoning":"xhigh",
+"thread_id":<id>,"deterministic":false}` and, where useful, `evidence[].artifact_hash`
+= the ledger claim's `evidence_anchor` (the code-file sha goes in the description).
+Severity is never hand-edited up or down.
 
 **An empty array is a valid, honest output** — if every proposed finding was demoted
 or none was proposed, `experiment-forensics.findings.json` may be `[]`.
@@ -545,9 +596,13 @@ report can show "this number ↔ this code problem" — keep that linkage intact
 ```bash
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd); TARGET="$ARGUMENTS"
 DATE=$(date +%Y-%m-%d); N=1
-while [ -d "$TARGET/.aris/traces/experiment-forensics/${DATE}_run$(printf %02d $N)" ]; do N=$((N+1)); done
-RUNDIR="$TARGET/.aris/traces/experiment-forensics/${DATE}_run$(printf %02d $N)"; mkdir -p "$RUNDIR"
-# preserve: the exact prompt(s) sent (write to $RUNDIR/prompt.txt) and the raw reply:
+BASE="$TARGET/.aris/traces/experiment-forensics"
+while [ -d "$BASE/${DATE}_run$(printf %02d $N)" ]; do N=$((N+1)); done
+RUNDIR="$BASE/${DATE}_run$(printf %02d $N)"; mkdir -p "$RUNDIR"
+# Move every per-call prompt_<NN>.txt / response_<NN>.txt pair (written in Step 4) into
+# the dated run dir, so prompts + ALL batch replies are preserved (no clobber):
+if [ -d "$BASE/pending" ]; then mv "$BASE/pending/"* "$RUNDIR/" 2>/dev/null; rmdir "$BASE/pending" 2>/dev/null; fi
+# Fallback: also keep the last raw reply (covers a single-call run that skipped pending/):
 cp "$TARGET/.aris/last_reviewer_response.txt" "$RUNDIR/reviewer_response.txt" 2>/dev/null
 python3 -c 'import json,sys;print("observability_level", json.load(open(sys.argv[1]))["observability_level"])' "$TARGET/artifact_manifest.json" > "$RUNDIR/level.txt"
 ls -1 "$RUNDIR"
@@ -569,9 +624,9 @@ span; without it every above-info finding fails closed to `info`):
 
 ```bash
 # DO NOT run here — this is the orchestrator's job.
-python3 "$ROOT/tools/adjudicate_findings.py" --findings *.findings.json \
-    --ledger claims.json --paper-id <id> --observability-level <L> \
-    --taxonomy-version 0.2 --out report.json --md REPORT.md
+python3 "$ROOT/tools/adjudicate_findings.py" --findings "$TARGET"/*.findings.json \
+    --ledger "$TARGET/claims.json" --paper-id <id> --observability-level <L> \
+    --taxonomy-version 0.2 --out "$TARGET/report.json" --md "$TARGET/REPORT.md"
 ```
 
 ## Output contract
@@ -629,9 +684,9 @@ python3 "$ROOT/tools/adjudicate_findings.py" --findings *.findings.json \
 - **For authorship / "is this AI-written".** Out of scope — surface "AI-flavor" lives
   in `/presentation-signals` (auxiliary, capped at minor); this repo is **not** an
   AI-text classifier.
-- **On a timer.** `/loop`, `/schedule`, `CronCreate` add no new signal; only a higher
-  observability level (a repo/results arriving) does. Schedule the *wait for
-  artifacts*, then run this once at the new level (see the fence at the top).
+- **On a timer.** Re-firing adds no signal — only a higher observability level does;
+  schedule the *wait for artifacts*, then run once at the new level (see the cadence
+  fence at the top).
 
 ## Review tracing
 

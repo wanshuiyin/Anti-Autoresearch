@@ -75,10 +75,13 @@ def main(argv=None):
     for kind, paths in (("latex", det["tex"]), ("pdf", det["pdf"]), ("bib", det["bib"])):
         for p in paths:
             artifacts.append({"kind": kind, "path": p, "sha256": sha256_file(p), "present": True})
-    for kind, present in (("repo", det["repo"]), ("results", det["results"])):
-        artifacts.append({"kind": kind,
-                          "path": ",".join(det["repo_dirs"]) if kind == "repo" else None,
-                          "present": present})
+    # path is schema-typed string + optional: omit it rather than emit null
+    for kind, present, path in (("repo", det["repo"], ",".join(det["repo_dirs"])),
+                               ("results", det["results"], "")):
+        art = {"kind": kind, "present": present}
+        if path:
+            art["path"] = path
+        artifacts.append(art)
 
     manifest = {
         "paper_id": args.paper_id,

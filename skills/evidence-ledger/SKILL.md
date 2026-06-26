@@ -123,6 +123,11 @@ if ! find "$PAPER_DIR" -name '*.tex' -not -path '*/.aris/*' | grep -q .; then
     [ -n "$PDF" ] && { pdftotext -layout "$PDF" "$PAPER_DIR/paper.txt" 2>/dev/null \
       || mutool draw -F txt -o "$PAPER_DIR/paper.txt" "$PDF" 2>/dev/null \
       || python3 -c 'import sys,fitz;open(sys.argv[2],"w").write("\n".join(p.get_text() for p in fitz.open(sys.argv[1])))' "$PDF" "$PAPER_DIR/paper.txt" 2>/dev/null; }
+    # extraction yielded nothing but a pre-extracted *.txt exists? adopt it as the L0 source
+    if [ ! -s "$PAPER_DIR/paper.txt" ]; then
+        TXT=$(find "$PAPER_DIR" -maxdepth 2 -name '*.txt' -not -path '*/.aris/*' ! -name paper.txt | head -n1)
+        [ -n "$TXT" ] && cp "$TXT" "$PAPER_DIR/paper.txt"
+    fi
 fi
 
 mkdir -p "$PAPER_DIR/.aris/evidence-ledger"
@@ -138,13 +143,14 @@ find "$PAPER_DIR" \( -name '*.tex' -o -name '*.pdf' -o -name '*.txt' \) -not -pa
 Every later Bash block begins with `source "<PAPER_DIR>/.aris/evidence-ledger/run.env"`
 — substitute the absolute `PAPER_DIR` printed above.
 
-**Validation gate.** `"$PAPER_DIR"` must now contain at least one of `*.tex`,
-`*.pdf`, or `*.txt`.
+**Validation gate.** `"$PAPER_DIR"` must now contain at least one `*.tex` **or** a
+non-empty `paper.txt` (the exact L0 source Step 2 Branch B reads). A bare `*.pdf` whose
+text never extracted is **not** enough — there are no spans to anchor.
 
 **Failure handling.**
-- No `*.tex`, `*.pdf`, **or** `*.txt` → **STOP**: report exactly what was searched; there is no source to anchor spans against, so there can be no ledger.
+- No `*.tex` **and** no non-empty `paper.txt` (e.g. a PDF every extractor failed on) → **STOP**: report exactly what was searched; with no source text there are no spans to anchor, so there can be no ledger.
 - arXiv `curl` failed (network/proxy) → **STOP**: report the exit and ask the caller for a local paper-dir or PDF. Do **not** fabricate a ledger.
-- A near-empty / garbled `paper.txt` (scanned image, heavy math) → say so explicitly and treat the run as L0 with `confidence: low` throughout; do not silently proceed as if you had clean text.
+- A near-empty / garbled `paper.txt` (scanned image, heavy math) — concretely, `wc -c < "$PAPER_DIR/paper.txt"` is implausibly small for the page count (rule of thumb: under ~1000 bytes for a multi-page paper) or is mostly non-alphanumeric → say so explicitly and treat the run as L0 with `confidence: low` throughout; do not silently proceed as if you had clean text.
 
 ## Step 1 — Artifact manifest + observability level (deterministic)
 
@@ -176,9 +182,10 @@ implements exactly this):
 **Validation gate — never over-state the level.** If you only have a PDF, `L` MUST be
 `0`; do not hand `--observability-level 2` to Step 2 because a repo "exists somewhere
 else." `build_manifest.py` **never** sets `repo.rerunnable: true` (no L3 in v0) — do
-not edit it to true. Edge cases the rule handles correctly: an empty `results/` dir
-(no data files) stays **L1**; a repo present **without** results stays **L1** (you can
-read code but have no outputs to reconcile against).
+not edit it to true. Edge cases the rule handles correctly (**L2 requires both a repo
+and result data files**): an empty `results/` dir (no `*.json`/`*.csv`) does **not**
+reach L2, and a repo present **without** result files does **not** reach L2 either —
+each stays at whatever the source gives (L1 if LaTeX is present, else L0).
 
 **Failure handling.** `build_manifest.py` non-zero exit or empty/invalid JSON →
 **STOP**: without a derived level you cannot legally cap severity downstream; do not
@@ -190,25 +197,33 @@ The numeric/citation/table backbone comes from **code**, not a model. **LaTeX-fi
 (stable spans + real line numbers); the PDF-text path is a lower-confidence fallback.
 Pass the **same `L`** derived in Step 1.
 
+**Pick the branch:** if any `*.tex` exist use Branch A; otherwise use Branch B. The
+`TEX` array below makes that test explicit and survives spaces in paths.
+
 **Branch A — LaTeX present (L1/L2; preferred):**
 
 ```bash
 source "<PAPER_DIR>/.aris/evidence-ledger/run.env"
-TEX=$(find "$PAPER_DIR" -type f -name '*.tex' -not -path '*/.aris/*' | sort)   # if any path has spaces, list files explicitly
+TEX=()   # space-safe + deterministic: one path per line, sorted for reproducible order
+while IFS= read -r f; do [ -n "$f" ] && TEX+=("$f"); done \
+  < <(find "$PAPER_DIR" -type f -name '*.tex' -not -path '*/.aris/*' | LC_ALL=C sort)
+[ ${#TEX[@]} -gt 0 ] || { echo "no .tex found — use Branch B"; exit 1; }
 python3 "$ROOT/tools/build_claim_ledger.py" --paper-id "$PAPER_ID" \
-    --latex $TEX \
+    --latex "${TEX[@]}" \
     --observability-level "$L" \
     --out "$PAPER_DIR/claims.json"
 # -> ledger: 13 claims {'caption': 1, 'citation': 3, 'number': 7, 'table_cell': 2} -> .../claims.json
 ```
 
-**Branch B — PDF/text only (L0; `paper.txt` from Step 0):**
+**Branch B — no LaTeX (text-only spans; `paper.txt` from Step 0). Usually L0, but L2
+when a repo + result files exist without any `.tex`, so pass the derived `$L` — never
+a hardcoded `0` (the gate below asserts the ledger level equals the manifest `$L`):**
 
 ```bash
 source "<PAPER_DIR>/.aris/evidence-ledger/run.env"
 test -s "$PAPER_DIR/paper.txt" || { echo "ERROR: no extracted text"; exit 1; }
 python3 "$ROOT/tools/build_claim_ledger.py" --paper-id "$PAPER_ID" \
-    --pdf-text "$PAPER_DIR/paper.txt" --observability-level 0 \
+    --pdf-text "$PAPER_DIR/paper.txt" --observability-level "$L" \
     --out "$PAPER_DIR/claims.json"
 ```
 
@@ -280,9 +295,9 @@ PY
 ```
 
 **Failure handling.**
-- `build_claim_ledger.py` errors with "provide at least one --latex or --pdf-text" → your file glob matched nothing; re-check the branch (use Branch B if `$TEX` is empty).
+- `build_claim_ledger.py` errors with "provide at least one --latex or --pdf-text" → your file glob matched nothing; re-check the branch (use Branch B when no `*.tex` were found, i.e. the `TEX` array is empty).
 - **0 claims** on a paper that visibly has numbers/citations → the wrong files were passed or the `.tex` is a stub. Re-inspect inputs (read the head of the `.tex`/`.txt`) and re-run; do **not** fabricate claims. A genuinely claim-free paper is rare — ship the empty ledger only after confirming inputs.
-- A single malformed `.tex` → prefer dropping that one file over abandoning the run (regex extraction is best-effort, per-file).
+- A single malformed `.tex` can crash the extractor (`build_claim_ledger.py` has no per-file `try/except`) → drop that one path from the `TEX` array and re-run rather than abandoning the whole paper; note the dropped file.
 
 ## Step 3 — Optional additive semantic enrichment (cross-model, fresh thread)
 
@@ -359,10 +374,12 @@ mcp__codex__codex:
     Output [] if you find nothing new.
 ```
 
-Then, using the **Write** tool: save the reviewer's full response verbatim to
-`"$RUNDIR/codex_raw.md"` (forensic; never silently dropped) and the parsed JSON array
-to `"$RUNDIR/enrichment_candidates.json"` (strip any code fence; if the reviewer
-returned `[]`, write `[]`).
+Then, using the **Write** tool, save two files into the `RUNDIR` printed above —
+**substitute that literal absolute path** (the Write tool does not expand shell
+variables like `$RUNDIR`): the reviewer's full response verbatim to
+`<RUNDIR>/codex_raw.md` (forensic; never silently dropped) and the parsed JSON array to
+`<RUNDIR>/enrichment_candidates.json` (strip any code fence; if the reviewer returned
+`[]`, write `[]`).
 
 **Failure handling (non-blocking).** If the Codex MCP hangs/stalls → re-invoke the
 **same** prompt as a fresh thread (still `mcp__codex__codex`, never `codex-reply`). If
@@ -372,9 +389,15 @@ deterministic ledger. Enrichment is strictly additive and optional.
 
 ## Step 4 — Validate + merge enrichment (the anti-hallucination gate)
 
-The executor validates **every** candidate before it enters the ledger — the same
-"no span → no claim" discipline the adjudicator applies to findings. This fails open
-(a missing/invalid candidates file leaves the deterministic ledger untouched).
+> **Skip this step whenever Step 3 was skipped** (`ENRICH = false`, or the reviewer was
+> unavailable so no `enrichment_candidates.json` was written): no `RUNDIR` is set and
+> the deterministic ledger from Step 2 is already the final output. Do **not** run the
+> block below against an unset `$RUNDIR`.
+
+When Step 3 ran, the executor validates **every** candidate before it enters the ledger
+— the same "no span → no claim" discipline the adjudicator applies to findings. This
+fails open (a missing/invalid candidates file leaves the deterministic ledger
+untouched).
 
 ```bash
 source "<PAPER_DIR>/.aris/evidence-ledger/run.env"
@@ -431,9 +454,10 @@ re-merge.
 ## Step 5 — Self-check the ledger (it is the spine, so verify it)
 
 Confirm `claims.json` is well-formed, the level still matches the manifest, ids are
-contiguous, and the sources are byte-for-byte untouched (detect-only proof). The
-re-hash replicates `build_claim_ledger.py`'s **text** hash (decode→re-encode UTF-8),
-not a raw-byte hash, so it matches `source_files[].sha256`.
+contiguous, and every still-present source is **text-identical** to extraction time
+(detect-only proof). The re-hash replicates `build_claim_ledger.py`'s **text** hash
+(decode→re-encode UTF-8), not a raw-byte hash, so it matches `source_files[].sha256`;
+any source that has gone missing is reported, not silently passed.
 
 ```bash
 source "<PAPER_DIR>/.aris/evidence-ledger/run.env"
@@ -449,9 +473,12 @@ for c in L["claims"]:
     assert c["location"].get("file"), f"{c['claim_id']} has no location.file"
 def text_sha(p):  # mirror build_claim_ledger.sha256_text
     return hashlib.sha256(open(p, encoding="utf-8", errors="replace").read().encode("utf-8")).hexdigest()
+missing = [s["path"] for s in L["source_files"] if not os.path.exists(s["path"])]
 for s in L["source_files"]:
     if os.path.exists(s["path"]):
         assert text_sha(s["path"]) == s["sha256"], f"source changed since extraction: {s['path']}"
+if missing:
+    print("WARNING: source(s) missing at self-check, hash unverified: " + ", ".join(missing))
 by = {t: sum(1 for c in L["claims"] if c["type"]==t) for t in sorted({c["type"] for c in L["claims"]})}
 print(f"== Evidence Ledger built ==  L{L['observability_level']}  {len(ids)} claims {by}  "
       f"({sum(1 for c in L['claims'] if c.get('extractor')=='manual')} from enrichment)")
@@ -523,14 +550,12 @@ not run any of these** — stop at a validated ledger.
 
 ## Review tracing
 
-Step 3 (the only model call) saves its trace under
-`.aris/traces/evidence-ledger/<date>_run<NN>/` following the forensic policy
-(Policy C — never silently dropped), mirroring ARIS review-tracing and
-`references/integrity-forensics-contract.md` §"Output contract per skill": the raw
-`mcp__codex__codex` reply (`codex_raw.md`), the parsed candidates
-(`enrichment_candidates.json`), and the executor's keep/drop decisions
-(`enrichment_rejects.json`) — so a later reader can see exactly which enrichment spans
-were admitted and why. Fresh thread per run; full reply preserved. When `ENRICH =
-false` or enrichment is skipped (reviewer unavailable), note the skip inline and ship
-the deterministic ledger — no trace dir is required. Steps 0–2 and 4–5 are
-deterministic and need no trace beyond their own stdout and the hashed `source_files`.
+Only Step 3 (the single model call) needs a trace: its `RUNDIR`
+(`.aris/traces/evidence-ledger/<date>_run<NN>/`) holds `codex_raw.md`,
+`enrichment_candidates.json`, and `enrichment_rejects.json` under forensic Policy C
+(fresh thread, full reply, never silently dropped — see
+`references/integrity-forensics-contract.md` §"Output contract per skill"), so a later
+reader can see which enrichment spans were admitted and why. When `ENRICH = false` or
+enrichment is skipped (reviewer unavailable), note the skip inline and ship the
+deterministic ledger — no trace dir is required. Steps 0–2 and 4–5 are deterministic;
+their stdout and the hashed `source_files` are the only record needed.

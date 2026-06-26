@@ -19,11 +19,13 @@ the deterministic adjudicator — not this skill — computes the verdict.
 > (Mirrors ARIS's external-cadence doctrine.)
 
 > The flagship instrument. Internal contradiction is the single most defensible
-> thing you can check on an unknown submission: it needs no external GT, is fully
-> decidable at L0 (PDF-only), and is exactly where machine-generated papers crack —
-> they hallucinate *local* coherence. Adapted from ARIS `paper-claim-audit`,
-> reframed from "paper vs result files" to **"paper vs itself."** There is no
-> external ground truth in this skill.
+> thing you can check on an unknown submission: it needs no external GT, runs at L0
+> (PDF-only), and is exactly where machine-generated papers crack — they hallucinate
+> *local* coherence. Recall scales with the ledger: a PDF-text (L0) ledger extracts
+> only number/scope spans, so the table/caption/method-drift checks gain teeth at L1
+> (LaTeX), where tables and captions are actually extracted. Adapted from ARIS
+> `paper-claim-audit`, reframed from "paper vs result files" to **"paper vs
+> itself."** There is no external ground truth in this skill.
 
 ## Why this exists
 
@@ -40,8 +42,10 @@ result is a paper that disagrees with **itself**:
 
 None of this needs the code, the data, or a single external fact to detect — only
 the paper, read against itself. That is why this skill is the flagship and the only
-auditor that always runs: it is **fully decidable at L0**, the level at which we
-have the least to work with.
+auditor that always runs: it **runs at L0** (no external GT), the level at which we
+have the least to work with — though L0/PDF-text recall is bounded by what the
+extractor recovers (number/scope spans only); the richer table/caption checks need
+the L1 LaTeX ledger.
 
 ## Core principle
 
@@ -113,7 +117,10 @@ re-derive paths every step):
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 # $ARGUMENTS is a paper-dir OR a claims.json path:
 LEDGER="$ARGUMENTS"; [ -d "$LEDGER" ] && LEDGER="$LEDGER/claims.json"
-[ -f "$LEDGER" ] || LEDGER="$(pwd)/claims.json"
+# Only the NO-ARGUMENT case defaults to the CWD ledger. An EXPLICIT argument that
+# resolves to a missing claims.json must NOT silently fall back to $(pwd) — that
+# could audit the wrong paper; let the NO_LEDGER check below fire instead.
+[ -z "$ARGUMENTS" ] && LEDGER="$(pwd)/claims.json"
 python3 - "$LEDGER" <<'PY'
 import json, sys, os
 p = sys.argv[1]
@@ -136,10 +143,11 @@ every step below.
 - **`NO_LEDGER`** → stop and tell the user to run `/evidence-ledger` first. This skill
   never re-reads the raw PDF and invents its own structure (contract rule 1).
 - **`CLAIMS == 0`** → the ledger has nothing to audit. Run Step 1 anyway (it emits
-  `[]`), then **skip Steps 2–3**, write an empty `consistency-audit.findings.json`
-  (`[]`) in Step 4, record a trace note, and stop. An empty findings array is a
-  valid, non-silent output — the adjudicator reads it as "this dimension found
-  nothing". **Do not** call the reviewer on an empty ledger.
+  `[]`), then **skip Steps 2–3** and write the empty semantic file directly —
+  `printf '[]\n' > "$(dirname "$LEDGER")/consistency-audit.findings.json"` — record a
+  trace note (Step 5), and stop. An empty findings array is a valid, non-silent
+  output — the adjudicator reads it as "this dimension found nothing". **Do not**
+  call the reviewer on an empty ledger.
 - **Ledger `observability_level` is 2** → consistency checks run identically (they
   are intra-paper); the extra L2 power (paper-number↔result-file match, fake GT)
   belongs to `/experiment-forensics`, not here.
@@ -203,11 +211,24 @@ contradiction, or no tables were extracted to compare against); keep the file.
 
 ## Step 2 — Cross-model semantic pass (reviewer ≠ adjudicator)
 
-The arithmetic layer cannot see *meaning* drift. Open a **fresh** `mcp__codex__codex`
-thread (the Reviewer Calling Convention above) and send it the checklist. The
-reviewer reads `claims.json` from its `cwd`; it may re-open a source file to confirm
-a span, but **every finding must anchor to a ledger `claim_id`**. Send EXACTLY
-(substitute the absolute `PAPER_DIR` and the `L` value from Step 0):
+The arithmetic layer cannot see *meaning* drift. First create this run's trace dir
+(Step 5's layout) so the reviewer call can be persisted as it happens. Shell state
+does **not** persist between Bash calls, so read the printed `TRACE_DIR` and reuse
+that absolute path verbatim in Steps 2 and 5:
+
+```bash
+LEDGER="<abs path to claims.json from Step 0>"; D="$(dirname "$LEDGER")"
+TBASE="$D/.aris/traces/consistency-audit/$(date +%F)"
+NN=1; while [ -e "${TBASE}_run$(printf '%02d' "$NN")" ]; do NN=$((NN+1)); done
+TRACE_DIR="${TBASE}_run$(printf '%02d' "$NN")"; mkdir -p "$TRACE_DIR"
+echo "TRACE_DIR = $TRACE_DIR"   # carry this absolute path into Steps 2 and 5
+```
+
+Then open a **fresh** `mcp__codex__codex` thread (the Reviewer Calling Convention
+above) and send it the checklist. The reviewer reads `claims.json` from its `cwd`; it
+may re-open a source file to confirm a span, but **every finding must anchor to a
+ledger `claim_id`**. Send EXACTLY (substitute the absolute `PAPER_DIR` and the `L`
+value from Step 0):
 
 ```
 mcp__codex__codex:
@@ -336,9 +357,10 @@ mcp__codex__codex:
     array [] is a valid, honest result.
 ```
 
-Immediately persist the reviewer's raw response to the trace dir (Step 5) — e.g.
-`.aris/traces/consistency-audit/<date>_run<NN>/001-semantic-consistency.response.md`
-— before parsing. It is the forensic record and the input to Step 3.
+Immediately persist the reviewer's raw response with the **Write** tool to
+`$TRACE_DIR/001-semantic-consistency.response.md` (the dir you just created) before
+parsing. It is the forensic record and the input Step 3 reads. (Write the other three
+trace files now or in Step 5 — see Step 5 for the exact set.)
 
 **Failure handling.**
 - *MCP stall / hang* (common in long sessions): re-invoke the **identical** prompt
@@ -409,9 +431,18 @@ for f in proposed:
     if f.get("false_positive_risk") not in FPR: f["false_positive_risk"] = "high"
     if f["verdict_local"] == "needs_external_check":
         f["requires_external_check"] = True
+    # MANDATORY floor: HP-SUSPICIOUS-REGULARITY can never shout "fraud" from a table
+    # alone — pin it to minor / fp:high / req:L2 (auto-demotes on a PDF-only run),
+    # overriding whatever the reviewer filled in (see "Observability honesty").
+    if pid == "HP-SUSPICIOUS-REGULARITY":
+        if f["severity"] in ("critical", "major"): f["severity"] = "minor"
+        f["false_positive_risk"] = "high"
+        f["observability_level_required"] = 2
     # ANCHOR gate: span must be a verbatim, ws-normalized SUBSTRING of its cited claim
     anchored = []
     for ev in (f.get("evidence") or []):
+        if not isinstance(ev, dict):             # tolerate a stray string/None evidence item
+            continue
         cid, span = ev.get("claim_id"), nw(ev.get("span",""))
         c = claims.get(cid)
         if c and span and span in nw(c.get("text_span","")):   # span IN claim, not claim IN span
@@ -424,7 +455,7 @@ for f in proposed:
     # observability: must be a real int 0-3 (reject JSON bool, which is an int subclass)
     olr = f.get("observability_level_required")
     if isinstance(olr, bool) or not isinstance(olr, int) or not (0 <= olr <= 3):
-        f["observability_level_required"] = OBS.get(pid, 0)
+        f["observability_level_required"] = OBS.get(pid, 2)  # unknown pattern -> fail-closed L2 (auto-demotes at L0/L1)
     # cross-model provenance (reviewer-independence: this is a proposal, not a verdict)
     f["reviewer"] = {"model": "gpt-5.5", "reasoning": "xhigh", "deterministic": False}
     kept.append(f)
@@ -465,13 +496,13 @@ standalone adjudicate command both expect the file to exist at a predictable pat
 
 ## Step 5 — Trace (forensic; never silently dropped)
 
-Save the raw reviewer call under
-`.aris/traces/consistency-audit/<YYYY-MM-DD>_run<NN>/` (start `NN` at `01`, bump if
-the dir exists). Mirrors ARIS review-tracing; this repo ships no `save_trace.sh`, so
-write the files directly:
+You already created `$TRACE_DIR` in Step 2
+(`.aris/traces/consistency-audit/<date>_run<NN>/`, `NN` from `01`). This repo ships no
+`save_trace.sh`, so use the **Write** tool to write these four files into it (the
+`response.md` was already saved in Step 2):
 
 ```
-.aris/traces/consistency-audit/<date>_run<NN>/
+$TRACE_DIR/
   run.meta.json                          # {skill, paper_id, run_level_L, taxonomy_version, generated_at}
   001-semantic-consistency.request.json  # the exact prompt sent (paths + checklist, no summaries)
   001-semantic-consistency.response.md   # the FULL raw reviewer response (input to Step 3)
@@ -487,9 +518,9 @@ actual codex `thread_id` into the per-call `.meta.json`.
 Within `/anti-autoresearch`, stop here: the orchestrator globs every
 `*.findings.json`, runs the adjudicator over the union of all skills' findings, and
 emits `REPORT.md` + `report.json`. When running this skill **alone**, you may produce
-the report yourself — `--ledger` is **required** (it is what re-verifies each finding
-quotes a real ledger span; without it the adjudicator fails closed and every
-above-info finding drops to `info`):
+the report yourself — `--ledger` is **required** (it re-verifies each finding quotes a
+real ledger span; the adjudicator will not run without it, and its anchor gate is
+itself fail-closed — an above-info finding it cannot anchor is demoted to `info`):
 
 ```bash
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
@@ -566,13 +597,3 @@ human-readable rendering is the orchestrator's job, not this skill's.
   **not** an AI-text classifier.
 - **On a timer** → never `/loop` / `/schedule` / `CronCreate` this skill; re-fire
   only when the paper or ledger changes (see the fence at the top).
-
-## Review tracing
-
-After the `mcp__codex__codex` reviewer call, save the trace under
-`.aris/traces/consistency-audit/<YYYY-MM-DD>_run<NN>/` (Policy: **forensic** — never
-silently skip), as laid out in Step 5: `run.meta.json` + per-call
-`NNN-<purpose>.request.json` / `.response.md` / `.meta.json`. The `request.json`
-must contain only the paths + ledger + checklist that were sent (the
-reviewer-independence audit trail); the `response.md` is the immutable input that
-Step 3 validates. The directory is the immutable audit trail for this run.

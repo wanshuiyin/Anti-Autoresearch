@@ -294,7 +294,18 @@ baseline as "missing":
    concurrent with or post-dating the audited paper is a **legitimate omission** (a
    false positive for "missing"), not a flag.
 
-Write these facts (not opinions) to the run's trace dir as `expected_baseline_set.json`:
+Create the run's trace dir **now** — its first use is the file written just below, so
+it must exist before Step 7. Reuse this exact `RUNDIR` in Steps 3–7 (do **not** create
+a second one):
+
+```bash
+DATE=$(date +%Y-%m-%d); N=1
+while [ -d ".aris/traces/baseline-comparison-audit/${DATE}_run$(printf %02d $N)" ]; do N=$((N+1)); done
+RUNDIR=".aris/traces/baseline-comparison-audit/${DATE}_run$(printf %02d $N)"; mkdir -p "$RUNDIR"
+echo "RUNDIR = $RUNDIR"   # carry this exact path forward (shell state does not persist)
+```
+
+Write these facts (not opinions) into `$RUNDIR/expected_baseline_set.json`:
 
 ```json
 {
@@ -426,11 +437,17 @@ interpretation, the same executor/reviewer division as `experiment-forensics`);
 ```bash
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 PAPER_DIR="<abs PAPER_DIR from Step 0>"
-# (L2 ONLY) per-method budget / tuning / seed asymmetry FACTS — paths + raw hits:
-grep -rInE 'epochs?|max_steps|learning_rate|\blr\b|batch_?size|seed|n_seeds|num_runs|backbone|warm.?up|sweep|tune|budget' \
-    "$PAPER_DIR" --include='*.yaml' --include='*.yml' --include='*.json' --include='*.toml' 2>/dev/null | head -80
-find "$PAPER_DIR" -type f \( -name '*config*' -o -name '*args*' -o -name 'hparams*' \) 2>/dev/null | sort | head -40
-shasum -a 256 $(find "$PAPER_DIR" -maxdepth 3 \( -name '*config*' -o -path '*results*.json' \) 2>/dev/null | head) 2>/dev/null
+L="<L from Step 0>"
+# (L2 ONLY) per-method budget / tuning / seed asymmetry FACTS — paths + raw hits.
+# Guarded: skip entirely at L0/L1 (no configs to read — the reviewer block gets "L<2: ...").
+if [ "$L" = "2" ]; then
+  grep -rInE 'epochs?|max_steps|learning_rate|\blr\b|batch_?size|seed|n_seeds|num_runs|backbone|warm.?up|sweep|tune|budget' \
+      "$PAPER_DIR" --include='*.yaml' --include='*.yml' --include='*.json' --include='*.toml' 2>/dev/null | head -80
+  find "$PAPER_DIR" -type f \( -name '*config*' -o -name '*args*' -o -name 'hparams*' \) 2>/dev/null | sort | head -40
+  # space-safe and tolerant of zero matches (a bare `shasum $(...)` would hang on no args):
+  find "$PAPER_DIR" -maxdepth 3 \( -name '*config*' -o -path '*results*.json' \) 2>/dev/null \
+      | head -n 20 | while IFS= read -r ff; do shasum -a 256 "$ff" 2>/dev/null; done
+fi
 ```
 
 Then send EXACTLY (fill every `[ ... ]`):
@@ -527,9 +544,10 @@ on stall; re-ask for the strict JSON array on prose; never hand-author findings)
 
 ## Step 5 — Validate + anchor + dedup (the anti-hallucination gate)
 
-The executor enforces the ANCHOR + owned-pattern gates **before** keeping anything —
-exactly the checks `tools/adjudicate_findings.py` re-applies, so nothing you keep gets
-silently rejected downstream. The span must be a verbatim, whitespace-normalized
+The executor enforces the **ANCHOR** gate (the one `tools/adjudicate_findings.py`
+re-applies, so an anchored finding you keep is not silently rejected downstream) plus
+baseline-specific **owned-pattern + delta-dedup + schema-hygiene** pre-filters,
+**before** keeping anything. The span must be a verbatim, whitespace-normalized
 **substring of** the cited claim (`span in base`, never `base in span` — appending
 hallucinated text to a real claim must fail). Pass **every** saved raw reviewer
 response (completeness + fairness + any per-entry fan-out files); they merge into one
@@ -549,10 +567,6 @@ def nw(s):                                   # mirror adjudicator _norm_ws (whit
     return " ".join((s or "").split())
 
 OWNED = {"HP-MISSING-BASELINE", "HP-WEAK-BASELINE", "HP-SIG-OVERLAP", "HP-DELTA-ERROR"}
-# observability fallback ONLY when the reviewer forgot a valid int. WEAK-BASELINE
-# defaults to 0 (text-stated asymmetry); the reviewer sets 2 explicitly when the
-# discrepancy is confirmable only from the config/result files.
-OBS = {"HP-MISSING-BASELINE": 0, "HP-WEAK-BASELINE": 0, "HP-SIG-OVERLAP": 0, "HP-DELTA-ERROR": 0}
 ABOVE = {"critical", "major", "minor"}
 
 ledger = json.load(open(ledger_path, encoding="utf-8"))
@@ -603,14 +617,24 @@ for f in proposed:
     # ANCHOR gate: above-info needs >=1 anchored span
     if f.get("severity") in ABOVE and not anchored:
         f["severity"] = "info"; f.setdefault("_demotions", []).append("unanchored"); demoted += 1
-    # observability fallback: must be a real int 0-3 (reject JSON bool, which is an int subclass)
+    # OBSERVABILITY hygiene — MIRROR the adjudicator, fail-closed: an above-info finding whose
+    # observability_level_required is missing/invalid demotes to info. NEVER silently default to 0
+    # (that would let a forgotten level-2 config-only asymmetry survive an L0 run). type() not
+    # isinstance() so JSON booleans (True==1) are rejected, exactly as adjudicate_findings.py does.
     olr = f.get("observability_level_required")
-    if isinstance(olr, bool) or not isinstance(olr, int) or not (0 <= olr <= 3):
-        f["observability_level_required"] = OBS.get(f.get("pattern_id"), 0)
-    f.setdefault("false_positive_risk", "medium")
+    if f.get("severity") in ABOVE and (type(olr) is not int or not (0 <= olr <= 3)):
+        f["severity"] = "info"; f.setdefault("_demotions", []).append("undeclared-observability"); demoted += 1
+    # FP-RISK hygiene — false_positive_risk is the REVIEWER's self-assessment (it drives the
+    # adjudicator's cap); the executor never guesses it. Missing/invalid demotes to info, never a default.
+    if f.get("severity") in ABOVE and f.get("false_positive_risk") not in ("low", "medium", "high"):
+        f["severity"] = "info"; f.setdefault("_demotions", []).append("undeclared-fp-risk"); demoted += 1
     f.setdefault("reviewer", {"model": "gpt-5.5", "reasoning": "xhigh", "deterministic": False})
+    # honest hand-off: needs_external_check carries no severity weight (adjudicate_findings.py has
+    # no such gate, so the validator makes the claim true) — pin it to info, never drop it.
     if f.get("verdict_local") == "needs_external_check":
-        f["requires_external_check"] = True                            # keep the honest hand-off intact
+        f["requires_external_check"] = True
+        if f.get("severity") in ABOVE:
+            f["severity"] = "info"; f.setdefault("_demotions", []).append("needs-external-check-no-weight")
     kept.append(f)
 
 for k, f in enumerate(kept, 1):                                        # one namespace, sequential
@@ -618,16 +642,20 @@ for k, f in enumerate(kept, 1):                                        # one nam
 
 json.dump(kept, open(out_path, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
 above = sum(1 for x in kept if x.get("severity") in ABOVE)
-print(f"validated {len(kept)} baseline findings (above_info={above}; {demoted} unanchored->info; "
-      f"{not_owned} not-owned->info; {deduped} delta deduped) -> {out_path}")
+print(f"validated {len(kept)} baseline findings (above_info={above}; {demoted} demoted->info "
+      f"(unanchored/undeclared); {not_owned} not-owned->info; {deduped} delta deduped) -> {out_path}")
 PY
 ```
 
-Scope of this gate: **anchoring + owned-pattern + delta-dedup + schema hygiene only.**
-Do **not** re-implement the adjudicator's other gates (observability downgrade,
-FP-risk cap, surface cap, verdict) — those belong to `tools/adjudicate_findings.py`,
-the single decider. `needs_external_check` findings are kept verbatim (they are the
-honest hand-off, not errors). The remaining judgments are the **reviewer's**, per the
+Scope of this gate: **anchoring + owned-pattern + delta-dedup + schema hygiene only**
+(schema hygiene = the *presence/validity* of the reviewer's required fields — a
+missing/invalid `observability_level_required` or `false_positive_risk` on an
+above-info finding fails **closed to info**, never a guessed default). Do **not**
+re-implement the adjudicator's verdict-bearing gates (the observability LEVEL
+*downgrade* `req > run_level`, the FP-risk *cap*, the surface cap, the verdict) — those
+need the run level and belong to `tools/adjudicate_findings.py`, the single decider.
+`needs_external_check` findings are pinned to `info` (the honest hand-off carries no
+severity weight), never dropped. The remaining judgments are the **reviewer's**, per the
 prompt — concurrency/post-dating FP on a missing baseline, a large-gap/significance-
 test FP on overlap, the `observability_level_required: 2` tag for config-only
 asymmetry; if a kept finding plainly violates one of these, re-run that pass with the
@@ -719,14 +747,14 @@ non-overlapping with consistency-audit's deterministic delta pass.
 
 ## Step 7 — Trace (forensic; never silently dropped)
 
-Save every reviewer call under
-`.aris/traces/baseline-comparison-audit/<YYYY-MM-DD>_run<NN>/` (start `NN` at `01`,
-bump if the dir exists). This repo ships no `save_trace.sh`, so write files directly:
+Save every reviewer call under the **same `RUNDIR` created at the start of Step 2**
+(`.aris/traces/baseline-comparison-audit/<YYYY-MM-DD>_run<NN>/`). This repo ships no
+`save_trace.sh`, so write files directly — reuse that path; do **not** re-run the bump
+loop here (it would allocate a second empty dir):
 
 ```bash
-DATE=$(date +%Y-%m-%d); N=1
-while [ -d ".aris/traces/baseline-comparison-audit/${DATE}_run$(printf %02d $N)" ]; do N=$((N+1)); done
-RUNDIR=".aris/traces/baseline-comparison-audit/${DATE}_run$(printf %02d $N)"; mkdir -p "$RUNDIR"
+RUNDIR="<the RUNDIR printed in Step 2>"   # e.g. .aris/traces/baseline-comparison-audit/<date>_run01
+mkdir -p "$RUNDIR"                          # idempotent — the dir already exists from Step 2
 ```
 
 Populate it:
@@ -858,10 +886,8 @@ second deterministic file** and never edits the audited paper.
 
 ## Review tracing
 
-After every `mcp__codex__codex` reviewer call, save the trace under
-`.aris/traces/baseline-comparison-audit/<YYYY-MM-DD>_run<NN>/` (Policy: **forensic** —
-never silently skip), as laid out in Step 7: `run.meta.json` +
-`expected_baseline_set.json` + per-call `NNN-<purpose>.request.json` / `.response.md`
-/ `.meta.json`. The `request.json` must contain only the paths + ledger + sourced
-external facts + checklist that were sent (the reviewer-independence audit trail); the
-`response.md` is the immutable input that Step 5 validates.
+Forensic policy — never silently skipped. The exact `RUNDIR` layout and the
+reviewer-independence audit-trail rule for each `request.json` (only paths + ledger +
+sourced external facts + checklist were sent — no digest, no pre-judgment) are
+specified once in **Step 7**; follow it for every `mcp__codex__codex` call
+(completeness, fairness, and any per-entry fan-out).

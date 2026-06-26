@@ -172,9 +172,12 @@ PY
 - `NO_LEDGER` printed → **stop**. Tell the user to run `/evidence-ledger` (then the
   auditor skills) first — this skill is the **last** step and never re-reads the raw
   PDF to invent structure (contract rule 1).
-- `FINDINGS_FILES = (none …)` → you may still proceed, but warn the user: with no
-  auditor findings the attack can only cite ledger `claim_id`s, the case is weaker,
-  and `honest_null` is the likely (correct) outcome. Prefer running the auditors first.
+- `FINDINGS_FILES = (none …)` → **strongly prefer to stop and run the auditors first.**
+  With no findings the attack may cite only ledger `claim_id`s, and this skill must NOT
+  *originate* a substantive objection from a lone claim (that is detection + a
+  `needs_external_check` the auditors own — not synthesis). If you proceed anyway,
+  `honest_null` is the expected, correct outcome; do not manufacture a kill from claims
+  alone.
 - Carry `PAPER_DIR`, `PAPER_ID`, `RUN_LEVEL_L (=L)`, the absolute `LEDGER`, and the
   `FINDINGS_FILES` list forward — every later step needs them.
 
@@ -296,7 +299,8 @@ mcp__codex__codex:
   sandbox: read-only
   cwd: <absolute PAPER_DIR from Step 0>
   prompt: |
-    You are an INDEPENDENT integrity adjudicator. A hostile reviewer wrote the
+    You are an INDEPENDENT defense reviewer — a checker, NOT the adjudicator
+    (deterministic code owns the verdict). A hostile reviewer wrote the
     rejection memo below, citing claim_ids / finding_ids. Read it point-by-point
     against the SAME anchored evidence and rule, honestly, how much of the case
     actually STANDS. You are NOT the paper's defender and NOT the attacker — you check
@@ -329,9 +333,10 @@ mcp__codex__codex:
           unresolved          — the anchored evidence genuinely leaves the headline
                                 unsupported and nothing in the ledger/findings rescues it.
       - OBSERVABILITY: if a point is decidable only at L2 (needs code/results) and
-        L < 2, you CANNOT call it refuted OR proven from text — classify unresolved,
-        set observability_level_required = 2, and frame the action as "verify at L2",
-        never as an assertion of fabrication.
+        L < 2, you CANNOT call it refuted OR proven from text. Do NOT classify it
+        unresolved (at L<2 the evidence cannot leave the headline "unsupported");
+        classify it partially_addressed, set observability_level_required = 2, and
+        frame reviewer_action as "verify at L2" — never as an assertion of fabrication.
       - AUTHOR-CHOSEN POSITIONS (a deliberate scope choice, a labelled pilot, a stated
         omission): classify partially_addressed with a note that the position is
         intentional, AND say whether it is sustainable under the attack. Do NOT
@@ -371,8 +376,10 @@ Step 1). Keep `defense_thread_id`.
 ## Step 3 — Validate + anchor, then render the memo (the anti-slop gate)
 
 Everything the reviewers proposed is now **validated deterministically** by the
-executor — exactly the anchoring rule the adjudicator enforces, so nothing survives
-that downstream would reject. A **claim anchor** is valid only if its `claim_id`
+executor (claim anchors require a verbatim span; finding anchors require the id to
+exist in a sibling findings file). The adjudicator independently re-applies the full
+gate stack (span-anchor → observability → FP → memo → surface) as the authoritative
+verdict, so this memo can never out-rank it. A **claim anchor** is valid only if its `claim_id`
 exists in the ledger AND its `span` is a verbatim, whitespace-normalized **substring
 of** that claim (`span in text_span`, never the reverse — appending hallucinated text
 to a real claim must fail). A **finding anchor** is valid if its id (bare `Fxxx` or
@@ -402,13 +409,16 @@ L = int(led.get("observability_level", 0))
 PID = led.get("paper_id", "?")
 claims = {c["claim_id"]: c for c in led.get("claims", []) if c.get("claim_id")}
 
-findings, n_findings = {}, 0
+findings, n_findings, bad_findings = {}, 0, []
 for fp in sorted(glob.glob(os.path.join(D, "*.findings.json"))):
     if os.path.basename(fp).startswith("adversarial-case-builder"):
         continue                                   # never let the memo cite itself
     try:
         arr = json.load(open(fp, encoding="utf-8"))
-    except Exception:
+    except Exception as e:                          # forensic: never SILENTLY drop input
+        print("WARN: unreadable findings file skipped: %s (%s) — evidence universe "
+              "reduced; fix it and re-run" % (os.path.basename(fp), e), file=sys.stderr)
+        bad_findings.append(os.path.basename(fp))
         continue
     if isinstance(arr, dict): arr = arr.get("findings", [])
     for it in (arr or []):
@@ -471,10 +481,11 @@ for i, p in enumerate(points, 1):
 for j, p in enumerate(kept, 1): p["id"] = "P%d" % j   # stable renumber
 
 def decidable_crit(p):
-    # mirrors the adjudicator: a kill is "constructed" only if an UNRESOLVED point
-    # rests on a finding that would SURVIVE the adjudicator's gates as critical —
-    # severity critical, FP low, and decidable at the run level. A minor / high-FP /
-    # observability-demoted finding can never reach this.
+    # INFORMATIONAL heuristic (NOT a verdict): flag a "constructed" kill only if an
+    # UNRESOLVED point rests on a finding the upstream auditor DECLARED critical, FP
+    # low, and decidable at the run level L. The adjudicator independently re-applies
+    # the full gate stack (incl. span-anchor + surface cap) and owns the real verdict;
+    # a minor / high-FP / observability-demoted finding can never reach this.
     return p["classification"] == "unresolved" and any(
         a["kind"] == "finding" and a.get("severity") == "critical"
         and a.get("fpr") == "low" and type(a.get("olr")) is int and a["olr"] <= L
@@ -510,6 +521,8 @@ out.append("Disposition (informational, NOT the report verdict): **%s**  ·  Evi
            "%d ledger claims · %d confirmed findings" % (disp, len(claims), n_findings))
 if dangling:
     out.append("⚠ Dangling attack citations dropped (not in the ledger/findings): %s" % ", ".join(dangling))
+if bad_findings:
+    out.append("⚠ Unreadable findings file(s) SKIPPED (evidence universe reduced): %s" % ", ".join(bad_findings))
 out += ["", "### Strongest case to reject (attack, verbatim)", ""]
 out += [("> " + ln) if ln.strip() else ">" for ln in (attack or "_(empty attack)_").splitlines()]
 out += ["", "### Point-by-point adjudication (evidence-bound)", ""]
@@ -577,9 +590,9 @@ find_path = os.path.join(D, "adversarial-case-builder.findings.json")
 json.dump(acb, open(find_path, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
 
 print("disposition=%s (informational, NOT a verdict) | kept=%d (unresolved=%d, partially_addressed=%d, "
-      "already_addressed=%d) | dropped_uncited=%d | dangling=%d"
+      "already_addressed=%d) | dropped_uncited=%d | dangling=%d | bad_findings=%d"
       % (disp, len(kept), counts["unresolved"], counts["partially_addressed"],
-         counts["already_addressed"], len(dropped), len(dangling)))
+         counts["already_addressed"], len(dropped), len(dangling), len(bad_findings)))
 print("memo     ->", memo_path)
 print("findings ->", find_path, "(%d info-only)" % len(acb))
 PY
@@ -678,8 +691,10 @@ only from `tools/adjudicate_findings.py` (Step 5 / the orchestrator).
   the skill from generic LLM paper-bashing.
 - **No upgrading evidence.** A finding's severity / FP-risk / observability ceiling are
   inherited, never raised. A minor / high-FP / observability-demoted finding cannot
-  become a decisive kill — `kill_constructed` requires an unresolved point resting on a
-  finding that survives the adjudicator's gates as `critical` (FP low, decidable at L).
+  become a decisive kill — the informational `kill_constructed` heuristic requires an
+  unresolved point resting on a finding the upstream auditor graded `critical` (FP low)
+  and decidable at L; the adjudicator independently re-applies the full gate stack as
+  the authoritative verdict.
 - **Synthesis, not detection.** Raise no *new* discrepancy here — only synthesize what
   the ledger + the other auditors already anchored. New flags belong to the auditor
   that owns them.
@@ -717,11 +732,8 @@ only from `tools/adjudicate_findings.py` (Step 5 / the orchestrator).
 
 ## Review tracing
 
-After each `mcp__codex__codex` reviewer call, save the trace under
-`.aris/traces/adversarial-case-builder/<YYYY-MM-DD>_run<NN>/` (Policy: **forensic** —
-never silently skip), as laid out in Step 4: `run.meta.json` + per-call
-`NNN-<purpose>.request.json` / `.response.md` / `.meta.json` for the attack, the
-defense, and (under `beast`) each axis probe + synthesis. Each `request.json` must
-contain only the paths + ledger/findings (and, for Thread 2, the attack memo text)
-that were sent — the reviewer-independence audit trail; the `response.md` files are the
-immutable inputs Step 3 consumes.
+Trace policy is **forensic** (never silently skipped) — see **Step 4** for the exact
+layout: `run.meta.json` + per-call `NNN-<purpose>.{request.json,response.md,meta.json}`
+for the attack, the defense, and (under `beast`) each axis probe + synthesis. Every
+`request.json` must contain only the paths + ledger/findings (and, for Thread 2, the
+attack memo text) that were sent — the reviewer-independence audit trail.

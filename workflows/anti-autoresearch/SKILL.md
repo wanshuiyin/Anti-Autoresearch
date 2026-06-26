@@ -17,10 +17,7 @@ reviewer / area chair an evidence-first Integrity Forensics Report.
 > only *wait on* the **external** steps that precede the verdict (an arXiv download, a
 > citation web lookup) — never re-fire the adjudicated verdict, and never "decide the
 > paper is fine now." Re-run the sweep when the inputs change; that is the only honest
-> trigger. (ARIS external-cadence doctrine pointed at a forensics tool: a heartbeat may
-> say "the download finished, proceed," never "good enough." Unlike `/research-pipeline`
-> there is **no** open-ended search to stall-pivot — the verdict is a pure function of
-> the hashed inputs.)
+> trigger.
 
 > 🛡️ **The dual of ARIS.** ARIS ships an internal audit stack so its *own* autoresearch
 > output stays honest; Anti-Autoresearch is that same audit DNA **pointed outward** at a
@@ -113,7 +110,7 @@ after Step 1 to confirm L, and before Step 5). Example:
 > Every block below re-derives `ROOT` and `PAPER_DIR` at its top and reads `L` /
 > `PAPER_ID` from `claims.json` (the authoritative source after Step 1). Never rely on a
 > variable set in an earlier block, and never `cd` into the paper dir. Keep `PAPER_DIR`
-> **space-free** (the Step-4 glob splits on spaces).
+> **space-free** (simplest way to stay safe across the inline `*.tex` / `*.findings.json` globs).
 
 ## Execution modes & the Reviewer Calling Convention
 
@@ -128,9 +125,10 @@ verdict) is byte-deterministic given those files + the ledger.**
   `/auto-review-loop` rather than prompting GPT itself.
 - **Inline (fallback — only shell + Read/Write + codex MCP):** run the deterministic
   tools yourself with the exact commands below; for each cross-model dimension open a
-  **fresh** `mcp__codex__codex` thread, send the **verbatim** prompt block from
-  `skills/<dim>/SKILL.md` (Read it — it is the single source of truth, fill its `[...]`
-  inputs from `claims.json`), save the raw reply, then run the **shared anchor gate**
+  **fresh** `mcp__codex__codex` thread, send the **verbatim** reviewer-prompt block —
+  the fenced `prompt:` / checklist inside that sub-skill's `## Step … — Cross-model …`
+  section in `skills/<dim>/SKILL.md` (Read it — the single source of truth; fill its
+  `[...]` inputs from `claims.json`), save the raw reply, then run the **shared anchor gate**
   (Step 2) to produce the validated `<dim>.findings.json`.
 
 The orchestrator's job is to guarantee the *envelope* and the *independence invariants*
@@ -264,9 +262,11 @@ ls -1 "$PAPER_DIR"/*.tex "$PAPER_DIR"/*.bib "$PAPER_DIR"/*.txt "$PAPER_DIR"/*.pd
 ls -d  "$PAPER_DIR"/code "$PAPER_DIR"/src "$PAPER_DIR"/results "$PAPER_DIR"/outputs 2>/dev/null   # L2 candidates
 ```
 
-**Validation gate.** `PAPER_DIR` must now contain at least one of `*.tex`, `*.txt`, or
-`*.pdf`. If it contains none, **stop** and report exactly what was searched — there is no
-source to anchor spans against, so there can be no ledger.
+**Validation gate.** `PAPER_DIR` must now contain **anchorable text** — at least one
+`*.tex` or `*.txt`. A bare `*.pdf` is **not** enough: the ledger builders accept only
+`--latex` / `--pdf-text`, so Step 0 must have extracted `paper.txt`. If extraction failed
+or no source is present, **stop** and report exactly what was searched — there is nothing
+to anchor spans against, so there can be no ledger (see Failure handling below).
 
 **Failure handling.**
 - *No `pdftotext`* → fall back to `mutool draw -F txt in.pdf out.txt` or
@@ -321,13 +321,12 @@ PY
   list, and pause for confirmation before fanning out.
 
 **Failure handling.** If `/evidence-ledger` is unavailable, build the ledger directly
-with the real tools (exact flags — confirm via `--help`; a malformed `.tex` is dropped
-per-file, never aborts the run):
+with the real tools (exact flags — confirm via `--help`):
 ```bash
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd); PAPER_DIR="<from Step 0>"
 SLUG=$(basename "$PAPER_DIR" | tr -cs 'A-Za-z0-9.' '-')
-TXT=""; [ -f "$PAPER_DIR/paper.txt" ] && TXT="--pdf-text $PAPER_DIR/paper.txt"
-python3 "$ROOT/tools/build_manifest.py" --paper-id "$SLUG" --dir "$PAPER_DIR" $TXT --out "$PAPER_DIR/artifact_manifest.json"
+TXT=(); [ -f "$PAPER_DIR/paper.txt" ] && TXT=(--pdf-text "$PAPER_DIR/paper.txt")
+python3 "$ROOT/tools/build_manifest.py" --paper-id "$SLUG" --dir "$PAPER_DIR" "${TXT[@]}" --out "$PAPER_DIR/artifact_manifest.json"
 L=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["observability_level"])' "$PAPER_DIR/artifact_manifest.json")
 if ls "$PAPER_DIR"/*.tex >/dev/null 2>&1; then
   python3 "$ROOT/tools/build_claim_ledger.py" --paper-id "$SLUG" --latex "$PAPER_DIR"/*.tex --observability-level "$L" --out "$PAPER_DIR/claims.json"
@@ -383,8 +382,8 @@ Notes the orchestrator must honor:
   `HARD_FLAGS`. It is **not** an AI-text classifier (`references/hack-pattern-taxonomy.md`
   §F). Most papers ⇒ `[]`.
 - A skill that finds nothing — or an optional auditor that does not apply — still writes
-  `[]` to its predictable path. **Silent skip is forbidden** (Step 4 globs these files
-  and expects them to exist): `echo '[]' > "$PAPER_DIR/citation-forensics.findings.json"`.
+  `[]` to its predictable path. **Silent skip is forbidden** (so the run records that the
+  dimension ran and was clean, not silently absent): `echo '[]' > "$PAPER_DIR/citation-forensics.findings.json"`.
 - **No double-counting.** Each auditor writes its own filename, so the `*.findings.json`
   glob enumerates each file exactly once; the deterministic and semantic passes stay in
   *separate* files. (Finding-id prefixes: `NUM###`/`HL###` numeric, `PRES###`
@@ -401,6 +400,7 @@ as `tools/adjudicate_findings.py` re-binds it (`span in claim`, never `claim in 
 ```bash
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd); PAPER_DIR="<from Step 0>"
 LEDGER="$PAPER_DIR/claims.json"; SKILL="<dimension>"; SURFACE="<0 or 1>"
+mkdir -p "$PAPER_DIR/.aris"   # the fresh-thread raw reply is saved here before this gate runs
 RAW="$PAPER_DIR/.aris/$SKILL.response.md"; OUT="$PAPER_DIR/$SKILL.findings.json"
 python3 - "$LEDGER" "$RAW" "$OUT" "$SKILL" "$SURFACE" <<'PY'
 import json, re, sys
@@ -552,10 +552,13 @@ python3 "$ROOT/tools/adjudicate_findings.py" \
 - **`--observability-level "$L"`** is the run level: it auto-demotes any finding whose
   `observability_level_required` exceeds `L` (e.g. an L2 code-fraud pattern on an L0 run
   → `info`, counted under `downgraded_for_observability`).
-- The adjudicator **auto-writes the level-derived limitations** (always populated —
-  honesty is part of the contract); each `--limitation` you pass (repeatable) is added
-  alongside them. For a byte-reproducible eval run add `--generated-at "<fixed ISO8601>"`;
-  omit it normally (a harmless `utcnow` DeprecationWarning may print to stderr; exit 0).
+- The adjudicator **auto-writes level-derived limitations** at L0/L1 (and an anchoring
+  note if `--ledger` anchoring ever fails); Step 4 **also always passes an explicit
+  `--limitation`** (above), so the report's `limitations` is never empty on this path —
+  honesty is part of the contract. Each extra `--limitation` (repeatable) is added
+  alongside the auto-written ones. For a byte-reproducible eval run add
+  `--generated-at "<fixed ISO8601>"`; omit it normally (a harmless `utcnow`
+  DeprecationWarning may print to stderr; exit 0).
 
 It applies, in order (each gate fail-closed and logged per finding): **ANCHOR**
 (above-info without a verbatim ledger span → `info`; counted under `unanchored_demoted`) →
@@ -633,11 +636,16 @@ eval-gated part of the repo (**100% recall on the three deterministic patterns
 
 ```bash
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd); PAPER_DIR="<from Step 0>"
-TXT=""; [ -f "$PAPER_DIR/paper.txt" ] && TXT="--pdf-text $PAPER_DIR/paper.txt"
-python3 "$ROOT/tools/build_manifest.py"      --paper-id mypaper --dir "$PAPER_DIR" $TXT --out "$PAPER_DIR/artifact_manifest.json"
+TXT=(); [ -f "$PAPER_DIR/paper.txt" ] && TXT=(--pdf-text "$PAPER_DIR/paper.txt")
+python3 "$ROOT/tools/build_manifest.py"      --paper-id mypaper --dir "$PAPER_DIR" "${TXT[@]}" --out "$PAPER_DIR/artifact_manifest.json"
 L=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["observability_level"])' "$PAPER_DIR/artifact_manifest.json")
-python3 "$ROOT/tools/build_claim_ledger.py"  --paper-id mypaper --latex "$PAPER_DIR"/*.tex \
-    --observability-level "$L" --out "$PAPER_DIR/claims.json"          # or --pdf-text for the L0 text path
+if ls "$PAPER_DIR"/*.tex >/dev/null 2>&1; then            # L1/L2 source path
+  python3 "$ROOT/tools/build_claim_ledger.py"  --paper-id mypaper --latex "$PAPER_DIR"/*.tex \
+      --observability-level "$L" --out "$PAPER_DIR/claims.json"
+else                                                       # L0 text path (no *.tex)
+  python3 "$ROOT/tools/build_claim_ledger.py"  --paper-id mypaper --pdf-text "$PAPER_DIR/paper.txt" \
+      --observability-level "$L" --out "$PAPER_DIR/claims.json"
+fi
 python3 "$ROOT/tools/check_numeric_consistency.py" --ledger "$PAPER_DIR/claims.json" \
     --out "$PAPER_DIR/consistency-audit.deterministic.findings.json"
 python3 "$ROOT/tools/check_presentation.py"        --ledger "$PAPER_DIR/claims.json" \
@@ -645,7 +653,9 @@ python3 "$ROOT/tools/check_presentation.py"        --ledger "$PAPER_DIR/claims.j
 python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "$PAPER_DIR"/*.deterministic.findings.json \
     --ledger "$PAPER_DIR/claims.json" --paper-id mypaper --observability-level "$L" \
-    --taxonomy-version 0.2 --out "$PAPER_DIR/report.json" --md "$PAPER_DIR/REPORT.md"
+    --taxonomy-version 0.2 \
+    --limitation "Deterministic-only run (no cross-model reviewer): semantic + code-level dimensions were NOT run." \
+    --out "$PAPER_DIR/report.json" --md "$PAPER_DIR/REPORT.md"
 ```
 
 The verdict reflects only the deterministic patterns; the report's limitations must say
@@ -706,7 +716,9 @@ deterministic adjudicator, and presents.
   sub-skill might stage, so an unvalidated array can never reach the verdict.
 - **Silent skip is forbidden.** A non-applicable / clean auditor still writes `[]`.
 - **Large file handling.** If `Write` fails on size, retry with a Bash heredoc
-  (`cat << 'EOF' > file`) — do not ask permission, just do it.
+  (`cat << 'EOF' > file`) — do not ask permission, just do it. This is only ever for
+  **our own output files** in `PAPER_DIR`; detect-only still holds (never write/edit the
+  audited sources).
 - **Reproducible.** Same artifacts → same ledger → same findings → same verdict; re-run
   only when the inputs change (the cadence fence at the top).
 
@@ -752,10 +764,10 @@ ledger + the checklist — the reviewer-independence audit trail). The orchestra
 additionally writes a top-level run trace so the whole sweep is reproducible:
 
 ```bash
-PAPER_DIR="<from Step 0>"; DATE=$(date +%Y-%m-%d); N=1
+PAPER_DIR="<from Step 0>"; ARG="<original input arg, from Step 0>"; DATE=$(date +%Y-%m-%d); N=1
 while [ -d "$PAPER_DIR/.aris/traces/anti-autoresearch/${DATE}_run$(printf %02d $N)" ]; do N=$((N+1)); done
 RUNDIR="$PAPER_DIR/.aris/traces/anti-autoresearch/${DATE}_run$(printf %02d $N)"; mkdir -p "$RUNDIR"
-python3 - "$PAPER_DIR" "$RUNDIR" "$ARGUMENTS" <<'PY'
+python3 - "$PAPER_DIR" "$RUNDIR" "$ARG" <<'PY'
 import json, glob, os, sys, hashlib, datetime
 D, RUN, ARG = sys.argv[1], sys.argv[2], sys.argv[3]
 def sha(p):

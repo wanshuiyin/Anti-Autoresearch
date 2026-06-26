@@ -124,13 +124,15 @@ TRACE_DIR               = .aris/traces/presentation-signals/<YYYY-MM-DD>_run<NN>
   reviewer's spans, caps severity, and writes the findings file. It never summarizes
   the paper, pre-judges "this looks AI-written", or leaks an opinion into the prompt
   (`reviewer-independence.md` Layer 1).
-- **Reviewer (codex / gpt-5.5)** reads `claims.json` + the PDF-text + the rendered
-  PDF, proposes **gross-only** surface signals, and self-reports `false_positive_risk`.
-  It is the evidence-extractor, not the judge.
+- **Reviewer (codex / gpt-5.5)** reads `claims.json` + the PDF-text + the PDF itself
+  (visually only if it can render it; otherwise caption text only — see HP-LLM-FIGURE),
+  proposes **gross-only** surface signals, and self-reports `false_positive_risk`. It
+  is the evidence-extractor, not the judge.
 - **Fresh thread per run.** `codex-reply` is intentionally absent from `allowed-tools`;
   never carry one run's conclusions into another (the bias guard).
 - **Detect-only.** No `Edit` in `allowed-tools`; the reviewer sandbox is `read-only`.
-  This is a third-party forensics tool, never a co-author.
+  `Write` is used **only** for this skill's own findings / trace artifacts, never the
+  audited paper. This is a third-party forensics tool, never a co-author.
 
 ---
 
@@ -167,13 +169,34 @@ print("CLAIMS       =", len(cl))
 print("CAPTION_CL   =", len(caps), "  (anchors for HP-LLM-FIGURE)")
 print("TABLE_SECS   =", len(tabs), tabs, "  (float count for HP-THIN-FLOAT / HP-DUP-TABLE)")
 print("SCOPE_CL     =", len(scope), "  (anchors for HP-THIN-FLOAT / HP-PAGE-PADDING)")
-for sf in d.get("source_files", []):
+paper_dir = os.path.dirname(os.path.abspath(p)) or "."
+srcs = d.get("source_files", [])
+for sf in srcs:
     print("SOURCE       =", sf.get("kind"), sf.get("path"))
+# Deterministically pick the prose source + the PDF the reviewer will read, FROM the
+# ledger's source_files (authoritative); fall back to a sorted glob. source_files paths
+# may be relative to PAPER_DIR or absolute. This is the ONLY selection (no shell `ls`
+# later), so the PDF-only/L0 path with no pdf source resolves to NONE.
+import glob
+def _resolve(rel):
+    cand = rel if os.path.isabs(rel or "") else os.path.join(paper_dir, rel or "")
+    return os.path.abspath(cand) if os.path.isfile(cand) else ""
+def _pick(kinds, globs):
+    for sf in srcs:
+        if sf.get("kind") in kinds:
+            r = _resolve(sf.get("path"))
+            if r:
+                return r
+    for g in globs:
+        hits = sorted(glob.glob(os.path.join(paper_dir, g)))
+        if hits:
+            return os.path.abspath(hits[0])
+    return ""
+print("PDF_TEXT_FILE=", _pick({"text", "latex"}, ["*.txt", "*.tex"])
+      or "NONE (prose signals limited to ledger spans)")
+print("PDF_FILE     =", _pick({"pdf"}, ["*.pdf"])
+      or "NONE (HP-LLM-FIGURE limited to caption text)")
 PY
-# locate the rendered PDF (for HP-LLM-FIGURE visual) + a text source (for prose signals):
-PAPER_DIR="$(dirname "$LEDGER")"
-ls "$PAPER_DIR"/*.pdf 2>/dev/null || echo "NO_PDF_FOUND (HP-LLM-FIGURE limited to caption text)"
-ls "$PAPER_DIR"/*.txt "$PAPER_DIR"/*.tex 2>/dev/null || echo "NO_TEXT_SOURCE_FOUND"
 ```
 
 **Failure / edge handling.**
@@ -182,20 +205,22 @@ ls "$PAPER_DIR"/*.txt "$PAPER_DIR"/*.tex 2>/dev/null || echo "NO_TEXT_SOURCE_FOU
 - `TABLE_SECS = 0` → `Step 1` (dup-table) will correctly emit `[]`: with no parsed
   `table_cell` claims there are no tables to compare (common on a pure PDF-text run).
   Keep the empty file; continue to Step 2.
-- `CAPTION_CL = 0` and/or `NO_PDF_FOUND` → `HP-LLM-FIGURE` has no caption anchor and no
-  image to inspect; the reviewer will almost certainly hold it at `info`. That is
+- `CAPTION_CL = 0` and/or `PDF_FILE = NONE` → `HP-LLM-FIGURE` has no caption anchor and
+  no image to inspect; the reviewer will almost certainly hold it at `info`. That is
   honest, not a failure.
 - `CLAIMS = 0` (degenerate ledger) → every semantic surface signal will be unanchored
   → `info`. Run anyway; the file must exist.
 
-Carry `L`, `PAPER_ID`, the absolute `LEDGER` / `PAPER_DIR`, the PDF path, and the
-text-source path forward into the steps below.
+Step 0 **prints** `RUN_LEVEL_L`, `PAPER_ID`, the absolute `LEDGER` / `PAPER_DIR`,
+`PDF_FILE`, and `PDF_TEXT_FILE`. Shell variables do **not** persist across Bash calls,
+so paste these **literal absolute values** into the `<...>` placeholders of each later
+step — do not assume an exported `$LEDGER` survives between blocks.
 
 ## Step 1 — Deterministic surface check (no LLM)
 
-The one objective, eval-testable surface signal: duplicate / near-identical tables
-(`HP-DUP-TABLE`), computed purely from the ledger's `table_cell` values. Runs before
-any model:
+The one objective, eval-testable surface signal: **duplicate tables** — two tables whose
+ordered numeric cells are identical after rounding to 4 decimals (`HP-DUP-TABLE`),
+computed purely from the ledger's `table_cell` values. Runs before any model:
 
 ```bash
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
@@ -207,10 +232,12 @@ python3 "$ROOT/tools/check_presentation.py" \
 
 This emits, per duplicate pair, a finding with `pattern_id: HP-DUP-TABLE`,
 `severity: minor`, `false_positive_risk: high`, `observability_level_required: 0`,
-`reviewer.deterministic: true`, `finding_id: PRES###`, and two `evidence` entries
-(the two table sections' matching cell sequences, each already anchored to its
-`table_cell` claim's verbatim `text_span`). Two tables qualify only if they share an
-identical *ordered* sequence of ≥ `MIN_CELLS` (2) numeric cells.
+`reviewer.deterministic: true`, `finding_id: PRES###`, and two `evidence` entries —
+one per table section, each anchored to a **representative** `table_cell` claim of that
+section (its verbatim `text_span`); the full matching ordered values appear in the
+finding's `description`, not as per-cell evidence. Two tables qualify only if they share
+an identical *ordered* sequence of ≥ `MIN_CELLS` (2) numeric cells (each rounded to 4
+decimals before comparison).
 
 **Failure handling.** If the tool errors, fix the invocation
 (`python3 "$ROOT/tools/check_presentation.py" --help`) — do **not** hand-fabricate
@@ -221,9 +248,22 @@ identical tables, or no `table_cell` claims were extracted to compare); keep the
 
 The other five §F signals are judgment calls. Open a **fresh** `mcp__codex__codex`
 thread (the Reviewer Calling Convention above), `cwd = PAPER_DIR` so it can read
-`claims.json`, the PDF-text, and the rendered PDF directly. Replace the bracketed
-placeholders with the real values from Step 0. Save the raw response to the trace
-(Step 5) **before** parsing. Send EXACTLY:
+`claims.json`, the PDF-text, and the PDF directly. First create the forensic trace dir
+and fix the exact response path — shell state does not persist, so this prints the
+literal paths to reuse:
+
+```bash
+LEDGER="<abs path to claims.json from Step 0>"; PAPER_DIR="$(dirname "$LEDGER")"
+TS="$(date +%F)"; BASE="$PAPER_DIR/.aris/traces/presentation-signals"
+NN=1; while [ -d "$(printf '%s/%s_run%02d' "$BASE" "$TS" "$NN")" ]; do NN=$((NN+1)); done
+TRACE_DIR="$(printf '%s/%s_run%02d' "$BASE" "$TS" "$NN")"; mkdir -p "$TRACE_DIR"
+echo "TRACE_DIR = $TRACE_DIR"
+echo "PROPOSED  = $TRACE_DIR/001-surface-semantic.response.md   # save the raw reply here; reuse as PROPOSED in Step 3"
+```
+
+Replace the bracketed placeholders below with the real values from Step 0, send EXACTLY
+this, and save the **verbatim** reviewer reply to the `PROPOSED` path above (the Step 3
+input) **before** parsing:
 
 ```
 mcp__codex__codex:
@@ -257,9 +297,12 @@ mcp__codex__codex:
        (a note) or drop it — it can NEVER be a flag. The ledger holds numbers, scope,
        captions, citations, and table cells; generic prose is usually NOT in it, so
        most AI-flavor / jargon observations will correctly remain "info".
-    3. SEVERITY + FP. Set severity = "minor" and false_positive_risk = "high" for
-       EVERY finding (the adjudicator caps surface signals at minor regardless; do not
-       try to argue past it). observability_level_required = 0 for all (L0-decidable).
+    3. SEVERITY + FP. Surface flags are capped at "minor". For any ANCHORED finding
+       (rule 2 satisfied) set severity = "minor"; an UNANCHORED signal stays "info"
+       (rule 2) — never promote it to "minor". NEVER use "major"/"critical" (the
+       adjudicator caps surface signals at minor regardless; do not argue past it). Set
+       false_positive_risk = "high" and observability_level_required = 0 for EVERY
+       finding (all L0-decidable).
     4. NO ACCUSATION, NO AUTHORSHIP VERDICT. description and recommended_reviewer_action
        say what a human should glance at / ask. NEVER write "AI-generated", "fabricated",
        "reject", or imply misconduct. A surface tell is a prompt to look, nothing more.
@@ -336,7 +379,7 @@ whitespace-normalized **substring of** the cited claim (`span in base`, never
 ```bash
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 LEDGER="<abs path to claims.json>"
-PROPOSED="<abs path to the saved raw reviewer response from Step 2>"
+PROPOSED="<the PROPOSED path printed in Step 2>"   # the verbatim reviewer reply you saved
 OUT="$(dirname "$LEDGER")/presentation-signals.findings.json"
 python3 - "$LEDGER" "$PROPOSED" "$OUT" <<'PY'
 import json, re, sys
@@ -407,10 +450,11 @@ print(f"validated {len(kept)} surface findings "
 PY
 ```
 
-Scope of this gate: **anchoring + the surface cap + schema hygiene** — verbatim-span
-anchoring, severity cap to `minor`, FP-risk forced to `high`, observability fixed to
-`0`, surface-pattern allow-list (drop everything else), enum coercion, and cross-model
-provenance. It does **not** compute the verdict; that belongs to
+Scope of this gate: **anchoring + the surface cap + enum/field coercion** (it does
+**not** run `schemas/finding.schema.json`) — verbatim-span anchoring, severity cap to
+`minor`, FP-risk forced to `high`, observability fixed to `0`, surface-pattern
+allow-list (drop everything else), enum coercion, and cross-model provenance. It does
+**not** compute the verdict; that belongs to
 `tools/adjudicate_findings.py`, the single decider, which **independently re-applies**
 the same `SURFACE_ONLY_SKILLS` + `SURFACE_PATTERNS` cap (double-belt: by skill AND by
 pattern_id, so a surface signal cannot bypass the cap even if mis-tagged).
@@ -444,8 +488,11 @@ almost never lands on an extracted claim, so it almost never becomes even a `min
 flag. **We are not an AI-text classifier.**
 
 **Failure handling.** A `KeyError` / `JSONDecodeError` means the reviewer output was
-malformed → re-run Step 2 with the strict-JSON reminder. If a finding loses all
-evidence, it is *kept as `info`* (never silently dropped — the forensic record stays).
+malformed → re-run Step 2 once with the strict-JSON reminder. If it is **still**
+unparseable, fail closed: write an empty array to `presentation-signals.findings.json`
+(`printf '[]' > "$OUT"`) so the output contract's file exists — never hand-author
+findings on the reviewer's behalf. If a finding loses all evidence, it is *kept as
+`info`* (never silently dropped — the forensic record stays).
 
 ## Step 4 — Emit (two files, no merge)
 
@@ -462,9 +509,9 @@ this auxiliary skill, `[]` (or all-`info`) is the **common, correct** result.
 
 ## Step 5 — Trace (forensic; never silently dropped)
 
-Save the raw reviewer call under
-`.aris/traces/presentation-signals/<YYYY-MM-DD>_run<NN>/` (start `NN` at `01`, bump if
-the dir exists). This repo ships no `save_trace.sh`, so write the files directly:
+Save the raw reviewer call under the `TRACE_DIR` created in Step 2
+(`.aris/traces/presentation-signals/<YYYY-MM-DD>_run<NN>/`). This repo ships no
+`save_trace.sh`, so write the files directly:
 
 ```
 .aris/traces/presentation-signals/<date>_run<NN>/
@@ -489,11 +536,14 @@ every above-info finding fails closed to `info`):
 ```bash
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 LEDGER="<abs path to claims.json>"; D="$(dirname "$LEDGER")"
+# derive paper-id + level from the ledger so this block is self-contained (no carried vars):
+PAPER_ID="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["paper_id"])' "$LEDGER")"
+L="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("observability_level",0))' "$LEDGER")"
 python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "$D/presentation-signals.deterministic.findings.json" \
                "$D/presentation-signals.findings.json" \
     --ledger "$LEDGER" \
-    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.2 \
+    --paper-id "$PAPER_ID" --observability-level "$L" --taxonomy-version 0.2 \
     --out "$D/report.json" --md "$D/REPORT.md"
 ```
 
@@ -567,9 +617,7 @@ only from `tools/adjudicate_findings.py` (Step 6 / the orchestrator).
 
 ## Review tracing
 
-After the `mcp__codex__codex` reviewer call, save the trace under
-`.aris/traces/presentation-signals/<YYYY-MM-DD>_run<NN>/` (Policy: **forensic** — never
-silently skip), as laid out in Step 5: `run.meta.json` + per-call
-`NNN-<purpose>.request.json` / `.response.md` / `.meta.json`. The `request.json` must
-contain only the paths + ledger + checklist that were sent (the reviewer-independence
-audit trail); the `response.md` is the immutable input that Step 3 validates.
+Forensic trace policy and file layout are defined once in **Step 5** (Policy:
+**forensic** — never silently skipped). The `request.json` records only the paths +
+ledger + checklist that were sent (the reviewer-independence audit trail); the
+`response.md` is the immutable input that Step 3 validates.
