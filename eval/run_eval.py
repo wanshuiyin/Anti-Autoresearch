@@ -61,13 +61,15 @@ def audit(name, tex):
     ledger = os.path.join(RUN_DIR, f"{name}.claims.json")
     findings = os.path.join(RUN_DIR, f"{name}.findings.json")
     pres = os.path.join(RUN_DIR, f"{name}.pres.findings.json")
+    stat = os.path.join(RUN_DIR, f"{name}.stat.findings.json")
     report = os.path.join(RUN_DIR, f"{name}.report.json")
     md = os.path.join(RUN_DIR, f"{name}.REPORT.md")
     run([os.path.join(TOOLS, "build_claim_ledger.py"), "--paper-id", name,
          "--latex", tex, "--observability-level", "1", "--out", ledger])
     run([os.path.join(TOOLS, "check_numeric_consistency.py"), "--ledger", ledger, "--out", findings])
     run([os.path.join(TOOLS, "check_presentation.py"), "--ledger", ledger, "--out", pres])
-    run([os.path.join(TOOLS, "adjudicate_findings.py"), "--findings", findings, pres,
+    run([os.path.join(TOOLS, "check_stat_consistency.py"), "--ledger", ledger, "--out", stat])
+    run([os.path.join(TOOLS, "adjudicate_findings.py"), "--findings", findings, pres, stat,
          "--ledger", ledger, "--paper-id", name, "--observability-level", "1",
          "--generated-at", FIXED_TS, "--out", report, "--md", md])
     with open(report, encoding="utf-8") as fh:

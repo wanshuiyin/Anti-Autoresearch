@@ -1,0 +1,8 @@
+{
+  "fixture": "synthetic_corruptions/stat_inconsistency.tex",
+  "corruption": "stat_inconsistency",
+  "required_patterns": ["HP-STAT-INCONSISTENCY"],
+  "forbidden_above_info": false,
+  "min_verdict": "SOFT_FLAGS",
+  "note": "z=1.10 -> two-tailed p~.27 (one-tailed ~.14), so reported p=.036 overstates significance (the .05 decision flips). z uses pure-stdlib NormalDist (no scipy needed); major -> SOFT_FLAGS."
+}

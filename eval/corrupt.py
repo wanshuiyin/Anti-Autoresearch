@@ -35,6 +35,18 @@ CORRUPTIONS = {
          "\\caption{Main results on BarBench (accuracy, \\%, mean of 5 seeds). "
          "As an AI language model, I cannot independently verify these numbers.}"),
     ],
+    # GRIM: 84.6% over 500 items is achievable (k=423); 84.7% is not (k=423.5)
+    "grim_impossible": [
+        ("FooNet's accuracy is 84.6\\%", "FooNet's accuracy is 84.7\\%"),
+    ],
+    # GRIMMER/Bhatia-Davis: at mean 98% over 5 seeds the max SD is ~15.7%; 18% is impossible
+    "variance_impossible": [
+        ("standard\ndeviation of 12.0\\%", "standard\ndeviation of 18.0\\%"),
+    ],
+    # statcheck: z=1.10 gives two-tailed p~.27, so "p = 0.036" overstates significance
+    "stat_inconsistency": [
+        ("(z = 2.10, p = 0.036)", "(z = 1.10, p = 0.036)"),
+    ],
 }
 
 

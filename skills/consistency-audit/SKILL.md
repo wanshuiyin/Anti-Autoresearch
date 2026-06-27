@@ -166,15 +166,24 @@ LEDGER="<abs path to claims.json from Step 0>"
 python3 "$ROOT/tools/check_numeric_consistency.py" \
     --ledger "$LEDGER" \
     --out "$(dirname "$LEDGER")/consistency-audit.deterministic.findings.json"
+# statistical self-consistency (GRIM / GRIMMER / statcheck) — also pure arithmetic,
+# disjoint GRIM###/VAR###/STAT### ids; the orchestrator globs *.findings.json so this
+# file is picked up automatically. z-tests are stdlib; t/F/chi2/r use optional scipy.
+python3 "$ROOT/tools/check_stat_consistency.py" \
+    --ledger "$LEDGER" \
+    --out "$(dirname "$LEDGER")/consistency-audit.stat.findings.json"
 ```
 
-This emits two pattern types, each already schema-valid, span-anchored,
+This emits five pattern types, each already schema-valid, span-anchored,
 `reviewer.deterministic: true`, and `observability_level_required: 0`:
 
 | Pattern | id namespace | Severity / FP | What it catches |
 |---------|-------------|---------------|-----------------|
 | `HP-DELTA-ERROR` | `NUM###` | major / **low** | stated "improves by X%" contradicts its own two operands `(new−old)/old`, incl. relative-vs-absolute and reduction-direction confusion (±0.6 pt rounding tolerance). |
 | `HP-NUM-INFLATE` | `HL###` | minor / **high** | a metric-bearing headline %-number in abstract/intro/conclusion appears in **no** extracted table cell. Only fires when ≥1 `table_cell` claim exists; a "look here" signal, not a verdict. |
+| `HP-GRANULARITY-IMPOSSIBLE` | `GRIM###` | minor (major if headline) / **low** | a proportion reported over integer N that is not round(k/N) at the stated precision (GRIM); excludes macro/weighted/relative and non-count metrics. |
+| `HP-VARIANCE-IMPOSSIBLE` | `VAR###` | major / **low–med** | a reported SD larger than a bounded metric can have at that mean (Bhatia–Davis); requires an explicit SD label, skips SEM/CI. |
+| `HP-STAT-INCONSISTENCY` | `STAT###` | major (critical if headline) / **med** | a reported p that overstates the .05 significance its own test statistic supports (statcheck); z = stdlib, t/F/χ²/r = optional scipy. |
 
 **Worked example — real output on the `delta_inflate` fixture.** Ledger claim `C003`
 text is *"FooNet reaches 78.0\% accuracy, improving from a 73.1\% baseline to 78.0\%

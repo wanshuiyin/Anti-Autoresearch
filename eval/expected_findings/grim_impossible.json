@@ -1,0 +1,8 @@
+{
+  "fixture": "synthetic_corruptions/grim_impossible.tex",
+  "corruption": "grim_impossible",
+  "required_patterns": ["HP-GRANULARITY-IMPOSSIBLE"],
+  "forbidden_above_info": false,
+  "min_verdict": "SOFT_FLAGS",
+  "note": "84.7% over 500 items rounds from no integer k (84.6/84.8 bracket it). GRIM, body section -> minor -> SOFT_FLAGS. Anchored to the reporting sentence. Pure stdlib."
+}

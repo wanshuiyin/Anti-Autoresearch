@@ -93,7 +93,7 @@ reviewer 的环境(Python 3 标准库,无需安装):
 # 在干净 + 注入缺陷的 fixture 上验证流水线(回归门)
 python3 eval/run_eval.py
 #   clean / delta_inflate / dup_table / headline_inflate  → 全部 PASS
-#   injected-defect recall: 100% (4 个确定性模式) · 干净假阳: 无
+#   injected-defect recall: 100% (7 个确定性模式) · 干净假阳: 无
 python3 tests/test_adjudicator.py        # 裁决门单元测试(反 slop 保证)
 
 # 或手动在真实论文上跑脊柱:
@@ -117,13 +117,13 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 6%、为某条主张引用了一篇根本没这么说的论文、方法描述与实际评测不一致。
 
 这些都是在**声明的可观测性层级下可核查**的。具体地,taxonomy v0.4 编码了
-**7 个家族、40 个 hack-pattern**(数值自洽 · 方法/范围 · baseline 诚信 · 实验诚信 ·
+**7 个家族、43 个 hack-pattern**(数值自洽 · 方法/范围 · baseline 诚信 · 实验诚信 ·
 引用诚信 · 表象/surface 信号 · 证明 & 推导诚信)—— 这是本仓库的**覆盖词表**,而不是
-"40 个检测器的 benchmark"。
+"43 个检测器的 benchmark"。
 
-> **已交付 v0:**确定性脊柱 + 带 ✓ 的 **4 个**模式(下面列表里 3 个 + 完整目录里的
-> `HP-PIPELINE-ARTIFACT`)经 eval 测试;其余 36 个是 agent 层合同(跨模型 reviewer 提出
-> 带 span 锚点的 finding,确定性裁决器打分或降级)—— 不是"自带 eval 的检测器"承诺。
+> **已交付 v0:**确定性脊柱 + 带 ✓ 的 **7 个**模式(分布在下面的代表性列表和完整目录里)
+> 经 eval 测试;其余 36 个是 agent 层合同(跨模型 reviewer 提出带 span 锚点的 finding,
+> 确定性裁决器打分或降级)—— 不是"自带 eval 的检测器"承诺。
 
 完整目录(含检测信号与假阳案例)见 [taxonomy](references/hack-pattern-taxonomy.md)。
 下面是代表性的十个(✓ = 当前已被确定性 eval 把关):
@@ -140,7 +140,7 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 - `HP-CITE-HALLUC` — DOI / arXiv 号 / venue / 作者名,根本查无此文。
 
 <details>
-<summary><b>……另外 30 个,逐条列全(覆盖全部 7 个家族)</b></summary>
+<summary><b>……另外 33 个,逐条列全(覆盖全部 7 个家族)</b></summary>
 
 **A · 数值自洽**
 - `HP-AGG-DRIFT` — 写着"多 seed 平均",那个数其实是最好的一个 seed。
@@ -148,6 +148,9 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 - `HP-UNIT-DIR-MISMATCH` — 百分点悄悄变百分比,或把"越低越好"的指标当越高越好夸。
 - `HP-CAPTION-MISMATCH` — caption 说 N=5、方法 B,图里两样都没有。
 - `HP-APPENDIX-CONTRA` — 附录把同一个量重算一遍,和正文对不上。
+- `HP-GRANULARITY-IMPOSSIBLE` — "500 道题 84.7%" 算术上不可能 —— 没有整数 k/500 能四舍五入到它(GRIM)。✓
+- `HP-VARIANCE-IMPOSSIBLE` — 报出的标准差超过有界指标在该均值下的上限(如均值 98% 报 SD 18%,上限 ≈15.7%)。✓
+- `HP-STAT-INCONSISTENCY` — 报告的 p 和它自己的检验统计量矛盾、且夸大了显著性("z=1.10, p=.036" 实则 p≈.27)。✓
 
 **B · 方法 & 范围**
 - `HP-ABLATION-ATTRIB` — 把功劳记给组件 X,但每个 ablation 里 X 都和 Y 绑在一起。

@@ -3,7 +3,7 @@
 ```
 taxonomy_version: 0.4
 last_reviewed: 2026-06-26
-patterns: 40 hard (families A–G) + 2 advisory (no verdict weight)
+patterns: 43 hard (families A–G) + 2 advisory (no verdict weight)
 status: living document — versioned; the version is stamped into every report
 ```
 
@@ -101,6 +101,56 @@ demoted to `info`.
 - **severity_rule:** major; critical if the main-text (more favorable) value is
   the headline.
 - **min_evidence:** both spans.
+
+### HP-GRANULARITY-IMPOSSIBLE — a reported proportion is unachievable for its integer N (GRIM)
+- **level:** L0 (deterministic via `tools/check_stat_consistency.py`)
+- **signals:** an accuracy / success / error / proportion reported as a percentage to
+  d decimals over N integer items does not equal round(100·k/N) at that precision for
+  ANY integer k in [0,N] (the GRIM test). E.g. "84.7% on 500 items" is impossible —
+  500·0.847 = 423.5, and k=423→84.6%, k=424→84.8%, so 84.7% rounds from no integer.
+- **fp_cases:** N unknown/non-integer (cannot run); a macro/weighted/balanced average or
+  a *relative* "improved by X%" figure rather than a simple k/N proportion (excluded);
+  normalized non-count metrics (F1, AUC, BLEU, ROUGE, perplexity, mAP, IoU — excluded,
+  not k/N); excluded/invalid trials shifting the effective N; large N where the
+  granularity step (100/N pts) is finer than the display resolution (10⁻ᵈ) — **skip as
+  vacuous**; a percentage that is a *mean over seeds/runs*, not a proportion over items.
+- **severity_rule:** minor; major if the impossible value is a headline metric the claim
+  rests on. Not critical from text alone — consistent with a transcription typo, not only
+  with fabrication.
+- **min_evidence:** the sentence span reporting the percentage + the integer N it is over.
+- **ack:** the GRIM test (Brown & Heathers, 2017); ref impl `scrutiny` (Jung, MIT) — re-implemented from the method, no code reused.
+
+### HP-VARIANCE-IMPOSSIBLE — a reported SD is too large for a bounded metric (GRIMMER / Bhatia–Davis)
+- **level:** L0 (deterministic via `tools/check_stat_consistency.py`)
+- **signals:** a standard deviation reported at mean μ for a metric bounded in [a,b]
+  exceeds the largest SD such a variable can have: by Bhatia–Davis Var ≤ (b−μ)(μ−a), and
+  by Popoviciu SD ≤ (b−a)/2 (with the sample Bessel factor √(n/(n−1)) when n is known).
+  E.g. mean 98%, SD 18% over 5 seeds is impossible: the cap is ≈15.7%.
+- **fp_cases:** the metric's range is not bounded (loss, perplexity, MSE, latency, reward
+  — excluded); the dispersion is a **SEM / CI / error-bar** not an SD (requires an explicit
+  SD label, else skipped); SD over seeds vs over items (match n to the population); the
+  Bessel n vs n−1 convention; mean and SD on different scales; μ outside [a,b].
+- **severity_rule:** major (a mathematically impossible reported uncertainty); critical if
+  a headline error-bar/significance conclusion depends on it; minor if incidental.
+- **min_evidence:** the span reporting mean ± SD + the metric's range; the sample size n when stated.
+- **ack:** GRIMMER (Anaya, 2016) + the Bhatia–Davis / Popoviciu variance inequalities — re-derived, no code reused.
+
+### HP-STAT-INCONSISTENCY — reported p contradicts its own test statistic (statcheck)
+- **level:** L0 (deterministic via `tools/check_stat_consistency.py`; z = stdlib, t/F/χ²/r = optional scipy)
+- **signals:** the p recomputed from a reported test statistic + df disagrees with the
+  reported p, AND the reported p claims a .05 significance the statistic cannot support
+  under any valid reading. z is exact (standard normal); t/F/χ²/r use an optional scipy
+  backend. E.g. "z = 1.10, p = .036" — z=1.10 gives two-tailed p ≈ .27.
+- **fp_cases:** one-tailed vs two-tailed (a reported p ≈ half the two-tailed p is
+  **accepted, never flagged**); multiple-comparison / Bonferroni / FDR-adjusted p (a
+  *larger* reported p — the core emits ONLY overstated-significance, so adjustments never
+  false-positive); Welch / Greenhouse–Geisser fractional df (skipped); exact / permutation
+  / bootstrap p; "p < .05" bounds; rounding of the statistic; missing scipy backend (skipped).
+- **severity_rule:** major when the .05 decision flips toward overstated significance;
+  critical if that result is the headline. (Understated / decision-unchanged discrepancies
+  are not emitted by the deterministic core — too FP-prone.)
+- **min_evidence:** the span reporting the statistic + df + p; the recomputed p interval and the backend are in the finding's provenance.
+- **ack:** the recompute-from-statistic concept of **statcheck** (Nuijten & Epskamp) — GPL-3, credited by name only, no code reused; FP taxonomy informed by the statcheck critique (arXiv:2408.07948).
 
 ---
 

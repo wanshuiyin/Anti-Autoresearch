@@ -1,0 +1,8 @@
+{
+  "fixture": "synthetic_corruptions/variance_impossible.tex",
+  "corruption": "variance_impossible",
+  "required_patterns": ["HP-VARIANCE-IMPOSSIBLE"],
+  "forbidden_above_info": false,
+  "min_verdict": "SOFT_FLAGS",
+  "note": "SD 18% at mean 98% over 5 seeds exceeds the Bhatia-Davis cap ~15.7% (Popoviciu's 50% would miss it). major -> SOFT_FLAGS. Pure stdlib."
+}

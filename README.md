@@ -100,7 +100,7 @@ reviewer (Python 3 stdlib, nothing to install):
 # Prove the pipeline on clean + corrupted fixtures (the regression gate)
 python3 eval/run_eval.py
 #   clean / delta_inflate / dup_table / headline_inflate  → all PASS
-#   injected-defect recall: 100% (4 deterministic patterns) · clean FP: none
+#   injected-defect recall: 100% (7 deterministic patterns) · clean FP: none
 python3 tests/test_adjudicator.py        # gate unit tests (the anti-slop guarantee)
 
 # Or run the spine by hand on a real paper:
@@ -125,16 +125,15 @@ is 6%, a citation for a claim the cited paper never makes, a method described on
 way and evaluated another.
 
 Those are checkable under a declared observability level. Concretely, taxonomy v0.4
-names **40 hack-patterns across 7 families** (numeric self-consistency · method /
+names **43 hack-patterns across 7 families** (numeric self-consistency · method /
 scope · baseline integrity · experiment integrity · citation integrity ·
 presentation / surface signals · proof & derivation integrity) — the repo's
-**coverage vocabulary**, not a 40-detector benchmark.
+**coverage vocabulary**, not a 43-detector benchmark.
 
-> **Shipped v0:** the deterministic spine and the **four** ✓-marked patterns (the three
-> in the list below + `HP-PIPELINE-ARTIFACT` in the full catalog) are eval-tested; the
-> other 36 are agent-layer contracts (a cross-model reviewer proposes span-anchored
-> findings, the deterministic adjudicator scores or demotes them) — not bundled-eval
-> detector claims.
+> **Shipped v0:** the deterministic spine and the **seven** ✓-marked patterns (across
+> the representative list below and the full catalog) are eval-tested; the other 36 are
+> agent-layer contracts (a cross-model reviewer proposes span-anchored findings, the
+> deterministic adjudicator scores or demotes them) — not bundled-eval detector claims.
 
 The full catalog, with detection signals and false-positive cases, lives in
 [the taxonomy](references/hack-pattern-taxonomy.md). A representative ten (✓ = gated
@@ -152,7 +151,7 @@ by the deterministic eval today):
 - `HP-CITE-HALLUC` — the DOI / arXiv id / venue / author list simply doesn't exist.
 
 <details>
-<summary><b>… the other 30, listed in full (across all 7 families)</b></summary>
+<summary><b>… the other 33, listed in full (across all 7 families)</b></summary>
 
 **A · Numeric self-consistency**
 - `HP-AGG-DRIFT` — they write "mean over seeds", but the number is really the best seed.
@@ -160,6 +159,9 @@ by the deterministic eval today):
 - `HP-UNIT-DIR-MISMATCH` — points silently become percent, or a lower-better metric is celebrated upward.
 - `HP-CAPTION-MISMATCH` — the caption promises N=5 and method B; the plot shows neither.
 - `HP-APPENDIX-CONTRA` — the appendix reruns the same quantity and disagrees with the main text.
+- `HP-GRANULARITY-IMPOSSIBLE` — "84.7% on 500 items" is arithmetically impossible — no integer k/500 rounds to it (GRIM). ✓
+- `HP-VARIANCE-IMPOSSIBLE` — a reported SD bigger than a bounded metric can have at that mean (e.g. SD 18% at mean 98% — cap ≈15.7%). ✓
+- `HP-STAT-INCONSISTENCY` — the reported p contradicts its own test statistic and overstates significance ("z=1.10, p=.036" → really p≈.27). ✓
 
 **B · Method & scope**
 - `HP-ABLATION-ATTRIB` — they credit component X, but every ablation keeps X bundled with Y.
