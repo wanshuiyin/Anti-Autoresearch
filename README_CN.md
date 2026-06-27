@@ -26,7 +26,7 @@
 
 ## 📰 动态
 
-- **v0.4 (2026-06)** — Taxonomy v0.4:**48 个 hack-pattern、8 个家族** —— A. Numeric self-consistency(数值自洽)· B. Method & scope(方法与范围)· C. Baseline integrity(baseline 诚信)· D. Experiment integrity(实验诚信)· E. Citation integrity(引用诚信)· F. Presentation & surface signals(表象信号)· G. Proof & derivation integrity(证明与推导诚信)· H. Evaluation design & validity(评测设计与有效性,新增)。确定性 eval 门控由 3→7 个(含 GRIM / GRIMMER / statcheck);新增 CI、`eval-design-forensics` skill、先行工作致谢。
+- **v0.4 (2026-06)** — Taxonomy v0.4:**48 个 hack-pattern、8 个家族** —— A. Numeric self-consistency(数值自洽:表内·表文·增量算术对得上)· B. Method & scope(方法与范围:说的方法/范围≠实际做的)· C. Baseline integrity(baseline 诚信:对比基线缺失·偏弱·不公平)· D. Experiment integrity(实验诚信:假 GT·幽灵结果·代码≠数字,需代码)· E. Citation integrity(引用诚信:伪造·张冠李戴·撤稿)· F. Presentation & surface signals(表面信号:排版·文风·配图)· G. Proof & derivation integrity(证明诚信:漏证·循环论证·无效推导)· H. Evaluation design & validity(评测设计有效性:数据泄漏·LLM 裁判可信度·选择性报告,新增)。确定性 eval 门控由 3→7 个(含 GRIM / GRIMMER / statcheck);新增 CI、`eval-design-forensics` skill、先行工作致谢。
 - **v0.1 (2026-06)** — 首次发布:面向 autoresearch / AI-Scientist 论文的审稿侧诚信取证。证据账本 + 确定性裁决器 + 可观测性分层。不是 AI 文本检测器。
 
 ## 🚀 快速开始
