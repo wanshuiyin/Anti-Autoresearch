@@ -115,9 +115,9 @@ REVIEWER_REASONING   = xhigh                    # always; effort never lowers re
 REVIEWER_SANDBOX     = read-only                # detect-only; never mutate the paper or .bib
 REVIEWER_CWD         = <PAPER_DIR>              # so it can re-open claims.json + the .bib to confirm a span
 THREAD_POLICY        = ONE fresh mcp__codex__codex per CITED KEY; NEVER mcp__codex__codex-reply across keys
-TAXONOMY_VERSION     = 0.3                      # references/hack-pattern-taxonomy.md §E
-PATTERNS             = HP-CITE-HALLUC (existence/metadata) | HP-CITE-CONTEXT (wrong context)
-OBS_REQUIRED         = 0 for both patterns      # decidable at L0 (text + canonical sources)
+TAXONOMY_VERSION     = 0.4                      # references/hack-pattern-taxonomy.md §E
+PATTERNS             = HP-CITE-HALLUC (existence/metadata) | HP-CITE-CONTEXT (wrong context) | HP-CITE-RETRACTED (retracted/withdrawn)
+OBS_REQUIRED         = 0 for all three patterns # decidable at L0 (text + canonical / retraction sources)
 FACT_GATHERING       = executor, Step 2: DBLP MCP + WebSearch/WebFetch -> resolution.json (FACTS, never a verdict)
 DOSSIER              = <PAPER_DIR>/.aris/citation-forensics/dossier.json      # Step 1 (rehashable; NOT /tmp)
 RESOLUTION           = <PAPER_DIR>/.aris/citation-forensics/resolution.json   # Step 2 (rehashable; NOT /tmp)
@@ -389,6 +389,15 @@ mcp__codex__codex:
          minor (a FIX, not a fabrication), false_positive_risk medium.
        * Very recent work (<~2 weeks) not yet indexed / snapshot unavailable -> set
          needs_external_check, severity info; do NOT call it fabricated.
+       * IDENTIFIER-HIJACKING: the arXiv id / DOI RESOLVES, but the resolved record's
+         title and/or authors in the snapshot do NOT match the citation -> the existence
+         check alone is NOT enough; the load-bearing test is the title/author MATCH against
+         the resolved record. Mismatch -> severity critical (resolves to an unrelated work).
+         Keep wording neutral (state the metadata mismatch; do NOT use "deception"). FP: the
+         id resolves to a newer VERSION of the same work.
+       * PLACEHOLDER CITATION: the bib/citing span is a leftover stub ("[ref?]", "[CITATION]",
+         "\cite{XXX}", "TODO: cite", "?") never replaced -> severity major if load-bearing,
+         else minor; false_positive_risk medium (a clearly-marked draft).
     (B) METADATA — real paper, but wrong year / wrong venue (arXiv number used though it
        appeared at NeurIPS) / wrong-or-missing authors / v1<->v3 retitle. [HP-CITE-HALLUC]
        * severity major. A preprint->published migration (arXiv 2023 -> CVPR 2024) is
@@ -400,6 +409,25 @@ mcp__codex__codex:
          establishes vs how the sentence uses it. false_positive_risk high if a
          "see also / contrast with / unlike" reading is plausible, or the load-bearing
          claim is the citing paper's OWN contribution.
+       * Also flag SEMANTIC-HALLUCINATION: a real reference attached to a finding the
+         cited paper does not contain, or an attribution of a specific claim/number the
+         cited work never makes (paper real; attributed content not). Judge ONLY from the
+         snapshot's abstract/title; if insufficient, set needs_external_check.
+       * AUXILIARY INTENT LABEL: optionally add `intent` ∈ {support|contrast|mention} with
+         a confidence in `description`. It only SHARPENS candidates (a contrast/mention
+         reading is the common FP; only a `support` cite whose work doesn't support the
+         claim is dangerous) — NEVER a verdict on its own; do not raise severity on it.
+
+    (D) RETRACTION — does the RESOLUTION SNAPSHOT report the cited work as RETRACTED or
+       withdrawn (Crossref / Retraction-Watch open metadata)? If so, and a citing sentence
+       RELIES on it to support a claim with no note of the retraction, flag it. [HP-CITE-RETRACTED]
+       * severity major when the retracted reference is load-bearing.
+       * If the sentence cites it EXPRESSLY to discuss the retraction, or the retraction
+         POST-DATES submission -> severity info/minor, false_positive_risk high (honest use).
+       * An "expression of concern" / erratum / correction is NOT a full retraction -> do
+         not flag as retracted. If the snapshot has no retraction record -> do NOT infer one.
+       * Retraction is a FACT about the cited work (source + date in `description`), never an
+         accusation against the citing authors.
 
     ## HARD RULES (a finding that breaks any of these is worthless)
     1. ANCHOR. Every finding above severity "info" MUST carry >=1 evidence entry
@@ -424,14 +452,14 @@ mcp__codex__codex:
        resolvable id (a FIX); preprint->published migration; "see also / contrast"
        framing; 6+-author "and others" truncation; the claim being the citing paper's
        own contribution.
-    6. pattern_id is exactly one of: "HP-CITE-HALLUC", "HP-CITE-CONTEXT".
+    6. pattern_id is exactly one of: "HP-CITE-HALLUC", "HP-CITE-CONTEXT", "HP-CITE-RETRACTED".
 
     ## OUTPUT — a single JSON array, and NOTHING ELSE (no prose, no code fence). Each
     element conforms to schemas/finding.schema.json:
       {
         "finding_id": "F001",
         "skill": "citation-forensics",
-        "pattern_id": "HP-CITE-HALLUC | HP-CITE-CONTEXT",
+        "pattern_id": "HP-CITE-HALLUC | HP-CITE-CONTEXT | HP-CITE-RETRACTED",
         "title": "short, neutral",
         "description": "the discrepancy: what the .bib claims, what the canonical "
                        "source returns (+URL), and/or what the cited paper actually "
@@ -533,8 +561,8 @@ ledger_path, trace_dir, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
 def nw(s):                                    # mirror adjudicator _norm_ws (whitespace only)
     return " ".join((s or "").split())
 
-ALLOWED    = {"HP-CITE-HALLUC", "HP-CITE-CONTEXT"}   # the ONLY patterns this skill emits
-OBS        = {"HP-CITE-HALLUC": 0, "HP-CITE-CONTEXT": 0}   # both decidable at L0 (taxonomy 0.2 §E)
+ALLOWED    = {"HP-CITE-HALLUC", "HP-CITE-CONTEXT", "HP-CITE-RETRACTED"}   # the ONLY patterns this skill emits
+OBS        = {"HP-CITE-HALLUC": 0, "HP-CITE-CONTEXT": 0, "HP-CITE-RETRACTED": 0}   # all decidable at L0 (taxonomy 0.4 §E)
 SEV        = {"critical", "major", "minor", "info"}
 VL         = {"fail", "warn", "clean", "needs_external_check"}
 FPR        = {"low", "medium", "high"}
@@ -671,7 +699,7 @@ LEDGER="<abs LEDGER>"; D="$(dirname "$LEDGER")"
 python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "$D/citation-forensics.findings.json" \
     --ledger "$LEDGER" \
-    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.3 \
+    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.4 \
     --out "$D/report.json" --md "$D/REPORT.md"
 ```
 
@@ -689,7 +717,7 @@ This skill **always** writes, into the ledger's directory:
   `schemas/finding.schema.json` (or `[]` when there are no citation claims or all are
   clean — written regardless; **silent skip is forbidden**). Each above-info finding
   carries `evidence[].claim_id` + a verbatim `span` of the citing sentence,
-  `pattern_id` ∈ {HP-CITE-HALLUC, HP-CITE-CONTEXT}, and
+  `pattern_id` ∈ {HP-CITE-HALLUC, HP-CITE-CONTEXT, HP-CITE-RETRACTED}, and
   `observability_level_required: 0`.
 - `.aris/citation-forensics/dossier.json` + `resolution.json` — Steps 1–2, the
   rehashable staged inputs (per-key citing spans + claimed bib metadata + canonical
@@ -717,7 +745,7 @@ only from `tools/adjudicate_findings.py` (Step 6 / the orchestrator).
   ground truth — verify it against DBLP / arXiv / the publisher.
 - **Wrong-context > metadata.** A real paper used to support a claim it never makes is
   more dangerous than a typo'd author — and is the headline value of this skill.
-- **L0 only — stay in lane.** `observability_level_required: 0` for both patterns;
+- **L0 only — stay in lane.** `observability_level_required: 0` for all three patterns;
   they are decidable from text + canonical sources, no repo or results. This skill
   never asserts code/result-level fraud (that needs L2 → `experiment-forensics`).
 - **Cross-model, one fresh thread per cited key.** Reviewer is a different family

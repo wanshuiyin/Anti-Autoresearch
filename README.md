@@ -125,13 +125,13 @@ is 6%, a citation for a claim the cited paper never makes, a method described on
 way and evaluated another.
 
 Those are checkable under a declared observability level. Concretely, taxonomy v0.4
-names **43 hack-patterns across 7 families** (numeric self-consistency · method /
+names **45 hack-patterns across 7 families** (numeric self-consistency · method /
 scope · baseline integrity · experiment integrity · citation integrity ·
 presentation / surface signals · proof & derivation integrity) — the repo's
-**coverage vocabulary**, not a 43-detector benchmark.
+**coverage vocabulary**, not a 45-detector benchmark.
 
 > **Shipped v0:** the deterministic spine and the **seven** ✓-marked patterns (across
-> the representative list below and the full catalog) are eval-tested; the other 36 are
+> the representative list below and the full catalog) are eval-tested; the other 38 are
 > agent-layer contracts (a cross-model reviewer proposes span-anchored findings, the
 > deterministic adjudicator scores or demotes them) — not bundled-eval detector claims.
 
@@ -151,7 +151,7 @@ by the deterministic eval today):
 - `HP-CITE-HALLUC` — the DOI / arXiv id / venue / author list simply doesn't exist.
 
 <details>
-<summary><b>… the other 33, listed in full (across all 7 families)</b></summary>
+<summary><b>… the other 35, listed in full (across all 7 families)</b></summary>
 
 **A · Numeric self-consistency**
 - `HP-AGG-DRIFT` — they write "mean over seeds", but the number is really the best seed.
@@ -168,6 +168,7 @@ by the deterministic eval today):
 - `HP-THEOREM-SCOPE-DRIFT` — the abstract sells a general theorem; the assumptions do nearly all the work.
 - `HP-ARGUMENT-CHAIN-BREAK` — a substantive missing link: the problem motivated isn't the one the method addresses, or the experiments measure something the mechanism doesn't predict.
 - `HP-CAUSAL-EVIDENCE-LEAP` — a causal / equivalence relation is concluded that no experiment in the paper actually varies or tests.
+- `HP-RESOURCE-IDENTITY-MISMATCH` — a named dataset/model/benchmark described with a property its public record contradicts ("ImageNet-1k, 5,000 classes" — it's 1,000).
 
 **C · Baseline integrity**
 - `HP-WEAK-BASELINE` — the new method gets tuning and compute the baseline plainly did not.
@@ -182,7 +183,8 @@ by the deterministic eval today):
 - `HP-MISSING-REPRO-ARTIFACT` — (L2) an empirical paper ships neither code nor the prompts/configs its results depend on.
 
 **E · Citation integrity**
-- `HP-CITE-CONTEXT` — real paper, wrong job: cited for a claim it explicitly doesn't make.
+- `HP-CITE-CONTEXT` — real paper, wrong job: cited for a claim it explicitly doesn't make (incl. semantic-hallucination + a support/contrast/mention intent label).
+- `HP-CITE-RETRACTED` — a load-bearing citation that resolves to a **retracted** paper, with no note of the retraction (Crossref / Retraction Watch).
 
 **F · Presentation & surface signals** (capped at `minor` — never a verdict)
 - `HP-THIN-FLOAT` — a "broad empirical study" somehow has two tables and one lonely figure.
@@ -392,7 +394,7 @@ only: Pangram, GPTZero, and the Problematic Paper Screener.
 ## 💬 Community
 
 **The taxonomy grows with the community.** Caught an autoresearch / AI-Scientist paper
-pulling a trick that isn't in the [43-pattern catalog](references/hack-pattern-taxonomy.md)
+pulling a trick that isn't in the [45-pattern catalog](references/hack-pattern-taxonomy.md)
 yet? That is the single most valuable contribution here — open an issue with the concrete
 example, or send a PR adding the pattern (with an eval fixture + a false-positive case so
 it doesn't over-fire). New auditor skills, adjudicator gates, and corruption fixtures are

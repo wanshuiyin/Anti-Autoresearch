@@ -117,12 +117,12 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 6%、为某条主张引用了一篇根本没这么说的论文、方法描述与实际评测不一致。
 
 这些都是在**声明的可观测性层级下可核查**的。具体地,taxonomy v0.4 编码了
-**7 个家族、43 个 hack-pattern**(数值自洽 · 方法/范围 · baseline 诚信 · 实验诚信 ·
+**7 个家族、45 个 hack-pattern**(数值自洽 · 方法/范围 · baseline 诚信 · 实验诚信 ·
 引用诚信 · 表象/surface 信号 · 证明 & 推导诚信)—— 这是本仓库的**覆盖词表**,而不是
-"43 个检测器的 benchmark"。
+"45 个检测器的 benchmark"。
 
 > **已交付 v0:**确定性脊柱 + 带 ✓ 的 **7 个**模式(分布在下面的代表性列表和完整目录里)
-> 经 eval 测试;其余 36 个是 agent 层合同(跨模型 reviewer 提出带 span 锚点的 finding,
+> 经 eval 测试;其余 38 个是 agent 层合同(跨模型 reviewer 提出带 span 锚点的 finding,
 > 确定性裁决器打分或降级)—— 不是"自带 eval 的检测器"承诺。
 
 完整目录(含检测信号与假阳案例)见 [taxonomy](references/hack-pattern-taxonomy.md)。
@@ -140,7 +140,7 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 - `HP-CITE-HALLUC` — DOI / arXiv 号 / venue / 作者名,根本查无此文。
 
 <details>
-<summary><b>……另外 33 个,逐条列全(覆盖全部 7 个家族)</b></summary>
+<summary><b>……另外 35 个,逐条列全(覆盖全部 7 个家族)</b></summary>
 
 **A · 数值自洽**
 - `HP-AGG-DRIFT` — 写着"多 seed 平均",那个数其实是最好的一个 seed。
@@ -157,6 +157,7 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 - `HP-THEOREM-SCOPE-DRIFT` — 摘要卖一个通用定理,真正干活的全是那些假设。
 - `HP-ARGUMENT-CHAIN-BREAK` — 实质性的断链:动机引出的问题不是方法解决的那个,或实验测的量不是机制能预测的。
 - `HP-CAUSAL-EVIDENCE-LEAP` — 下了一个因果 / 等价的结论,可全文没有哪个实验真的去变量去测它。
+- `HP-RESOURCE-IDENTITY-MISMATCH` — 命名的数据集/模型/基准被描述的属性与其公开记录矛盾("ImageNet-1k,5000 类" —— 实为 1000)。
 
 **C · baseline 诚信**
 - `HP-WEAK-BASELINE` — 新方法拿到的调参和算力,baseline 明显没给。
@@ -171,7 +172,8 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 - `HP-MISSING-REPRO-ARTIFACT` — (L2) 一篇实证论文,代码、和结果所依赖的 prompt/config 一样都没放。
 
 **E · 引用诚信**
-- `HP-CITE-CONTEXT` — 真论文,用错地方:拿来支持一个它明确没说的主张。
+- `HP-CITE-CONTEXT` — 真论文,用错地方:拿来支持一个它明确没说的主张(含语义幻觉 + support/contrast/mention 意图标签)。
+- `HP-CITE-RETRACTED` — 一条作为论据的引用,指向的是已**撤稿**的论文,且全文未提撤稿(Crossref / Retraction Watch)。
 
 **F · 表象 / surface 信号**(封顶在 `minor` —— 永不定罪)
 - `HP-THIN-FLOAT` — "大规模实证"全文就两张表加一张孤零零的图。
@@ -326,7 +328,7 @@ Problematic Paper Screener。
 ## 💬 交流群
 
 **这套分类法靠社区一起长大。** 看到某篇 autoresearch / AI-Scientist 论文耍了个
-[43 模式目录](references/hack-pattern-taxonomy.md)里还没有的花招?那是这里最有价值的贡献
+[45 模式目录](references/hack-pattern-taxonomy.md)里还没有的花招?那是这里最有价值的贡献
 —— 开个 issue 贴上具体例子,或直接发 PR 把这个模式补进去(配一条 eval fixture + 一个假阳
 案例,免得它乱开火)。新的 auditor skill、裁决器 gate、corruption fixture 同样欢迎。
 **[CONTRIBUTING.md](CONTRIBUTING.md)** 讲清了一个 pattern 怎么写、以及每条 flag 必须守的

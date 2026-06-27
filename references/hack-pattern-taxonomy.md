@@ -3,7 +3,7 @@
 ```
 taxonomy_version: 0.4
 last_reviewed: 2026-06-26
-patterns: 43 hard (families A–G) + 2 advisory (no verdict weight)
+patterns: 45 hard (families A–G) + 2 advisory (no verdict weight)
 status: living document — versioned; the version is stamped into every report
 ```
 
@@ -167,6 +167,32 @@ demoted to `info`.
 - **example:** method section claims "no test-time labels"; eval setup loads gold
   labels for calibration.
 
+### HP-RESOURCE-IDENTITY-MISMATCH — a named dataset/benchmark/model contradicts its public record
+- **level:** L0/L1 (the stated property is in the text), decided against the public registry
+  (HuggingFace dataset/model cards, Papers-with-Code) — an external lookup, like HP-CITE-HALLUC,
+  so `observability_level_required: 0`; a **repo-proven** wrong resource (released code loads a
+  different dataset/model than the paper names) rises to **L2**.
+- **signals:** a named resource is described with a checkable public-record property the
+  registry contradicts — ImageNet-1k stated with the wrong #classes/image-count, a model's
+  parameter count off from its card, a "SOTA 91.2 on <benchmark>" disagreeing with that
+  benchmark's public leaderboard. The executor gathers the registry fact, the reviewer judges
+  the discrepancy (gather-facts-then-judge, like citation-forensics). ROUTING: a claimed
+  leaderboard-SOTA number vs the public leaderboard is the baseline form → family C
+  (`baseline-comparison-audit`); a repo-proven wrong resource → family D, L2
+  (`experiment-forensics`); the general card-identity form is decided here in B.
+- **fp_cases:** a legitimate subset/variant (ImageNet-100, a 10% split, a distilled/quantized
+  model) named as such; version differences (ImageNet-21k vs -1k, model v1 vs v2); the paper
+  explicitly redefines the resource; a stale/ambiguous registry or a leaderboard updated after
+  submission → `needs_external_check`, never a guessed "wrong".
+- **severity_rule:** major; critical if the mis-described resource is load-bearing for the
+  headline (the SOTA number that *is* the contribution); minor if peripheral. An
+  under-specified (not contradicted) subset/version is at most minor / `needs_external_check`.
+- **min_evidence:** the paper claim naming the resource + its stated property (the anchor) +
+  the canonical registry record (HF card / Papers-with-Code URL + accessed date) in description.
+- **ack:** generalizes the **Seek & Blastn** technique (Labbé et al. 2019 — flags papers whose
+  stated sequence reagents contradict public sequence databases) to ML datasets/models vs HF
+  cards / Papers-with-Code; our adaptation, not a port.
+
 ### HP-ABLATION-ATTRIB — attribution not isolated by the ablation
 - **level:** L0
 - **signals:** gain is attributed to component X, but no ablation isolates X (X is
@@ -296,14 +322,21 @@ demoted to `info`.
   pattern (constant additive/multiplicative offset between rows, implausibly smooth
   monotonicity, identical decimals across unrelated settings) — i.e. they look
   synthesized rather than measured. (Reported by real reviewers as "明显的加减乘除
-  规律性,不像跑出来的".)
+  规律性,不像跑出来的".) Two named formal screens articulate the same hunch (advisory,
+  L2-confirmed): the **Carlisle method** (baseline summary statistics / p-values too uniform
+  or too extreme to be a real random sample) and **Benford's-law** first-digit screening over
+  a large pool (≥~100) of reported numbers.
 - **fp_cases:** genuinely deterministic metrics; small integer-valued scores;
-  rounding coincidence; a real linear trend. **High FP — "looks fake" is a hunch.**
+  rounding coincidence; a real linear trend. Benford is **invalid** on small pools (<~100) and
+  bounded ranges (accuracies in [0,1], normalized/fixed-precision scores); Carlisle flags
+  legitimately uniform p-values under a true null. **High FP — "looks fake" is a hunch.**
 - **severity_rule:** **at L0/L1 this is `minor`, `false_positive_risk: high`, a
   *prompt to check* only — never a "this is fabricated" grade.** It rises to `major`
   **only at L2**, confirmed against the actual result files / code (emit with
   `observability_level_required: 2`, so a PDF-only run auto-demotes it). This split
   is mandatory: you cannot grade results as synthesized from a table alone.
+- **ack:** the named screens credit the Carlisle method (Carlisle 2017) and Benford's-law
+  first-digit screening (Diekmann 2007) — paraphrased, kept strictly advisory.
 - **min_evidence:** the table spans exhibiting the pattern + the arithmetic relation
   (L0); the result-file/code confirmation (L2).
 
@@ -331,16 +364,25 @@ demoted to `info`.
 
 ### HP-MISSING-REPRO-ARTIFACT — the artifacts the method needs to be checkable are absent
 - **level:** L2 — an absent-artifact flag is only verdict-bearing once the repo / artifact
-  set is actually inspected. At L0/L1 a "code will be released" note is at most `info` /
-  `needs_external_check`; you cannot assert artifacts are missing from a PDF alone.
+  set is actually inspected. At L0/L1 the reviewer can scan the manuscript for an
+  availability statement / repo URL ("code is available at", "data availability", github /
+  zenodo / osf / huggingface links): an empirical paper with **none stated** is surfaced as
+  `info` / `needs_external_check` — "no artifact is *stated*" is checkable from text, but
+  "artifacts are *missing*" is not assertable from a PDF, so it stays L2-verdict-bearing.
 - **signals:** an empirical / agent / LLM paper ships neither code nor the prompts/configs
-  its results depend on; "code will be released" with nothing runnable; key
-  hyperparameters or prompts omitted.
+  its results depend on; no data/code availability statement and no repo link in the text;
+  "code will be released" with nothing runnable; key hyperparameters or prompts omitted.
 - **fp_cases:** a genuinely theoretical paper; anonymized-submission norms (route to a
-  camera-ready expectation, lower severity).
+  camera-ready expectation, lower severity); an availability statement in a footnote /
+  acknowledgements / non-standard phrasing the scan missed → `info`, never a hard L0 flag.
 - **severity_rule:** major at L2 (an empirical claim cannot be reproduced even in principle);
-  below L2 it is informational only.
+  below L2 it is informational only — the L0/L1 scan only flags the *absence of a stated*
+  artifact, never asserts one is missing.
 - **min_evidence:** the result claim + the (absent) artifact it would need.
+- **ack:** the availability-statement scan adapts the approach of **ODDPub** (Riedel et al.
+  2020) and **RTransparent** (Serghiou et al. 2021) — both GPL/AGPL; prior art credited, their
+  keyword sets to be reimplemented from the papers, no code vendored. *(L0/L1 scan planned; the
+  L2 verdict path is the shipped behavior.)*
 
 ---
 
@@ -348,24 +390,60 @@ demoted to `info`.
 
 ### HP-CITE-HALLUC — fabricated reference
 - **level:** L0
-- **signals:** cited paper does not exist at the claimed arXiv id/DOI/venue;
-  fabricated authors/year/venue; version mismatch.
-- **fp_cases:** real paper with a typo'd id (FIX, not fabrication); preprint→venue
-  migration.
-- **severity_rule:** critical (fabricated) / major (wrong metadata).
-- **min_evidence:** the bib entry + the canonical-source check result.
+- **framing note:** "identifier-hijacking" names the *effect* (an id resolving to a record whose
+  title/authors don't match the citation); the finding asserts only that checkable metadata
+  mismatch — never intent, and report wording stays neutral (no "deception").
+- **signals:** cited paper does not exist at the claimed arXiv id/DOI/venue; fabricated
+  authors/year/venue; version mismatch. Two sub-signals (fabricated-citation taxonomy, Ansari
+  2026): **identifier-hijacking** — the DOI/arXiv id *resolves* but the resolved record's
+  title/authors do NOT match the citation (a plain existence check passes it, so the title/author
+  match against the resolved record is the load-bearing test); **placeholder citation** — a
+  leftover stub never replaced ("[ref?]", "[CITATION]", "\cite{XXX}", "TODO: cite").
+- **fp_cases:** real paper with a typo'd id (FIX, not fabrication); preprint→venue migration; an
+  id that resolves to a newer *version of the same work* (not a hijack); a placeholder in a
+  clearly-marked working draft.
+- **severity_rule:** critical (no record resolves / id resolves to an unrelated work) / major
+  (wrong metadata, or a load-bearing placeholder).
+- **min_evidence:** the bib entry + the canonical-source check result — for identifier-hijacking,
+  the resolved record's title/authors vs the cited ones.
+- **ack:** the identifier-hijacking / placeholder sub-signals are from the fabricated-citation taxonomy of Ansari (2026), arXiv:2602.05930.
 
 ### HP-CITE-CONTEXT — real paper, wrong context
 - **level:** L0
-- **signals:** a real citation used to support a claim the cited paper does not
-  make (or argues against).
-- **fp_cases:** legitimate "see also / contrast with" framing; the claim is the
-  citing paper's own.
-- **severity_rule:** major.
-- **min_evidence:** the citing sentence span + what the cited paper actually
-  establishes.
-- **example:** citing a self-refinement paper to support "self-feedback yields
-  correlated errors" when it argues the opposite.
+- **signals:** a real citation used to support a claim the cited paper does not make (or argues
+  against). Includes the **semantic-hallucination** case — a real reference attached to a
+  plausible-but-nonexistent finding / wrong-claim attribution (the paper exists; the attributed
+  claim does not). Each citing sentence may carry an **auxiliary intent label** ∈
+  {support | contrast | mention}; a *support*-labeled cite whose cited work doesn't support the
+  claim is the dangerous case, a *contrast* / *mention* reading is the common FP. The label is
+  auxiliary and **never a standalone verdict**.
+- **fp_cases:** legitimate "see also / contrast with" framing (intent = contrast/mention); the
+  claim is the citing paper's own contribution; a low-confidence label (advisory only).
+- **severity_rule:** major; the intent label only flags candidates, never raises a verdict on its own.
+- **min_evidence:** the citing sentence span + what the cited paper actually establishes (+ the
+  auxiliary intent label, with confidence).
+- **example:** citing a self-refinement paper to support "self-feedback yields correlated errors"
+  when it argues the opposite (intent = support; cited work does not support → flag).
+- **ack:** the support/contrast/mention label is inspired by scite Smart Citations (Nicholson et al. 2021 — proprietary, conceptual credit) + the Support/Refute/NEI schema of SciFact (Wadden et al. 2020).
+
+### HP-CITE-RETRACTED — reliance on a retracted / withdrawn reference
+- **level:** L0 (external retraction lookup — Crossref / Retraction-Watch open metadata; cite source + date)
+- **framing note:** retraction status is a *checkable fact about the cited work* (a
+  publisher/author action), not a judgment about the citing authors. The finding asserts only
+  that a retracted work is relied on with no note of the retraction — never why it was retracted.
+- **signals:** a cited reference resolves to a RETRACTED or withdrawn paper (journal/publisher
+  retraction, or an arXiv withdrawal) and the citing sentence relies on it to support a claim
+  with no acknowledgement of the retraction. Status is looked up from open retraction metadata
+  (Crossref retraction relations / Retraction Watch), source + date recorded — never inferred.
+- **fp_cases:** the paper cites the work *expressly to discuss* the retraction (cautionary /
+  related-work — intent is not reliance); the retraction post-dates submission; an "expression of
+  concern" / erratum / correction (not a full retraction — lower severity); an arXiv version
+  withdrawn but a later cited version supersedes it.
+- **severity_rule:** major if the retracted reference is load-bearing; info/minor if cited
+  expressly to discuss the retraction, or the retraction post-dates submission.
+- **min_evidence:** the citing sentence span + the retraction record (source + date + URL).
+- **ack:** follows the "Feet of Clay" detector of the Problematic Paper Screener (Cabanac, Labbé,
+  Magazinov); status from the Retraction Watch database via Crossref / Retraction-Watch open metadata.
 
 ---
 

@@ -152,10 +152,13 @@ REVIEWER_SANDBOX      = read-only                # detect-only; never mutate the
 REVIEWER_CWD          = <paper-dir>              # so it can read claims.json + sources directly
 THREAD_POLICY         = fresh mcp__codex__codex per DIMENSION (and per entry on fan-out);
                         NEVER mcp__codex__codex-reply across dimensions/entries
-TAXONOMY_VERSION      = 0.3                      # references/hack-pattern-taxonomy.md
+TAXONOMY_VERSION      = 0.4                      # references/hack-pattern-taxonomy.md
 PROFILE_VERSION       = 0.1                      # the per-domain baseline profile above (advisory)
 PATTERNS_OWNED        = HP-MISSING-BASELINE, HP-WEAK-BASELINE, HP-SIG-OVERLAP,
-                        HP-DELTA-ERROR (cross-row comparison form only — see Step 4)
+                        HP-DELTA-ERROR (cross-row comparison form only — see Step 4),
+                        HP-RESOURCE-IDENTITY-MISMATCH (named dataset/model/benchmark vs its
+                        public record — HF card / Papers-with-Code; gather-facts-then-judge,
+                        observability_level_required 0; FP-suppress subset/variant/version)
 FINDINGS_FILE         = baseline-comparison-audit.findings.json
 FINDING_ID_NAMESPACE  = BC###                    # distinct from F###/NUM###/HL### (consistency), EF### (experiment)
 TRACE_POLICY          = forensic (never silently dropped)
@@ -499,7 +502,8 @@ mcp__codex__codex:
     4. HONEST FP. A documented identical budget, standard reference numbers cited from
        a baseline's own paper, a large gap, a reported significance test, and
        genuinely deterministic metrics are COMMON false positives — say so.
-    5. pattern_id MUST be one of: HP-WEAK-BASELINE, HP-SIG-OVERLAP, HP-DELTA-ERROR.
+    5. pattern_id MUST be one of: HP-WEAK-BASELINE, HP-SIG-OVERLAP, HP-DELTA-ERROR,
+       HP-RESOURCE-IDENTITY-MISMATCH.
 
     CHECKLIST (one finding per concrete discrepancy):
      1. FAIRNESS / WEAK BASELINE [HP-WEAK-BASELINE] — the proposed method gets more
@@ -550,6 +554,23 @@ mcp__codex__codex:
         sentences/cells — the cross-row case a single-sentence regex cannot pair. Do
         NOT re-flag a delta whose operands AND stated value sit in ONE sentence — the
         deterministic consistency pass already owns those.
+     4. RESOURCE IDENTITY [HP-RESOURCE-IDENTITY-MISMATCH] — a named dataset / benchmark /
+        model is described with a checkable PUBLIC-RECORD property its registry contradicts
+        (ImageNet-1k stated with the wrong #classes/size; a model's parameter count off from
+        its card; a "SOTA 91.2 on <benchmark>" disagreeing with that benchmark's public
+        leaderboard). RESOLVE each named resource against its HuggingFace dataset/model card
+        or Papers-with-Code record (WebFetch/WebSearch — FACTS only; put the URL + access
+        date in `description`); the reviewer judges the discrepancy. Anchor to the paper
+        claim NAMING the resource (never the registry URL). severity major; critical if the
+        mis-described resource IS the headline (the SOTA number that is the contribution).
+        observability 0 (public-record contradiction) / 2 (the repo loads a different
+        resource than named). FP (→ needs_external_check, never a guessed "wrong"): a
+        declared subset/variant (ImageNet-100, a 10% split, a distilled/quantized model); a
+        version difference (-21k vs -1k, v1 vs v2); an explicit redefinition; a stale /
+        ambiguous registry or a leaderboard updated after submission. LANE: method
+        described ≠ method evaluated is HP-METHOD-DRIFT (consistency-audit); a fabricated
+        citation identity is HP-CITE-HALLUC — this is the named RESOURCE's identity vs its
+        public record.
 
     OUTPUT: a single JSON array and NOTHING ELSE (schemas/finding.schema.json), same
     shape as the completeness prompt; set finding_id "BC0xx",
@@ -590,7 +611,8 @@ resp_paths = [p for p in sys.argv[3:] if p and os.path.isfile(p)]
 def nw(s):                                   # mirror adjudicator _norm_ws (whitespace only)
     return " ".join((s or "").split())
 
-OWNED = {"HP-MISSING-BASELINE", "HP-WEAK-BASELINE", "HP-SIG-OVERLAP", "HP-DELTA-ERROR"}
+OWNED = {"HP-MISSING-BASELINE", "HP-WEAK-BASELINE", "HP-SIG-OVERLAP", "HP-DELTA-ERROR",
+         "HP-RESOURCE-IDENTITY-MISMATCH"}
 ABOVE = {"critical", "major", "minor"}
 
 ledger = json.load(open(ledger_path, encoding="utf-8"))
@@ -815,7 +837,7 @@ LEDGER="<abs path to claims.json>"; D="$(dirname "$LEDGER")"
 python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "$D/baseline-comparison-audit.findings.json" \
     --ledger "$LEDGER" \
-    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.3 \
+    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.4 \
     --out "$D/baseline.report.json" --md "$D/baseline.REPORT.md"
 # prints e.g.: verdict=SOFT_FLAGS crit=0 maj=1 min=2 -> baseline.report.json, baseline.REPORT.md
 ```
