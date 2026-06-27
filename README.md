@@ -376,6 +376,9 @@ only.
 - **RTransparent** — Serghiou et al. Large-scale data/code-sharing transparency detection. *(GPL-3 — same.)*
 - **SciScore** — automated methods-rigor / reproducibility checker. *(Proprietary — conceptual credit only.)*
 
+**Author-side self-audit (evaluated, scope-bounded).**
+- **academic-integrity-skill** — 1anj. An author-side, wet-lab/biomedical self-audit skill (image-forensics-heavy). We evaluated its non-image deterministic screens — raw-data terminal-digit / exact-duplicate forensics (last-digit / Benford tradition) and reported-vs-source reconciliation — and adopt neither as a check: digit forensics need raw per-sample tables our reviewer-side tiers rarely see, and reported-vs-source overlaps family D. Credited as prior art and the author-side counterpart to this reviewer-side toolkit. *(MIT.)*
+
 Anti-Autoresearch's own contribution is not any single one of these checks but their
 **combination** into an autoresearch-specific taxonomy under a deterministic adjudicator
 and explicit observability tiers (see [docs/positioning.md](docs/positioning.md)).
@@ -394,6 +397,7 @@ gathered 2026-06-27; not a ranking).
 | [lhdjung/scrutiny](https://github.com/lhdjung/scrutiny) | 8 | 2026-05 | GRIM/GRIMMER consistency tests (R); same deterministic-self-consistency family. |
 | [allenai/scifact](https://github.com/allenai/scifact) | 265 | 2023-10 | Claim verification against evidence — the claim–evidence framing, applied to external literature rather than the paper's own. |
 | [DEFENSE-SEU/FactReview](https://github.com/DEFENSE-SEU/FactReview) | 70 | 2026-06 | Closest *framing* neighbor: an LLM reviewer that audits empirical claims and makes **no** accept/reject call. Differs by grounding against external literature + **executing the repo** (an L3 move we refuse) and model-produced claim statuses — vs our deterministic self-consistency + observability taxonomy. *(AGPL-3.0)* |
+| [1anj/academic-integrity-skill](https://github.com/1anj/academic-integrity-skill) | 51 | 2026-05 | Closest *sibling skill*, mirror stance: an **author-side** wet-lab/biomedical self-audit skill (image-forensics-heavy — blot/microscopy/flow, which we exclude). Authors self-check pre-submission vs us auditing third-party autoresearch output; its numeric/citation screens run on the author's raw data tables, not reviewer-side PDF/LaTeX. *(MIT)* |
 | [ahans30/Binoculars](https://github.com/ahans30/Binoculars) | 390 | 2024-05 | AI-text detector — **what we are NOT**: it answers "was this LLM-written?", a question orthogonal to integrity. |
 | [baoguangsheng/fast-detect-gpt](https://github.com/baoguangsheng/fast-detect-gpt) | 414 | 2026-02 | AI-text detector — same boundary; stylometry ≠ integrity. |
 
