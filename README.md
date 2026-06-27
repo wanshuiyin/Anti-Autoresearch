@@ -28,7 +28,7 @@ its own paper. Reviewers, area chairs, and honest authors increasingly need to
 
 ## 📰 News
 
-- **v0.4 (2026-06)** — Taxonomy v0.4: 48 hard patterns across 8 families, adding family H for evaluation-design validity (leakage, LLM judges, selective reporting). The deterministic eval gate expanded 3→7 patterns, including GRIM / GRIMMER / statcheck; added CI, `eval-design-forensics`, and prior-art acknowledgments.
+- **v0.4 (2026-06)** — Taxonomy v0.4: **48 hack-patterns across 8 families** — A. Numeric self-consistency (数值自洽) · B. Method & scope (方法与范围) · C. Baseline integrity (baseline 诚信) · D. Experiment integrity (实验诚信) · E. Citation integrity (引用诚信) · F. Presentation & surface signals (表象信号) · G. Proof & derivation integrity (证明与推导诚信) · H. Evaluation design & validity (评测设计与有效性, new). The deterministic eval gate grew 3→7 patterns (GRIM / GRIMMER / statcheck); added CI, the `eval-design-forensics` skill, and a prior-art acknowledgments section.
 - **v0.1 (2026-06)** — Initial release: reviewer-side integrity forensics for autoresearch / AI-Scientist papers. Ships the evidence ledger, deterministic adjudicator, and observability tiers. Not an AI-text detector.
 
 ## 🚀 Quickstart
