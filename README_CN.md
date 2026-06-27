@@ -24,6 +24,11 @@
 
 ---
 
+## 📰 动态
+
+- **v0.4 (2026-06)** — Taxonomy v0.4:48 个 hard pattern、8 个家族,新增家族 H(评测设计有效性:数据泄漏、LLM 裁判、选择性报告)。确定性 eval 门控由 3→7 个(含 GRIM / GRIMMER / statcheck);新增 CI、`eval-design-forensics` skill、先行工作致谢。
+- **v0.1 (2026-06)** — 首次发布:面向 autoresearch / AI-Scientist 论文的审稿侧诚信取证。证据账本 + 确定性裁决器 + 可观测性分层。不是 AI 文本检测器。
+
 ## 🚀 快速开始
 
 ### Agent 工作流(常规用法)

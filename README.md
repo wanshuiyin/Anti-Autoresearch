@@ -26,6 +26,11 @@ its own paper. Reviewers, area chairs, and honest authors increasingly need to
 
 ---
 
+## 📰 News
+
+- **v0.4 (2026-06)** — Taxonomy v0.4: 48 hard patterns across 8 families, adding family H for evaluation-design validity (leakage, LLM judges, selective reporting). The deterministic eval gate expanded 3→7 patterns, including GRIM / GRIMMER / statcheck; added CI, `eval-design-forensics`, and prior-art acknowledgments.
+- **v0.1 (2026-06)** — Initial release: reviewer-side integrity forensics for autoresearch / AI-Scientist papers. Ships the evidence ledger, deterministic adjudicator, and observability tiers. Not an AI-text detector.
+
 ## 🚀 Quickstart
 
 ### Agent workflow (normal use)
