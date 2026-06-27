@@ -3,7 +3,7 @@
 ```
 taxonomy_version: 0.4
 last_reviewed: 2026-06-26
-patterns: 45 hard (families A–G) + 2 advisory (no verdict weight)
+patterns: 48 hard (families A–H) + 2 advisory (no verdict weight)
 status: living document — versioned; the version is stamped into every report
 ```
 
@@ -623,7 +623,110 @@ demoted to `info`.
 - **min_evidence:** the proof step using the assumption + the (absent) assumption in the
   theorem statement.
 
-## Advisory signals (NOT in the 39 · zero verdict weight · reviewer-judgment only)
+## H. Evaluation design & reporting validity (L0/L1 stated · confirmed at L2 · CAN be critical)
+
+> Adapted from the ML-evaluation-methodology literature — the leakage taxonomy of
+> Kapoor & Narayanan (2023), the LLM-as-judge validity work (MT-Bench self-enhancement,
+> self-preference, position bias), and the "Show Your Work" / reproducibility-checklist
+> reporting norms — reframed to audit a *third party's* evaluation design and reporting.
+> A result can be arithmetically self-consistent (family A), run real code against a real
+> ground truth (family D), and **still not measure what it claims**: the evaluation
+> protocol leaks, the load-bearing metric is a conflicted/unvalidated LLM judge, or the
+> reporting silently drops a condition the setup declared. **Distinct from family D:**
+> family D is an L2-only code/result-integrity audit ("is the number what the code
+> computed?"); family H is a **stated-tell** decided from the *described protocol* at
+> L0/L1 ("is what it measured a valid measurement of the claim?"), which a repo then
+> *confirms* at L2 — the "stated → verified" profile of family C, not the L2-only profile
+> of family D. They **can be critical**: a leaked split or a conflicted judge can make the
+> headline number meaningless. Owned by `skills/eval-design-forensics` → adjudicator
+> dimension `evaluation`. Three subtypes are **not decidable from the PDF or even the
+> repo** — an illegitimate-proxy feature, sampling bias in the test set, and
+> pretraining/benchmark contamination of an evaluated model — so they hand off as
+> `needs_external_check` (the adjudicator pins them to `info`; we name the external
+> methods, we do not run them). STRICT framing: leakage and incomplete reporting are most
+> often **honest methodological errors** — every finding asks a reviewer to *check/clarify*
+> the protocol, it **never** alleges the authors cheated. High-FP care: the absence of a
+> *reported* validation is not proof none was done; cite the exact protocol span that fails.
+
+### HP-EVAL-LEAKAGE — train/test leakage means the reported score may not measure generalization
+- **level:** L0 (stated — the described protocol reveals the leak) / L2 (verified against the
+  split files + preprocessing code); the **illegitimate-proxy feature**, **sampling-bias**, and
+  **pretraining-contamination** subtypes → `needs_external_check` (domain / black-box judgment).
+- **framing note:** adopts the eight-type leakage taxonomy of Kapoor & Narayanan (2023),
+  paraphrasing their three category labels. **Their leakage-*type* L1/L2/L3 are NOT this repo's
+  observability L0/L1/L2** — keep the two scales separate in every finding.
+- **signals:** the evaluation, as described (L0) or as built (L2), admits one of the eight leakage
+  types: *K&N L1 — no clean train/test separation* (no held-out test; preprocessing or
+  feature-selection fit before the split; duplicates across splits) → L0 stated / L2 verified;
+  *K&N L2 — illegitimate (proxy) feature* → needs_external_check; *K&N L3 — test not from the
+  distribution of interest* (temporal leakage / non-independence e.g. same subject in both splits
+  → L0 stated / L2 verified; sampling bias → needs_external_check); *pretraining/benchmark
+  contamination of an evaluated LLM* → needs_external_check (name the external methods — Oren 2023
+  exchangeability, Shi 2023 Min-K%, Golchin 2023 Time-Travel, BIG-bench canary — never run them).
+- **fp_cases:** a transductive/semi-supervised design where overlap is intended and declared; a
+  standard fixed benchmark split; a genuinely-available "proxy-looking" feature; a correctly
+  time-respecting split; a benchmark released after the model's cutoff or a corpus documented to
+  exclude it; preprocessing fit on **train only** then applied to test (the correct pattern).
+- **severity_rule:** critical if the leak plausibly invalidates the headline generalization claim
+  and the tell is unambiguous (`false_positive_risk: low`); major if non-headline; the proxy /
+  sampling-bias / contamination subtypes are `needs_external_check` (pinned to info). Never grade
+  leakage as fabrication — it is a methodological discrepancy to clarify.
+- **min_evidence:** the protocol/split/preprocessing-description span (the ledger claim it
+  undermines) + which of the eight types it matches (L0); the split-file/code confirmation (L2).
+- **example:** "We standardize all features, then split 80/20." → the scaler is fit on the test
+  rows (K&N L1), so the reported accuracy may not reflect generalization — ask whether it was fit
+  on train only.
+- **ack:** Kapoor & Narayanan, "Leakage and the reproducibility crisis in ML-based science,"
+  *Patterns* 2023 — the 8 leakage types / 3 categories, paraphrased (**priority ack**). Contamination
+  methods named only: Oren 2023; Shi 2023; Golchin & Surdeanu 2023; BIG-bench (Srivastava 2022).
+
+### HP-JUDGE-VALIDITY — the load-bearing metric is an LLM judge that is conflicted or unvalidated
+- **level:** L0/L1 (stated — read off the described eval protocol: which model is the judge, and
+  whether any human-agreement validation / bias control is reported).
+- **framing note:** scope is the LLM-as-**judge** — its preference/score IS the reported metric. An
+  LLM that generates the GROUND-TRUTH labels/targets is **HP-FAKE-GT** (family D, L2) — route there.
+- **signals:** a headline comparison rests on an automatic LLM judge, and either — *conflicted:* the
+  judge is the same model/family as a compared system (especially the proposed one), so its
+  preference is the evidence (self-enhancement / self-preference); or *unvalidated:* the LLM judge is
+  load-bearing yet the paper reports no human-agreement validation (no correlation/κ vs humans) and
+  no bias control (no position-swap, no length/verbosity control).
+- **fp_cases:** the judge is validated against human agreement and bias controls are reported; the
+  judge is a clearly different family from every compared system AND corroborated by human eval /
+  standard metrics (not load-bearing); a well-established calibrated judge protocol. **Unvalidated-only
+  is high-FP:** missing validation *reporting* is not proof none was done.
+- **severity_rule:** major if a headline rests on the judge — *conflicted* is the lower-FP structural
+  case (judge-family == compared-system-family is checkable: `false_positive_risk: medium` → caps at
+  major); *unvalidated-only* is `false_positive_risk: high` → caps at minor. Minor if not load-bearing.
+- **min_evidence:** the judge-protocol span naming the judge model + the compared-systems span showing
+  the family overlap (conflicted) OR the absence of any reported human-agreement / bias-control
+  (unvalidated) + the headline claim it supports.
+- **example:** "We use GPT-4 as a judge to score our GPT-4-based agent vs baselines; ours wins 78%."
+  → judge shares a family with the proposed system (conflicted) and no human-agreement number is given.
+- **ack:** Zheng et al. 2023 (MT-Bench — self-enhancement + the human-agreement bar); Panickssery et
+  al. 2024 (self-preference); Wang et al. 2024 (position bias in LLM evaluators).
+
+### HP-SELECTIVE-REPORTING — a declared condition is dropped, or the metric switched, to favor the method
+- **level:** L0 (stated — the setup declares a condition the results/appendix do not report) / L2
+  (verified — the result files show the condition ran but was not reported).
+- **signals:** one of — a dataset/baseline/metric/seed-count the **setup explicitly declares** then
+  omitted from the results and absent from the appendix; metric-switching across tables in a way that
+  consistently favors the proposed method; "we report the best checkpoint/prompt/run" with **no
+  held-out selection set** (selecting on the test set).
+- **fp_cases:** a declared condition omitted but explicitly justified ("full grid in the repo");
+  different tasks legitimately using different standard metrics; best-checkpoint selection on a
+  *declared held-out validation* set; an honestly-labeled preliminary/pilot result.
+- **severity_rule:** major; critical if the omission/switch/selection is what produces the headline
+  (`false_positive_risk: low` when the declared-vs-reported gap is unambiguous); minor if peripheral.
+- **min_evidence:** the setup-declaration span (what was promised) + the results span where it is
+  absent (and confirmation it is not in the appendix); for metric-switching, the two table spans; at
+  L2, the result file showing the condition ran but went unreported.
+- **example:** the setup says "We evaluate on five datasets {A,B,C,D,E}" but every table reports only
+  {A,B,C} with no appendix for D,E. **De-dup:** best-reported-as-mean → HP-AGG-DRIFT (A); thin scope →
+  HP-SCOPE-INFLATE (B); a never-mentioned expected baseline → HP-MISSING-BASELINE (C); appendix-vs-main
+  on the *same* quantity → HP-APPENDIX-CONTRA (A). Scoped to declared-but-unreported / cherry-picked-among-shown.
+- **ack:** Dodge et al. 2019 ("Show Your Work"); Pineau et al. 2021 (ML Reproducibility Checklist).
+
+## Advisory signals (NOT a hard pattern · zero verdict weight · reviewer-judgment only)
 
 > These recur in real reviews but are **not decidable from the paper alone**, so they are
 > NOT hard patterns and carry **no adjudicator weight**. A skill may surface them as an

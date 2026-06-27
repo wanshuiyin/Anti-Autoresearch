@@ -117,12 +117,12 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 6%、为某条主张引用了一篇根本没这么说的论文、方法描述与实际评测不一致。
 
 这些都是在**声明的可观测性层级下可核查**的。具体地,taxonomy v0.4 编码了
-**7 个家族、45 个 hack-pattern**(数值自洽 · 方法/范围 · baseline 诚信 · 实验诚信 ·
-引用诚信 · 表象/surface 信号 · 证明 & 推导诚信)—— 这是本仓库的**覆盖词表**,而不是
-"45 个检测器的 benchmark"。
+**8 个家族、48 个 hack-pattern**(数值自洽 · 方法/范围 · baseline 诚信 · 实验诚信 ·
+引用诚信 · 表象/surface 信号 · 证明 & 推导诚信 · 评测设计与有效性)—— 这是本仓库的
+**覆盖词表**,而不是 "48 个检测器的 benchmark"。
 
 > **已交付 v0:**确定性脊柱 + 带 ✓ 的 **7 个**模式(分布在下面的代表性列表和完整目录里)
-> 经 eval 测试;其余 38 个是 agent 层合同(跨模型 reviewer 提出带 span 锚点的 finding,
+> 经 eval 测试;其余 41 个是 agent 层合同(跨模型 reviewer 提出带 span 锚点的 finding,
 > 确定性裁决器打分或降级)—— 不是"自带 eval 的检测器"承诺。
 
 完整目录(含检测信号与假阳案例)见 [taxonomy](references/hack-pattern-taxonomy.md)。
@@ -140,7 +140,7 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 - `HP-CITE-HALLUC` — DOI / arXiv 号 / venue / 作者名,根本查无此文。
 
 <details>
-<summary><b>……另外 35 个,逐条列全(覆盖全部 7 个家族)</b></summary>
+<summary><b>……另外 38 个,逐条列全(覆盖全部 8 个家族)</b></summary>
 
 **A · 数值自洽**
 - `HP-AGG-DRIFT` — 写着"多 seed 平均",那个数其实是最好的一个 seed。
@@ -190,6 +190,11 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 - `HP-DERIVATION-INVALID` — (L1) 某个代数 / 概率 / 微积分步骤根本不成立(不等式用反、极限取错)。
 - `HP-SYMBOL-SEMANTIC-DRIFT` — (L1) 某个符号 / 算子 / 不等号方向在定义、公式、证明之间换了意思。
 - `HP-ASSUMPTION-SMUGGLE` — (L1) 证明悄悄用了定理陈述里从没列出的假设(独立性、凸性……)。
+
+**H · 评测设计与有效性**(L0/L1 stated → L2 confirmed)
+- `HP-EVAL-LEAKAGE` — 训练/测试泄漏(先预处理再切分、跨切分重复、时间泄漏、预训练污染)使分数可能并不衡量泛化。采用 Kapoor–Narayanan 泄漏分类法。
+- `HP-JUDGE-VALIDITY` — 作为论据的指标是个 LLM 裁判,但*同族*(与被比系统同模型)或*未校验*(没有人类一致性验证)。
+- `HP-SELECTIVE-REPORTING` — setup 声明过的条件(某数据集 / baseline / 指标 / seed 数)在结果里被悄悄丢掉,或换指标以利于本方法。
 
 </details>
 
@@ -328,7 +333,7 @@ Problematic Paper Screener。
 ## 💬 交流群
 
 **这套分类法靠社区一起长大。** 看到某篇 autoresearch / AI-Scientist 论文耍了个
-[45 模式目录](references/hack-pattern-taxonomy.md)里还没有的花招?那是这里最有价值的贡献
+[48 模式目录](references/hack-pattern-taxonomy.md)里还没有的花招?那是这里最有价值的贡献
 —— 开个 issue 贴上具体例子,或直接发 PR 把这个模式补进去(配一条 eval fixture + 一个假阳
 案例,免得它乱开火)。新的 auditor skill、裁决器 gate、corruption fixture 同样欢迎。
 **[CONTRIBUTING.md](CONTRIBUTING.md)** 讲清了一个 pattern 怎么写、以及每条 flag 必须守的

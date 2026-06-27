@@ -94,8 +94,12 @@ deterministic tool decides the verdict.** Both axes from
 scope-vs-evidence-in-text → `consistency-audit`; "first / SOTA / beats prior work"
 external truth → `baseline-comparison-audit` + `citation-forensics` (emit
 `needs_external_check`); citation existence/context → `citation-forensics`;
-surface/AI-flavor → `presentation-signals`; the rejection memo →
-`adversarial-case-builder`.
+surface/AI-flavor → `presentation-signals`; **evaluation-design validity** (train/test
+leakage, a conflicted/unvalidated LLM judge, declared-but-unreported conditions) →
+`eval-design-forensics` (family H, L0/L1 stated-tells — distinct from this skill's L2
+code/result-integrity); the rejection memo → `adversarial-case-builder`. (Note:
+an LLM that produces the GROUND-TRUTH labels stays here as `HP-FAKE-GT`, L2 — only the
+LLM-as-*judge* validity question hands off to `eval-design-forensics`.)
 
 ## Pipeline role + the anchoring model (read before running)
 

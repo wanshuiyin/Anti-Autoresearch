@@ -58,6 +58,7 @@ shout "fraud" from a PDF. Same artifacts → same ledger → same verdict.
         experiment-forensics       (always · L0/L1 = info "could-not-verify" · L2 = full code audit)
         presentation-signals       (always · AUXILIARY · capped at minor)
         proof-derivation-forensics (if ≥1 theorem/proof/derivation claim · verdict-bearing · dim=proof · L1 source, CAN reach HARD_FLAGS; L0 PDF-only → info)
+        eval-design-forensics      (if ≥1 comparison/eval claim · family H · dim=evaluation · L0/L1 stated-tells: leakage / judge-validity / selective-reporting)
         │
         ▼
 [3] advisory memos (each reads the ledger + merged findings · NO verdict weight):
@@ -206,7 +207,7 @@ print(f"STEP1 ledger      : {'present' if have else 'MISSING'}{'  ⚠ STALE → 
 for f in ("consistency-audit.deterministic", "consistency-audit", "citation-forensics",
           "baseline-comparison-audit", "experiment-forensics",
           "presentation-signals.deterministic", "presentation-signals",
-          "proof-derivation-forensics"):
+          "proof-derivation-forensics", "eval-design-forensics"):
     p = os.path.join(D, f + ".findings.json")
     print(f"STEP2 {f:<32}: {'ok' if (os.path.isfile(p) and is_array(p)) else 'todo'}")
 print(f"STEP3 adversarial memo            : {'present' if os.path.isfile(os.path.join(D,'adversarial-case-builder.memo.md')) else 'todo'}")
@@ -387,6 +388,7 @@ print("RUN (always): /consistency-audit  /experiment-forensics  /presentation-si
 print(f"RUN /citation-forensics            : {has_cite}   (≥1 citation claim)")
 print(f"RUN /baseline-comparison-audit     : {has_cmp}    (≥1 comparison/SOTA scope claim)")
 print(f"RUN /proof-derivation-forensics    : {has_proof}   (≥1 theorem/proof/derivation marker; self-guards → [] if none)")
+print(f"RUN /eval-design-forensics         : {has_cmp}    (≥1 comparison/eval claim · leakage / judge-validity / selective-reporting; self-guards → [] if no eval protocol)")
 print(f"RUN /novelty-duplication-advisory  : {has_contrib}   (Step 3 memo · ≥1 contribution claim · MEMO-ONLY)")
 PY
 ```
@@ -403,6 +405,7 @@ expects; the `Owns` column is the taxonomy-v0.3 patterns that skill may emit:
 | `/experiment-forensics "<PAPER_DIR>"` | **always** (depth scales with L) | `experiment-forensics.findings.json` | HP-FAKE-GT, HP-SELF-NORM, HP-PHANTOM-RESULT, HP-DEAD-METRIC, HP-SCOPE-INFLATE(verified), HP-METHOD-DRIFT(L2), HP-SUSPICIOUS-REGULARITY(L2), HP-PLACEHOLDER-DATA(L2), HP-RESULT-ARTIFACT-MISMATCH(L2), HP-MISSING-REPRO-ARTIFACT(L2) |
 | `/presentation-signals "<PAPER_DIR>"` | **always** (AUXILIARY, capped at `minor`) | `presentation-signals.deterministic.findings.json` (+ semantic `presentation-signals.findings.json`) | HP-DUP-TABLE, HP-THIN-FLOAT, HP-LLM-FIGURE, HP-PAGE-PADDING, HP-JARGON-STUFF, HP-AI-FLAVOR, HP-DEFENSIVE-HEDGE, HP-NARRATIVE-ARC-BREAK |
 | `/proof-derivation-forensics "<PAPER_DIR>"` | ≥1 theorem/proof/derivation claim (self-guards: writes `[]` if `HAS_PROOFS=no`) | `proof-derivation-forensics.findings.json` | HP-PROOF-OBLIGATION-GAP, HP-PROOF-CIRCULARITY, HP-DERIVATION-INVALID, HP-SYMBOL-SEMANTIC-DRIFT, HP-ASSUMPTION-SMUGGLE |
+| `/eval-design-forensics "<PAPER_DIR>"` | ≥1 comparison/eval claim (family H, L0/L1 stated-tells; dim=evaluation) | `eval-design-forensics.findings.json` | HP-EVAL-LEAKAGE, HP-JUDGE-VALIDITY, HP-SELECTIVE-REPORTING |
 
 Notes the orchestrator must honor:
 - **experiment-forensics always runs**, but at **L0/L1 it emits only info-level

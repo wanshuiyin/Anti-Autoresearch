@@ -43,6 +43,7 @@ SKILL_TO_DIMENSION = {
     "citation-forensics": "citation",
     "presentation-signals": "presentation",
     "proof-derivation-forensics": "proof",
+    "eval-design-forensics": "evaluation",
 }
 # memo-only skills contribute an informational memo, never a verdict-bearing finding.
 MEMO_ONLY_SKILLS = {"adversarial-case-builder", "novelty-duplication-advisory"}

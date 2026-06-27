@@ -125,13 +125,13 @@ is 6%, a citation for a claim the cited paper never makes, a method described on
 way and evaluated another.
 
 Those are checkable under a declared observability level. Concretely, taxonomy v0.4
-names **45 hack-patterns across 7 families** (numeric self-consistency · method /
+names **48 hack-patterns across 8 families** (numeric self-consistency · method /
 scope · baseline integrity · experiment integrity · citation integrity ·
-presentation / surface signals · proof & derivation integrity) — the repo's
-**coverage vocabulary**, not a 45-detector benchmark.
+presentation / surface signals · proof & derivation integrity · evaluation design &
+validity) — the repo's **coverage vocabulary**, not a 48-detector benchmark.
 
 > **Shipped v0:** the deterministic spine and the **seven** ✓-marked patterns (across
-> the representative list below and the full catalog) are eval-tested; the other 38 are
+> the representative list below and the full catalog) are eval-tested; the other 41 are
 > agent-layer contracts (a cross-model reviewer proposes span-anchored findings, the
 > deterministic adjudicator scores or demotes them) — not bundled-eval detector claims.
 
@@ -151,7 +151,7 @@ by the deterministic eval today):
 - `HP-CITE-HALLUC` — the DOI / arXiv id / venue / author list simply doesn't exist.
 
 <details>
-<summary><b>… the other 35, listed in full (across all 7 families)</b></summary>
+<summary><b>… the other 38, listed in full (across all 8 families)</b></summary>
 
 **A · Numeric self-consistency**
 - `HP-AGG-DRIFT` — they write "mean over seeds", but the number is really the best seed.
@@ -201,6 +201,11 @@ by the deterministic eval today):
 - `HP-DERIVATION-INVALID` — (L1) an algebra / probability / calculus step does not follow (a misapplied inequality, a wrong limit).
 - `HP-SYMBOL-SEMANTIC-DRIFT` — (L1) a symbol / operator / inequality direction changes meaning between definition, formula, and proof.
 - `HP-ASSUMPTION-SMUGGLE` — (L1) the proof relies on an assumption (independence, convexity, …) the theorem statement never lists.
+
+**H · Evaluation design & validity** (L0/L1 stated → L2 confirmed)
+- `HP-EVAL-LEAKAGE` — train/test leakage (preprocess-before-split, duplicates across splits, temporal leak, pretraining contamination) means the score may not measure generalization. Adopts the Kapoor–Narayanan leakage taxonomy.
+- `HP-JUDGE-VALIDITY` — the load-bearing metric is an LLM judge that's *conflicted* (same family as a compared system) or *unvalidated* (no human-agreement check).
+- `HP-SELECTIVE-REPORTING` — a condition the setup declared (a dataset / baseline / metric / seed-count) is dropped from the results, or the metric is switched to favor the method.
 
 </details>
 
@@ -261,6 +266,7 @@ input (pdf | pdf+latex | pdf+repo+results)
         baseline-comparison-audit  missing/weak/mistuned baselines · ARIS paper-claim-audit
         experiment-forensics       L2: fake GT / self-norm / phantom · ARIS experiment-audit
         proof-derivation-forensics L1: proof gap / circularity / invalid step · verdict-bearing · ARIS proof-checker
+        eval-design-forensics      L0/L1: data leakage / conflicted-or-unvalidated LLM judge / selective reporting
         presentation-signals       surface/AI-flavor · auxiliary, capped at minor
         adversarial-case-builder   evidence-bound memo, no verdict · ARIS kill-argument
         novelty-duplication-advisory  prior-work overlap memo, no verdict · ARIS novelty-check
@@ -270,7 +276,7 @@ input (pdf | pdf+latex | pdf+repo+results)
 
 | Path | What |
 |------|------|
-| `skills/` | the nine auditor skills (LLM proposes findings, span-anchored) |
+| `skills/` | the ten auditor skills (LLM proposes findings, span-anchored) |
 | `workflows/anti-autoresearch/` | the end-to-end orchestrator |
 | `tools/` | deterministic spine: manifest/observability derivation · ledger builder · numeric checks · adjudicator |
 | `schemas/` | JSON contracts: claims · finding · report · artifact manifest |
@@ -394,7 +400,7 @@ only: Pangram, GPTZero, and the Problematic Paper Screener.
 ## 💬 Community
 
 **The taxonomy grows with the community.** Caught an autoresearch / AI-Scientist paper
-pulling a trick that isn't in the [45-pattern catalog](references/hack-pattern-taxonomy.md)
+pulling a trick that isn't in the [48-pattern catalog](references/hack-pattern-taxonomy.md)
 yet? That is the single most valuable contribution here — open an issue with the concrete
 example, or send a PR adding the pattern (with an eval fixture + a false-positive case so
 it doesn't over-fire). New auditor skills, adjudicator gates, and corruption fixtures are

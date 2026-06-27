@@ -18,8 +18,11 @@ input (pdf | pdf+latex | pdf+repo+results)
 [3] auditor skills (fan-out, each emits findings.json conforming to finding.schema)
         ├── consistency-audit          (flagship; intra-paper)
         ├── experiment-forensics       (repo present → integrity; PDF-only → risk signals)
-        ├── baseline-comparison-audit  (missing/weak/mis-tuned baselines)
-        ├── citation-forensics         (existence / metadata / context)
+        ├── baseline-comparison-audit  (missing/weak/mis-tuned baselines; resource identity)
+        ├── citation-forensics         (existence / metadata / context / retraction)
+        ├── proof-derivation-forensics (written proof: gap / circularity / invalid step — L1)
+        ├── eval-design-forensics      (evaluation validity: leakage / judge / selective reporting — L0/L1)
+        ├── presentation-signals       (surface / AI-flavor signals — capped at minor)
         └── adversarial-case-builder   (evidence-bound memo; emits NO verdict-bearing findings)
         │
         ▼
