@@ -28,6 +28,13 @@ CORRUPTIONS = {
          "Baseline \\cite{smith2024bar} & 73.1 \\\\\nFooNet (ours) & 78.0 \\\\\n"
          "\\bottomrule\n\\end{tabular}\n\\end{table}\n\n\\section{Conclusion}"),
     ],
+    # a verbatim assistant/pipeline leftover string survives into a caption
+    # (cosmetic — it feeds NO number; a leftover feeding a number is HP-PLACEHOLDER-DATA / family D)
+    "pipeline_artifact": [
+        ("\\caption{Main results on BarBench (accuracy, \\%, mean of 5 seeds).}",
+         "\\caption{Main results on BarBench (accuracy, \\%, mean of 5 seeds). "
+         "As an AI language model, I cannot independently verify these numbers.}"),
+    ],
 }
 
 

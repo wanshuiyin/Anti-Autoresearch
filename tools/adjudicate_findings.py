@@ -53,7 +53,8 @@ MEMO_ONLY_SKILLS = {"adversarial-case-builder", "novelty-duplication-advisory"}
 SURFACE_ONLY_SKILLS = {"presentation-signals"}
 SURFACE_PATTERNS = {"HP-DUP-TABLE", "HP-THIN-FLOAT", "HP-LLM-FIGURE",
                     "HP-PAGE-PADDING", "HP-JARGON-STUFF", "HP-AI-FLAVOR",
-                    "HP-DEFENSIVE-HEDGE", "HP-NARRATIVE-ARC-BREAK"}
+                    "HP-DEFENSIVE-HEDGE", "HP-NARRATIVE-ARC-BREAK",
+                    "HP-PIPELINE-ARTIFACT"}
 FP_CAP = {"high": "minor", "medium": "major", "low": "critical"}
 
 
@@ -373,7 +374,7 @@ def main(argv=None):
                     "without it nothing can be anchored and all findings fail closed to info.")
     ap.add_argument("--paper-id", required=True)
     ap.add_argument("--observability-level", type=int, required=True, choices=[0, 1, 2, 3])
-    ap.add_argument("--taxonomy-version", default="0.3")
+    ap.add_argument("--taxonomy-version", default="0.4")
     ap.add_argument("--memo", default="", help="adversarial memo text (informational)")
     ap.add_argument("--limitation", action="append", help="extra limitation line (repeatable)")
     ap.add_argument("--generated-at", default="", help="override timestamp (for reproducible eval)")

@@ -100,7 +100,7 @@ reviewer (Python 3 stdlib, nothing to install):
 # Prove the pipeline on clean + corrupted fixtures (the regression gate)
 python3 eval/run_eval.py
 #   clean / delta_inflate / dup_table / headline_inflate  → all PASS
-#   injected-defect recall: 100% (3 deterministic patterns) · clean FP: none
+#   injected-defect recall: 100% (4 deterministic patterns) · clean FP: none
 python3 tests/test_adjudicator.py        # gate unit tests (the anti-slop guarantee)
 
 # Or run the spine by hand on a real paper:
@@ -124,16 +124,17 @@ an abstract number that no table reports, a "16% improvement" that the operands 
 is 6%, a citation for a claim the cited paper never makes, a method described one
 way and evaluated another.
 
-Those are checkable under a declared observability level. Concretely, taxonomy v0.3
-names **39 hack-patterns across 7 families** (numeric self-consistency · method /
+Those are checkable under a declared observability level. Concretely, taxonomy v0.4
+names **40 hack-patterns across 7 families** (numeric self-consistency · method /
 scope · baseline integrity · experiment integrity · citation integrity ·
 presentation / surface signals · proof & derivation integrity) — the repo's
-**coverage vocabulary**, not a 39-detector benchmark.
+**coverage vocabulary**, not a 40-detector benchmark.
 
-> **Shipped v0:** the deterministic spine and the three ✓ patterns below are
-> eval-tested; the other 36 are agent-layer contracts (a cross-model reviewer
-> proposes span-anchored findings, the deterministic adjudicator scores or demotes
-> them) — not bundled-eval detector claims.
+> **Shipped v0:** the deterministic spine and the **four** ✓-marked patterns (the three
+> in the list below + `HP-PIPELINE-ARTIFACT` in the full catalog) are eval-tested; the
+> other 36 are agent-layer contracts (a cross-model reviewer proposes span-anchored
+> findings, the deterministic adjudicator scores or demotes them) — not bundled-eval
+> detector claims.
 
 The full catalog, with detection signals and false-positive cases, lives in
 [the taxonomy](references/hack-pattern-taxonomy.md). A representative ten (✓ = gated
@@ -151,7 +152,7 @@ by the deterministic eval today):
 - `HP-CITE-HALLUC` — the DOI / arXiv id / venue / author list simply doesn't exist.
 
 <details>
-<summary><b>… the other 29, listed in full (across all 7 families)</b></summary>
+<summary><b>… the other 30, listed in full (across all 7 families)</b></summary>
 
 **A · Numeric self-consistency**
 - `HP-AGG-DRIFT` — they write "mean over seeds", but the number is really the best seed.
@@ -189,6 +190,7 @@ by the deterministic eval today):
 - `HP-AI-FLAVOR` — boilerplate transitions and identical paragraph rhythms; context, not evidence.
 - `HP-DEFENSIVE-HEDGE` — pervasive "not X but Y" hedging that defends against objections instead of stating what was done.
 - `HP-NARRATIVE-ARC-BREAK` — the abstract reads like an experiment-log dump with no background → contribution → evidence arc.
+- `HP-PIPELINE-ARTIFACT` — a leftover pipeline/template string ("As an AI language model", "regenerate response", "[INSERT X]") survives into the finished text. ✓ (exact-match, low-FP)
 
 **G · Proof & derivation integrity** (verdict-bearing at L1 — from the written math)
 - `HP-PROOF-OBLIGATION-GAP` — (L1) a required lemma / case / transition is skipped with "clearly" across a real gap.

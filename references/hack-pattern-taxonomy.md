@@ -1,9 +1,9 @@
 # Autoresearch Hack-Pattern Taxonomy
 
 ```
-taxonomy_version: 0.3
+taxonomy_version: 0.4
 last_reviewed: 2026-06-26
-patterns: 39 hard (families A–G) + 2 advisory (no verdict weight)
+patterns: 40 hard (families A–G) + 2 advisory (no verdict weight)
 status: living document — versioned; the version is stamped into every report
 ```
 
@@ -343,6 +343,28 @@ demoted to `info`.
   chance.
 - **severity_rule:** minor (capped). Pair with HP-PAGE-PADDING if used as filler.
 - **min_evidence:** both table spans / the matching cell sequences.
+
+### HP-PIPELINE-ARTIFACT — exact-match leftover pipeline/assistant/template string
+- **level:** L0 (deterministic via `tools/check_presentation.py`, like HP-DUP-TABLE)
+- **framing note:** the textual analog of HP-PLACEHOLDER-DATA — it flags the **checkable
+  verbatim string** and asserts only that the string is present, never who/what wrote it.
+  An exact case-insensitive substring match (NOT stylometry, NOT an AI-text classifier),
+  which is why it is the one **low-FP** family-F pattern; still never an authorship verdict.
+- **signals:** a string that should never appear in finished prose survives into the
+  text/caption/cell — an assistant leftover ("as an AI language model", "regenerate
+  response", "as of my last knowledge update") or an unfilled template placeholder
+  ("<your text here>", "[INSERT X]", "TODO: cite", "lorem ipsum"). Curated list lives in
+  `tools/check_presentation.py` (`PIPELINE_ARTIFACT_PHRASES`).
+- **fp_cases:** a paper that legitimately quotes/studies such strings (a paper *about*
+  LLM outputs/refusals, a tortured-phrase survey, a reproduced prompt template). The check
+  is deterministic so it WILL fire — the documented fp_case is what the human uses to dismiss.
+- **severity_rule:** minor (capped, surface-only) — at most SOFT_FLAGS. `false_positive_risk`
+  is **low** (the match is exact), but the surface cap still holds. Never evidence of fabrication.
+- **min_evidence:** the verbatim leftover span (a short window around the hit so it anchors).
+- **routing:** if the leftover FEEDS a reported number/figure it is HP-PLACEHOLDER-DATA
+  (family D, critical), not this surface pattern.
+- **ack:** the "by-product / ChatGPT-fingerprint" detector of the Problematic Paper Screener
+  (Cabanac, Labbé & Magazinov) — adapted to a ledger-anchored, deterministic check.
 
 ### HP-THIN-FLOAT — too few figures/tables for the claimed scope
 - **level:** L0

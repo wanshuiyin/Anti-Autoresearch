@@ -1,0 +1,8 @@
+{
+  "fixture": "synthetic_corruptions/pipeline_artifact.tex",
+  "corruption": "pipeline_artifact",
+  "required_patterns": ["HP-PIPELINE-ARTIFACT"],
+  "forbidden_above_info": false,
+  "min_verdict": "SOFT_FLAGS",
+  "note": "A verbatim assistant leftover ('As an AI language model, ...') survives into a table caption. Deterministic exact-string match (false_positive_risk: low), capped at minor by SURFACE_PATTERNS -> at most SOFT_FLAGS, never HARD. Flags the checkable STRING only; never infers AI authorship. If such a leftover instead fed a reported number it would be HP-PLACEHOLDER-DATA (family D)."
+}

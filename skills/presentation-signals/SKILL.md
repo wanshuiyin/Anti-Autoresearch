@@ -48,8 +48,9 @@ These signals are **real** in the sense that reviewers react to them — but the
 honest author uses LLM assistance for prose; a legitimate teaser figure can look
 "generated". So this skill's contract is narrow and permanent:
 
-- it emits only the eight §F surface patterns, all **capped at `minor`**;
-- it defaults every finding to `false_positive_risk: high`;
+- it emits only the nine §F surface patterns, all **capped at `minor`**;
+- it defaults every *semantic* finding to `false_positive_risk: high` (the deterministic
+  `HP-DUP-TABLE` / `HP-PIPELINE-ARTIFACT` checks set their own — the latter is low-FP);
 - it **never** says a paper is "AI-generated" or implies fabrication;
 - **silence is the common, correct output** — most papers should produce few or zero
   surface findings.
@@ -91,10 +92,10 @@ design working: AI-flavor and jargon prose structurally almost never become even
 | `citation-forensics` | Do the cited papers exist and support the claim they are used for? | L0 |
 | `adversarial-case-builder` | Strongest evidence-bound rejection memo (no verdict weight) | any |
 
-**Stay in lane.** This skill emits **only** the eight surface (`HP-DUP-TABLE`,
+**Stay in lane.** This skill emits **only** the nine surface (`HP-DUP-TABLE`,
 `HP-THIN-FLOAT`, `HP-LLM-FIGURE`, `HP-PAGE-PADDING`, `HP-JARGON-STUFF`,
-`HP-AI-FLAVOR`, `HP-DEFENSIVE-HEDGE`, `HP-NARRATIVE-ARC-BREAK`) patterns — nothing
-else. **Do NOT raise here** (hand off instead): if
+`HP-AI-FLAVOR`, `HP-DEFENSIVE-HEDGE`, `HP-NARRATIVE-ARC-BREAK`, `HP-PIPELINE-ARTIFACT`)
+patterns — nothing else. **Do NOT raise here** (hand off instead): if
 two "duplicate" tables actually report *contradictory* numbers for the same setting →
 that is a numeric self-contradiction for `consistency-audit`, not `HP-DUP-TABLE`; if a
 figure *misrepresents* a result vs its caption → `consistency-audit`
@@ -113,8 +114,8 @@ REVIEWER_REASONING      = xhigh                    # always; effort never lowers
 REVIEWER_SANDBOX        = read-only                # detect-only; never mutate the paper
 REVIEWER_CWD            = <paper-dir>              # so it can read claims.json + pdf-text + the PDF directly
 THREAD_POLICY           = fresh mcp__codex__codex per run; NEVER mcp__codex__codex-reply
-TAXONOMY_VERSION        = 0.3                      # references/hack-pattern-taxonomy.md §F
-DETERMINISTIC_PATTERN   = HP-DUP-TABLE                                   # Step 1 (tool)
+TAXONOMY_VERSION        = 0.4                      # references/hack-pattern-taxonomy.md §F
+DETERMINISTIC_PATTERNS  = HP-DUP-TABLE, HP-PIPELINE-ARTIFACT             # Step 1 (tool)
 SEMANTIC_PATTERNS       = HP-THIN-FLOAT, HP-LLM-FIGURE, HP-PAGE-PADDING, # Step 2 (reviewer)
                           HP-JARGON-STUFF, HP-AI-FLAVOR,
                           HP-DEFENSIVE-HEDGE, HP-NARRATIVE-ARC-BREAK
@@ -590,7 +591,7 @@ python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "$D/presentation-signals.deterministic.findings.json" \
                "$D/presentation-signals.findings.json" \
     --ledger "$LEDGER" \
-    --paper-id "$PAPER_ID" --observability-level "$L" --taxonomy-version 0.3 \
+    --paper-id "$PAPER_ID" --observability-level "$L" --taxonomy-version 0.4 \
     --out "$D/report.json" --md "$D/REPORT.md"
 ```
 
@@ -634,7 +635,7 @@ only from `tools/adjudicate_findings.py` (Step 6 / the orchestrator).
   `claim in span`. The sparse ledger is what keeps AI-flavor from ever becoming a flag.
 - **FP-risk is always `high`; severity is always `minor`.** Forced by the validator;
   do not argue past the cap.
-- **Stay in lane.** Emit only the eight §F surface patterns. Substantive problems
+- **Stay in lane.** Emit only the nine §F surface patterns. Substantive problems
   (numeric contradiction, fake citation, missing baseline) are handed to the
   substantive auditors, never encoded as a capped surface note.
 - **Two files, no merge.** Deterministic (`PRES###`) and semantic (`F###`) findings

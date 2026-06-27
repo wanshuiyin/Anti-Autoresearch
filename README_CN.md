@@ -93,7 +93,7 @@ reviewer 的环境(Python 3 标准库,无需安装):
 # 在干净 + 注入缺陷的 fixture 上验证流水线(回归门)
 python3 eval/run_eval.py
 #   clean / delta_inflate / dup_table / headline_inflate  → 全部 PASS
-#   injected-defect recall: 100% (3 个确定性模式) · 干净假阳: 无
+#   injected-defect recall: 100% (4 个确定性模式) · 干净假阳: 无
 python3 tests/test_adjudicator.py        # 裁决门单元测试(反 slop 保证)
 
 # 或手动在真实论文上跑脊柱:
@@ -116,14 +116,14 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 **局部**自洽:摘要里一个任何表格都没有的数字、号称"提升 16%"而操作数算出来只有
 6%、为某条主张引用了一篇根本没这么说的论文、方法描述与实际评测不一致。
 
-这些都是在**声明的可观测性层级下可核查**的。具体地,taxonomy v0.3 编码了
-**7 个家族、39 个 hack-pattern**(数值自洽 · 方法/范围 · baseline 诚信 · 实验诚信 ·
+这些都是在**声明的可观测性层级下可核查**的。具体地,taxonomy v0.4 编码了
+**7 个家族、40 个 hack-pattern**(数值自洽 · 方法/范围 · baseline 诚信 · 实验诚信 ·
 引用诚信 · 表象/surface 信号 · 证明 & 推导诚信)—— 这是本仓库的**覆盖词表**,而不是
-"39 个检测器的 benchmark"。
+"40 个检测器的 benchmark"。
 
-> **已交付 v0:**确定性脊柱 + 下面带 ✓ 的 3 个模式经 eval 测试;其余 36 个是 agent
-> 层合同(跨模型 reviewer 提出带 span 锚点的 finding,确定性裁决器打分或降级)——
-> 不是"自带 eval 的检测器"承诺。
+> **已交付 v0:**确定性脊柱 + 带 ✓ 的 **4 个**模式(下面列表里 3 个 + 完整目录里的
+> `HP-PIPELINE-ARTIFACT`)经 eval 测试;其余 36 个是 agent 层合同(跨模型 reviewer 提出
+> 带 span 锚点的 finding,确定性裁决器打分或降级)—— 不是"自带 eval 的检测器"承诺。
 
 完整目录(含检测信号与假阳案例)见 [taxonomy](references/hack-pattern-taxonomy.md)。
 下面是代表性的十个(✓ = 当前已被确定性 eval 把关):
@@ -140,7 +140,7 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 - `HP-CITE-HALLUC` — DOI / arXiv 号 / venue / 作者名,根本查无此文。
 
 <details>
-<summary><b>……另外 29 个,逐条列全(覆盖全部 7 个家族)</b></summary>
+<summary><b>……另外 30 个,逐条列全(覆盖全部 7 个家族)</b></summary>
 
 **A · 数值自洽**
 - `HP-AGG-DRIFT` — 写着"多 seed 平均",那个数其实是最好的一个 seed。
@@ -178,6 +178,7 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 - `HP-AI-FLAVOR` — 模板化过渡 + 整齐划一的段落节奏;当上下文,不当证据。
 - `HP-DEFENSIVE-HEDGE` — 通篇"本文不是 X 而是 Y"的防御式对冲,光在挡反对意见,不直接说做了什么。
 - `HP-NARRATIVE-ARC-BREAK` — 摘要读着像实验日志堆砌,没有"背景 → 贡献 → 证据"的弧线。
+- `HP-PIPELINE-ARTIFACT` — 残留的流水线/模板字符串("As an AI language model"、"regenerate response"、"[INSERT X]")漏进了成稿正文。✓(精确匹配,低误报)
 
 **G · 证明 & 推导诚信**(在 L1 可定罪 —— 从写出来的数学判定)
 - `HP-PROOF-OBLIGATION-GAP` — (L1) 一个必需的引理 / 分支 / 过渡被"显然"一句话跨过了真实的缺口。
