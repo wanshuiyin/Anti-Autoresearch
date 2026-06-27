@@ -13,6 +13,8 @@ Gates applied to every finding, in order (each may demote severity and is logged
   2. OBSERVABILITY gate — observability_level_required missing/invalid, or > run level -> info.
   3. FP-RISK gate      — false_positive_risk high -> cap at minor; medium -> cap at major.
   4. MEMO gate         — memo-only skills + advisory (ADV-*) patterns     -> cap at info.
+  5. SURFACE gate      — presentation/AI-flavor patterns (by skill or id) -> cap at minor.
+  6. EXTERNAL-CHECK    — needs_external_check / requires_external_check    -> info.
 
 Verdict rule (after gating):
   any critical                 -> HARD_FLAGS
@@ -61,7 +63,21 @@ def _cap(sev, cap):
 
 
 def _norm_ws(s):
-    return " ".join((s or "").split())
+    # A non-str span/claim (e.g. a stray JSON number/null) -> "" so it can never anchor.
+    if not isinstance(s, str):
+        return ""
+    return " ".join(s.split())
+
+
+def _anchorable(span):
+    """A span is specific enough to ANCHOR a flag only if it carries real content and
+    is not a trivial substring of almost any claim. Blocks the 1-char / pure-punctuation
+    "span" an auditor could staple onto a real claim_id to fake an anchor and reach a
+    HARD verdict. Requires >=1 alphanumeric AND (>=12 chars OR >=3 word tokens). All
+    real deterministic checkers emit full-sentence spans, so this never demotes them."""
+    if not any(c.isalnum() for c in span):
+        return False
+    return len(span) >= 12 or len(span.split()) >= 3
 
 
 def _anchored(finding, ledger_map):
@@ -73,7 +89,7 @@ def _anchored(finding, ledger_map):
     for ev in finding.get("evidence", []) or []:
         cid = ev.get("claim_id")
         span = _norm_ws(ev.get("span"))
-        if not cid or not span:
+        if not cid or not _anchorable(span):
             continue
         base = ledger_map.get(cid)
         if base is None:
@@ -93,6 +109,9 @@ def load_findings(paths):
             print(f"WARN: {p} has no findings array; skipped", file=sys.stderr)
             continue
         for it in items:
+            if not isinstance(it, dict):
+                print(f"WARN: {p} has a non-object finding; skipped", file=sys.stderr)
+                continue
             it.setdefault("_source_file", p)
             findings.append(it)
     return findings
@@ -135,18 +154,28 @@ def adjudicate(findings, run_level, ledger_map=None):
                 reasons.append(f"observability-demotion(req=L{req}>run=L{run_level})")
                 stats["downgraded_obs"] += 1
 
-        # 3. FP-RISK gate
-        cap = FP_CAP.get(f.get("false_positive_risk", "low"), "critical")
-        capped = _cap(sev, cap)
+        # 3. FP-RISK gate — case-normalized + fail-CLOSED on a garbled value. A field that
+        #    is absent defaults to "low" (no cap — FP-risk is a secondary, optional gate),
+        #    but a value that IS present yet unrecognized (e.g. "HIGH", a typo, a non-str)
+        #    is treated as high-FP -> cap at minor, so a mis-cased "HIGH" can't escape uncapped.
+        fpr_raw = f.get("false_positive_risk")
+        if fpr_raw is None:
+            fpr = "low"
+        elif isinstance(fpr_raw, str) and fpr_raw.lower() in FP_CAP:
+            fpr = fpr_raw.lower()
+        else:
+            fpr = "high"
+        capped = _cap(sev, FP_CAP[fpr])
         if capped != sev:
-            reasons.append(f"fp-cap({f.get('false_positive_risk')})")
+            reasons.append(f"fp-cap({fpr})")
             sev = capped
 
         # 4. MEMO gate — memo-only skills AND advisory (ADV-*) patterns never raise the
         #    verdict. The advisory cap is by pattern_id PREFIX, so an ADV-* finding smuggled
         #    in under a non-memo skill with severity=critical is STILL forced to info — the
         #    taxonomy's "advisory · zero verdict weight" rule is ENFORCED, not just documented.
-        pid = f.get("pattern_id") or ""
+        pid = f.get("pattern_id")
+        pid = pid if isinstance(pid, str) else ""
         if f.get("skill") in MEMO_ONLY_SKILLS or pid.startswith("ADV-"):
             capped = _cap(sev, "info")
             if capped != sev:
@@ -217,8 +246,20 @@ def build_report(findings, args, stats, anchoring_verified):
         )
     if not anchoring_verified:
         limitations.append(
-            "Anchoring NOT verified against a ledger (--ledger not provided): span "
-            "presence was checked but not that spans are verbatim ledger claims."
+            "Anchoring NOT verified: the ledger has no usable claims, so no finding could "
+            "be checked against a verbatim ledger span. Re-run /evidence-ledger."
+        )
+    # All proposed flags failed anchoring -> very likely an empty or STALE/mismatched ledger
+    # (claim_ids are positional, so a findings.json from before a paper edit mis-anchors
+    # wholesale). Surface this loudly: a CLEAN verdict here means "couldn't anchor", not "clean".
+    proposed_above = sum(
+        1 for f in findings if SEV_ORDER.get(f.get("_severity_original", "info"), 0) > 0)
+    if proposed_above and stats["unanchored"] >= proposed_above:
+        limitations.append(
+            "All %d proposed above-info finding(s) failed anchoring and were demoted to info "
+            "— likely an empty or stale/mismatched ledger (claim_ids are positional; a "
+            "findings.json from before a paper edit mis-anchors wholesale). Rebuild the ledger "
+            "with /evidence-ledger and re-audit before trusting this result." % proposed_above
         )
 
     return {
@@ -226,7 +267,8 @@ def build_report(findings, args, stats, anchoring_verified):
         "taxonomy_version": args.taxonomy_version,
         "paper_id": args.paper_id,
         "observability_level": args.observability_level,
-        "generated_at": args.generated_at or datetime.datetime.utcnow().isoformat() + "Z",
+        "generated_at": args.generated_at or
+        datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None).isoformat() + "Z",
         "overall_verdict": verdict_of(finals),
         "adjudicator": ADJUDICATOR_ID,
         "anchoring_verified": anchoring_verified,
@@ -331,7 +373,7 @@ def main(argv=None):
                     "without it nothing can be anchored and all findings fail closed to info.")
     ap.add_argument("--paper-id", required=True)
     ap.add_argument("--observability-level", type=int, required=True, choices=[0, 1, 2, 3])
-    ap.add_argument("--taxonomy-version", default="0.2")
+    ap.add_argument("--taxonomy-version", default="0.3")
     ap.add_argument("--memo", default="", help="adversarial memo text (informational)")
     ap.add_argument("--limitation", action="append", help="extra limitation line (repeatable)")
     ap.add_argument("--generated-at", default="", help="override timestamp (for reproducible eval)")
@@ -346,8 +388,12 @@ def main(argv=None):
     ledger_map = {c.get("claim_id"): c.get("text_span", "")
                   for c in ledger.get("claims", []) if c.get("claim_id")}
 
-    stats = adjudicate(findings, args.observability_level, ledger_map)
-    report = build_report(findings, args, stats, anchoring_verified=True)
+    # An empty ledger (no usable claims) can anchor nothing -> anchoring is NOT verified,
+    # and every above-info finding silently fails closed. Report that honestly instead of
+    # stamping a falsely-reassuring "anchoring_verified: true" on a CLEAN verdict.
+    anchoring_verified = bool(ledger_map)
+    stats = adjudicate(findings, args.observability_level, ledger_map or None)
+    report = build_report(findings, args, stats, anchoring_verified=anchoring_verified)
 
     with open(args.out, "w", encoding="utf-8") as fh:
         json.dump(report, fh, indent=2, ensure_ascii=False)

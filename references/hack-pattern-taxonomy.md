@@ -241,6 +241,7 @@ demoted to `info`.
 - **min_evidence:** the definition site + the (absent) call site.
 
 ### HP-SUSPICIOUS-REGULARITY — results "don't look like real runs"
+- **level:** L0/L1 (the too-clean pattern is visible in the reported tables) / L2 (confirm against the real run/result files)
 - **signals:** numbers across configs/backbones related by a too-clean arithmetic
   pattern (constant additive/multiplicative offset between rows, implausibly smooth
   monotonicity, identical decimals across unrelated settings) — i.e. they look

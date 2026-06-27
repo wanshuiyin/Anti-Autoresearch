@@ -317,6 +317,8 @@ author checking their own work: `consistency-audit` ← `paper-claim-audit`,
 `novelty-duplication-advisory` ← `novelty-check`, plus the new `evidence-ledger`
 spine and `presentation-signals`.
 
+<a id="community"></a>
+
 ## 💬 Community
 
 **The taxonomy grows with the community.** Caught an autoresearch / AI-Scientist paper
@@ -336,6 +338,8 @@ community) to swap autoresearch failure modes:
 </p>
 
 *(The group QR rotates weekly — if it's expired, open an issue and we'll post a fresh one.)*
+
+<a id="citation"></a>
 
 ## 📖 Citation
 

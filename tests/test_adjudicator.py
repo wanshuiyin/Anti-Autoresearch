@@ -95,6 +95,48 @@ def test_needs_external_check_capped_to_info():
     assert _final([_f(requires_external_check=True)]) == ["info"]
 
 
+def test_short_span_not_anchored():
+    # a 1-char / punctuation-only span is a substring of almost any claim -> must NOT anchor
+    for bad in ("a", ".", "  ", "%"):
+        f = _f(evidence=[{"claim_id": "C001", "span": bad}])
+        assert _final([f]) == ["info"], bad
+
+
+def test_fp_garbled_token_fails_closed():
+    # a present-but-unrecognized FP token (mis-cased / typo / non-str) -> treated high -> minor
+    assert _final([_f(false_positive_risk="HIGH")]) == ["minor"]
+    assert _final([_f(false_positive_risk="bogus")]) == ["minor"]
+    assert _final([_f(false_positive_risk=5)]) == ["minor"]
+
+
+def test_fp_medium_caps_to_major():
+    assert _final([_f(false_positive_risk="medium")]) == ["major"]
+
+
+def test_observability_out_of_range_fails_closed():
+    assert _final([_f(observability_level_required=7)]) == ["info"]
+    assert _final([_f(observability_level_required=-1)]) == ["info"]
+
+
+def test_malformed_findings_do_not_crash():
+    # non-str pattern_id / non-str span / non-str severity must not raise (and must not anchor)
+    assert _final([_f(pattern_id=123)]) == ["critical"]   # int pid: no crash, still anchors via good span
+    assert _final([_f(evidence=[{"claim_id": "C001", "span": 123}])]) == ["info"]  # non-str span -> not anchored
+    assert _final([_f(severity=None)]) == ["info"]        # non-str severity -> treated as info
+
+
+def test_stale_ledger_adds_loud_limitation():
+    # every above-info finding fails anchoring (cites an absent claim_id) -> CLEAN, but LOUDLY caveated
+    import types
+    f = _f(evidence=[{"claim_id": "C999", "span": "totally fabricated finding text here"}])
+    stats = A.adjudicate([f], 2, {"C001": "real claim"})
+    args = types.SimpleNamespace(observability_level=2, limitation=None,
+                                 taxonomy_version="0.3", paper_id="t", generated_at="x", memo="")
+    rep = A.build_report([f], args, stats, anchoring_verified=True)
+    assert rep["overall_verdict"] == "CLEAN_GIVEN_EVIDENCE"
+    assert any("failed anchoring" in lim for lim in rep["limitations"])
+
+
 def test_verdict_levels():
     assert A.verdict_of(["info"]) == "CLEAN_GIVEN_EVIDENCE"
     assert A.verdict_of(["minor"]) == "SOFT_FLAGS"

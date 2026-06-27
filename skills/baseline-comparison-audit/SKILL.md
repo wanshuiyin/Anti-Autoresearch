@@ -195,7 +195,10 @@ block):
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 # $ARGUMENTS is a paper-dir OR a claims.json path:
 LEDGER="$ARGUMENTS"; [ -d "$LEDGER" ] && LEDGER="$LEDGER/claims.json"
-[ -f "$LEDGER" ] || LEDGER="$(pwd)/claims.json"
+# Only the NO-ARGUMENT case defaults to the CWD ledger. An EXPLICIT argument that
+# resolves to a missing claims.json must NOT silently fall back to $(pwd) — that
+# could audit the wrong paper; let the NO_LEDGER check below fire instead.
+[ -z "$ARGUMENTS" ] && LEDGER="$(pwd)/claims.json"
 python3 - "$LEDGER" <<'PY'
 import json, sys, os, collections
 p = sys.argv[1]

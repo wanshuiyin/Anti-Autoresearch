@@ -262,6 +262,8 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 `novelty-duplication-advisory` ← `novelty-check`,外加新的 `evidence-ledger` 脊柱
 与 `presentation-signals`。
 
+<a id="community"></a>
+
 ## 💬 交流群
 
 **这套分类法靠社区一起长大。** 看到某篇 autoresearch / AI-Scientist 论文耍了个
@@ -279,6 +281,8 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 </p>
 
 *(群二维码每周轮换 —— 过期了就开个 issue,我们会贴新的。)*
+
+<a id="citation"></a>
 
 ## 📖 引用 Citation
 
