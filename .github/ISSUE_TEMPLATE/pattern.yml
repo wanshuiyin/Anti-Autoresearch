@@ -1,0 +1,46 @@
+name: Propose a hack-pattern
+description: A real autoresearch / AI-Scientist trick the taxonomy doesn't cover yet (the #1 contribution here)
+title: "pattern: <short name>"
+labels: ["pattern-proposal"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks! New hack-patterns are the most valuable contribution to this repo.
+        See [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md) for the taxonomy entry shape
+        and the honesty rules every pattern must follow.
+  - type: textarea
+    id: example
+    attributes:
+      label: Concrete example
+      description: A paper / table / quoted sentence that shows the trick. Redact identities if you need to.
+    validations:
+      required: true
+  - type: textarea
+    id: discrepancy
+    attributes:
+      label: What's wrong — the checkable discrepancy
+      description: Describe the discrepancy a reviewer would catch. NOT an accusation of misconduct or of AI authorship.
+    validations:
+      required: true
+  - type: dropdown
+    id: tier
+    attributes:
+      label: Lowest evidence tier at which it's decidable
+      options:
+        - L0 (PDF only)
+        - L1 (+ LaTeX source)
+        - L2 (+ repo / results)
+        - needs an external lookup (corpus / registry / running the model)
+    validations:
+      required: true
+  - type: input
+    id: fp
+    attributes:
+      label: Legitimate look-alike (false-positive case)
+      description: When would this fire on an honest paper? An honest fp_cases entry is what keeps a pattern from over-firing.
+  - type: input
+    id: family
+    attributes:
+      label: Family it belongs to (if you have a guess)
+      description: "A numeric · B method/scope · C baseline · D experiment · E citation · F presentation · G proof — or a new family"

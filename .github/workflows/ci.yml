@@ -1,0 +1,23 @@
+name: CI
+
+# The deterministic gates CONTRIBUTING.md promises must stay green on every PR.
+# Pure stdlib, so there is nothing to install.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile (tools + tests)
+        run: python3 -m py_compile tools/*.py tests/*.py
+      - name: Adjudicator unit tests (the anti-slop invariants)
+        run: python3 tests/test_adjudicator.py
+      - name: Eval harness (clean + corruption fixtures — 100% recall, 0 clean FP)
+        run: python3 eval/run_eval.py

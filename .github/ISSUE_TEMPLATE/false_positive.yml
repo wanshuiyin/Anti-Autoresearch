@@ -1,0 +1,28 @@
+name: False positive
+description: A flag that fired on a clean / legitimate paper (a real bug here)
+title: "FP: <pattern_id> on <what>"
+labels: ["false-positive"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A flag that over-fires on an honest paper is a real bug. The best fix is usually
+        a near-miss `eval/` fixture — see [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md).
+  - type: input
+    id: pattern
+    attributes:
+      label: Which pattern_id over-fired
+      placeholder: HP-...
+    validations:
+      required: true
+  - type: textarea
+    id: case
+    attributes:
+      label: The clean case + the spurious finding
+      description: Show the legitimate paper content and the finding that should NOT have fired (or should have been demoted).
+    validations:
+      required: true
+  - type: input
+    id: tier
+    attributes:
+      label: Observability level the run was at (L0/L1/L2)
