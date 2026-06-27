@@ -321,12 +321,78 @@ author checking their own work: `consistency-audit` ← `paper-claim-audit`,
 `novelty-duplication-advisory` ← `novelty-check`, plus the new `evidence-ledger`
 spine and `presentation-signals`.
 
+## 🤝 Prior art & acknowledgments
+
+Anti-Autoresearch's design borrows ideas — and in places, taxonomy structure — from a
+body of integrity, reproducibility, and evaluation-hygiene work that predates it. We
+credit it explicitly. **Taxonomies and ideas are adapted with credit; no external code
+is vendored** — where a tool is GPL/AGPL we reimplemented the *method* from its paper
+rather than copying its source, and where a tool is proprietary we credit the concept
+only.
+
+**Deterministic self-consistency (the closest methodological cousins).**
+- **statcheck** — Nuijten & Epskamp. Recomputes reported NHST *p*-values from their
+  test statistics; the canonical "paper against itself" check. *(GPL-3 — method
+  reimplemented from the paper, source not vendored.)* Informs `HP-STAT-INCONSISTENCY`.
+- **GRIM / GRIMMER** — Brown & Heathers (GRIM); Anaya (GRIMMER). Tests whether reported
+  means/SDs are arithmetically possible for the stated sample size. Informs
+  `HP-GRANULARITY-IMPOSSIBLE` / `HP-VARIANCE-IMPOSSIBLE`.
+- **scrutiny** — Jung. An R toolkit packaging GRIM/GRIMMER-style consistency tests. *(MIT.)*
+
+  These inform taxonomy family A (numeric self-consistency); `tools/check_stat_consistency.py`
+  is an independent, pure-stdlib reimplementation.
+
+**Evaluation integrity & LLM-judge validity (why the model never grades).**
+- **Leakage taxonomy** — Kapoor & Narayanan, *Leakage and the Reproducibility Crisis in
+  ML-based Science*. The priority reference behind the planned family-H eval-integrity patterns.
+- **LLM-as-judge validity** — Zheng et al. (judging LLM-as-a-judge), Panickssery et al.
+  (evaluators favor their own generations), Wang et al. (position / identity bias). Precisely
+  why our adjudicator is **deterministic** and the model only proposes findings.
+- **"Show Your Work"** — Dodge et al. Reporting-hygiene discipline behind the *planned* selective-reporting checks.
+
+**Citation & claim integrity.**
+- **Retraction Watch** — the retraction-record project; conceptual basis for citation-status awareness.
+- **Problematic Paper Screener** — Cabanac, Labbé, Magazinov. Corpus-scale screening for tell-tale
+  strings; the basis for `HP-PIPELINE-ARTIFACT`.
+- **scite** — supporting / contrasting citation context. *(Proprietary — conceptual credit; informs HP-CITE-CONTEXT.)*
+- **SciFact** — Wadden et al. Scientific-claim verification dataset/model behind the claim–evidence framing.
+- **Fabricated-citation taxonomy** — Ansari. Informs `HP-CITE-HALLUC` / `HP-CITE-CONTEXT`.
+
+**Reproducibility detection** (prior art for *planned* L2 repro patterns — not yet implemented).
+- **ODDPub** — Riedel et al. Detects open-data / open-code statements. *(AGPL-3 — conceptual/method prior art; no code vendored; any implementation will be independent.)*
+- **RTransparent** — Serghiou et al. Large-scale data/code-sharing transparency detection. *(GPL-3 — same.)*
+- **SciScore** — automated methods-rigor / reproducibility checker. *(Proprietary — conceptual credit only.)*
+
+Anti-Autoresearch's own contribution is not any single one of these checks but their
+**combination** into an autoresearch-specific taxonomy under a deterministic adjudicator
+and explicit observability tiers (see [docs/positioning.md](docs/positioning.md)).
+
+## 🔭 Related projects
+
+Where Anti-Autoresearch sits relative to neighboring tools (stars / last update as
+gathered 2026-06-27; not a ranking).
+
+| Project | ★ | Updated | Relation to Anti-Autoresearch |
+|---------|---|---------|-------------------------------|
+| [SakanaAI/AI-Scientist](https://github.com/SakanaAI/AI-Scientist) | 14.1k | 2025-12 | A generator whose output we audit — the class of pipeline this repo is built to check. |
+| [karpathy/autoresearch](https://github.com/karpathy/autoresearch) | 88.8k | 2026-03 | A generator whose output we audit; the namesake of the failure surface. |
+| [scienceverse/metacheck](https://github.com/scienceverse/metacheck) | 45 | 2026-06 | Closest cousin: modular deterministic paper checks. We add an autoresearch taxonomy + observability tiers + cross-model proposers. |
+| [MicheleNuijten/statcheck](https://github.com/MicheleNuijten/statcheck) | 189 | 2026-03 | Deterministic self-consistency (NHST *p*-values) — narrow, but exactly our spirit; informs family A. |
+| [lhdjung/scrutiny](https://github.com/lhdjung/scrutiny) | 8 | 2026-05 | GRIM/GRIMMER consistency tests (R); same deterministic-self-consistency family. |
+| [allenai/scifact](https://github.com/allenai/scifact) | 265 | 2023-10 | Claim verification against evidence — the claim–evidence framing, applied to external literature rather than the paper's own. |
+| [DEFENSE-SEU/FactReview](https://github.com/DEFENSE-SEU/FactReview) | 70 | 2026-06 | Closest *framing* neighbor: an LLM reviewer that audits empirical claims and makes **no** accept/reject call. Differs by grounding against external literature + **executing the repo** (an L3 move we refuse) and model-produced claim statuses — vs our deterministic self-consistency + observability taxonomy. *(AGPL-3.0)* |
+| [ahans30/Binoculars](https://github.com/ahans30/Binoculars) | 390 | 2024-05 | AI-text detector — **what we are NOT**: it answers "was this LLM-written?", a question orthogonal to integrity. |
+| [baoguangsheng/fast-detect-gpt](https://github.com/baoguangsheng/fast-detect-gpt) | 414 | 2026-02 | AI-text detector — same boundary; stylometry ≠ integrity. |
+
+A few framing-relevant efforts have **no open repository** and are credited by name
+only: Pangram, GPTZero, and the Problematic Paper Screener.
+
 <a id="community"></a>
 
 ## 💬 Community
 
 **The taxonomy grows with the community.** Caught an autoresearch / AI-Scientist paper
-pulling a trick that isn't in the [39-pattern catalog](references/hack-pattern-taxonomy.md)
+pulling a trick that isn't in the [43-pattern catalog](references/hack-pattern-taxonomy.md)
 yet? That is the single most valuable contribution here — open an issue with the concrete
 example, or send a PR adding the pattern (with an eval fixture + a false-positive case so
 it doesn't over-fire). New auditor skills, adjudicator gates, and corruption fixtures are

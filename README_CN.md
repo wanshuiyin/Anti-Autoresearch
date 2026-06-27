@@ -266,12 +266,67 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 `novelty-duplication-advisory` ← `novelty-check`,外加新的 `evidence-ledger` 脊柱
 与 `presentation-signals`。
 
+## 🤝 先行工作与致谢
+
+Anti-Autoresearch 的设计借鉴了一批早于它的诚信、可复现性与评测卫生工作的思路 ——
+有些地方还借用了其分类法结构。我们在此明确致谢。**这里采纳的是分类法与思路,均已注明
+出处;没有 vendoring 任何外部代码** —— 凡 GPL/AGPL 的工具,我们都是从其论文重新实现
+*方法*,而非拷贝源码;凡闭源的,只做概念性致谢。
+
+**确定性自洽(方法上最近的"表亲")。**
+- **statcheck** —— Nuijten & Epskamp。从检验统计量重算论文报告的 NHST *p* 值;最经典的
+  "论文与自身比对"检查。*(GPL-3 —— 方法按论文重新实现,未 vendoring 源码。)* 启发 `HP-STAT-INCONSISTENCY`。
+- **GRIM / GRIMMER** —— Brown & Heathers(GRIM);Anaya(GRIMMER)。检验报告的均值/标准差在给定样本量下是否算术可能。启发 `HP-GRANULARITY-IMPOSSIBLE` / `HP-VARIANCE-IMPOSSIBLE`。
+- **scrutiny** —— Jung。把 GRIM/GRIMMER 式一致性检验打包的 R 工具包。*(MIT。)*
+
+  它们启发了分类法家族 A(数值自洽);`tools/check_stat_consistency.py` 是面向 autoresearch 的独立纯 stdlib 重新实现。
+
+**评测诚信与 LLM-judge 有效性(为什么模型从不打分)。**
+- **泄漏分类法** —— Kapoor & Narayanan,《Leakage and the Reproducibility Crisis in ML-based Science》。计划中的家族 H 评测诚信模式背后的首要参考。
+- **LLM-as-judge 有效性** —— Zheng 等、Panickssery 等(评测者偏爱自己的生成)、Wang 等(位置/身份偏置)。这正是我们的裁决器为何**确定性**、模型只**提出** finding 的原因。
+- **《Show Your Work》** —— Dodge 等。*计划中*的选择性报告检查背后的报告卫生准则。
+
+**引用与主张诚信。**
+- **Retraction Watch** —— 撤稿记录项目;引用状态意识的概念基础。
+- **Problematic Paper Screener** —— Cabanac、Labbé、Magazinov。语料级筛查迹象;`HP-PIPELINE-ARTIFACT` 的来源。
+- **scite** —— 支持 / 反驳式引用上下文。*(闭源 —— 仅概念致谢;启发 HP-CITE-CONTEXT。)*
+- **SciFact** —— Wadden 等。主张-证据框架背后的科学主张验证数据集/模型。
+- **伪造引用分类法** —— Ansari。启发 `HP-CITE-HALLUC` / `HP-CITE-CONTEXT`。
+
+**可复现性检测**(*计划中*的 L2 复现模式的先行工作 —— 尚未实现)。
+- **ODDPub** —— Riedel 等。检测论文中的开放数据 / 开放代码声明。*(AGPL-3 —— 概念/方法先行工作;未 vendoring 代码;任何实现都将是独立的。)*
+- **RTransparent** —— Serghiou 等。大规模数据/代码共享透明度检测。*(GPL-3 —— 同上。)*
+- **SciScore** —— 自动化方法严谨性 / 可复现性检查器。*(闭源 —— 仅概念致谢。)*
+
+Anti-Autoresearch 自身的贡献不是上述任何单一检查,而是把它们**组合**进一套面向
+autoresearch 的分类法,置于确定性裁决器与显式可观测性分层之下(见
+[docs/positioning.md](docs/positioning.md))。
+
+## 🔭 相关项目
+
+Anti-Autoresearch 相对于邻近工具的位置(stars / 最后更新于 2026-06-27 采集,非排名)。
+
+| 项目 | ★ | 更新 | 与 Anti-Autoresearch 的关系 |
+|------|---|------|------------------------------|
+| [SakanaAI/AI-Scientist](https://github.com/SakanaAI/AI-Scientist) | 14.1k | 2025-12 | 我们审计其产出的生成器 —— 本仓库正是为审查这类流水线而建。 |
+| [karpathy/autoresearch](https://github.com/karpathy/autoresearch) | 88.8k | 2026-03 | 我们审计其产出的生成器;也是这一失败面的命名来源。 |
+| [scienceverse/metacheck](https://github.com/scienceverse/metacheck) | 45 | 2026-06 | 最近的"表亲":模块化确定性论文检查。我们额外加上 autoresearch 分类法 + 可观测性分层 + 跨模型提议者。 |
+| [MicheleNuijten/statcheck](https://github.com/MicheleNuijten/statcheck) | 189 | 2026-03 | 确定性自洽(NHST *p* 值)—— 窄,但正合我们的精神;启发家族 A。 |
+| [lhdjung/scrutiny](https://github.com/lhdjung/scrutiny) | 8 | 2026-05 | GRIM/GRIMMER 一致性检验(R);同属确定性自洽家族。 |
+| [allenai/scifact](https://github.com/allenai/scifact) | 265 | 2023-10 | 针对证据的主张验证 —— 主张-证据框架,只是针对外部文献而非论文自身。 |
+| [DEFENSE-SEU/FactReview](https://github.com/DEFENSE-SEU/FactReview) | 70 | 2026-06 | **定位上最近的邻居**:审计论文实证主张、**不**做接收/拒稿判断的 LLM reviewer。区别在于它对照外部文献 + **跑论文仓库的代码**(我们拒绝的 L3 复现)且裁决由模型给出 —— 我们靠确定性自洽 + 可观测性分类法。*(AGPL-3.0)* |
+| [ahans30/Binoculars](https://github.com/ahans30/Binoculars) | 390 | 2024-05 | AI 文本检测器 —— **我们不是它**:它回答"这是不是 LLM 写的",与诚信正交。 |
+| [baoguangsheng/fast-detect-gpt](https://github.com/baoguangsheng/fast-detect-gpt) | 414 | 2026-02 | AI 文本检测器 —— 同一条边界;stylometry ≠ 诚信。 |
+
+少数与定位相关的工作**没有开放仓库**,仅以名字致谢:Pangram、GPTZero,以及
+Problematic Paper Screener。
+
 <a id="community"></a>
 
 ## 💬 交流群
 
 **这套分类法靠社区一起长大。** 看到某篇 autoresearch / AI-Scientist 论文耍了个
-[39 模式目录](references/hack-pattern-taxonomy.md)里还没有的花招?那是这里最有价值的贡献
+[43 模式目录](references/hack-pattern-taxonomy.md)里还没有的花招?那是这里最有价值的贡献
 —— 开个 issue 贴上具体例子,或直接发 PR 把这个模式补进去(配一条 eval fixture + 一个假阳
 案例,免得它乱开火)。新的 auditor skill、裁决器 gate、corruption fixture 同样欢迎。
 **[CONTRIBUTING.md](CONTRIBUTING.md)** 讲清了一个 pattern 怎么写、以及每条 flag 必须守的
