@@ -82,7 +82,7 @@ this skill.
 ## Constants
 
 - **LEDGER_VERSION = `0.1`** — stamped into `claims.json` by `build_claim_ledger.py`; never hand-edit.
-- **TAXONOMY_VERSION = `0.4`** — the ledger is **taxonomy-agnostic** (it tags no `pattern_id`); patterns are applied *post-hoc* by auditors (`references/hack-pattern-taxonomy.md`, now 51 hard patterns A–H + 2 advisory). Never tag a claim with a `pattern_id` here. v0.4 added the family **B** (argument-chain / causal-leap), **D** (reproducibility-artifact) and **G** (proof & derivation) patterns; the ledger stays untagged, but its **enrichment** (Step 3) now surfaces the *anchors* those auditors quote.
+- **TAXONOMY_VERSION = `0.5`** — the ledger is **taxonomy-agnostic** (it tags no `pattern_id`); patterns are applied *post-hoc* by auditors (`references/hack-pattern-taxonomy.md`, now 46 integrity patterns A–H + 13 AIS + 2 advisory). Never tag a claim with a `pattern_id` here. v0.5 migrated the pure-style patterns to the zero-weight AIS track; the ledger stays untagged, but its **enrichment** (Step 3) now surfaces the *anchors* those auditors quote.
 - **OBSERVABILITY = derived** — `L0` (PDF/text only) · `L1` (LaTeX, no results) · `L2` (repo + results). **`L3` is never emitted in v0** (we never promise reproduction). The rule is deterministic (`references/observability-levels.md`).
 - **EMITS_FINDINGS = `false` · EMITS_VERDICT = `false`** — load-bearing. This skill produces a ledger, not judgments.
 - **DETECT_ONLY = `true`** — never edits the audited paper; only reads sources and writes its own outputs (this is why `Edit` is absent from `allowed-tools`).
@@ -591,7 +591,7 @@ python3 "$ROOT/tools/check_presentation.py" --ledger "$PAPER_DIR/claims.json" \
 # the deterministic adjudicator — --ledger is REQUIRED:
 python3 "$ROOT/tools/adjudicate_findings.py" --findings *.findings.json \
     --ledger "$PAPER_DIR/claims.json" --paper-id "$PAPER_ID" \
-    --observability-level "$L" --taxonomy-version 0.4 --out report.json --md REPORT.md
+    --observability-level "$L" --taxonomy-version 0.5 --out report.json --md REPORT.md
 ```
 
 `adjudicate_findings.py` **requires** `--ledger`: it re-verifies that each

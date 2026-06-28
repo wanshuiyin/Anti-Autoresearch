@@ -1,6 +1,6 @@
 ---
 name: anti-autoresearch
-description: "End-to-end substantive-integrity forensic sweep of a research paper (especially autoresearch / AI-Scientist-style output). Orchestrates the whole pipeline: ingest (arxiv-id | pdf | dir → working dir + pdftotext for L0) → /evidence-ledger (artifact manifest + observability level L0/L1/L2 + span-anchored claims.json) → fan out the six auditor skills (consistency, citation, baseline, experiment, presentation, proof-derivation — each reads the ledger, emits span-anchored findings) → advisory memos (/adversarial-case-builder + /novelty-duplication-advisory, no verdict weight) → deterministic tools/adjudicate_findings.py (--ledger REQUIRED) → reviewer-ready Integrity Forensics Report. Cross-model (fresh codex per dimension) and reviewer≠adjudicator: the model proposes findings, the deterministic adjudicator decides the verdict. Observability-aware, detect-only, never an AI-text classifier. Triggers: \"anti-autoresearch\", \"integrity audit this paper\", \"forensic review\", \"audit a submission\", \"审一篇投稿的诚信\"."
+description: "End-to-end substantive-integrity forensic sweep of a research paper (especially autoresearch / AI-Scientist-style output). Orchestrates the whole pipeline: ingest (arxiv-id | pdf | dir → working dir + pdftotext for L0) → /evidence-ledger (artifact manifest + observability level L0/L1/L2 + span-anchored claims.json) → fan out the integrity auditor skills (consistency, citation, baseline, experiment, presentation, proof-derivation, eval-design — each reads the ledger, emits span-anchored findings) + the zero-verdict-weight AIS writing-style track → advisory memos (/adversarial-case-builder + /novelty-duplication-advisory, no verdict weight) → deterministic tools/adjudicate_findings.py (--ledger REQUIRED) → reviewer-ready Integrity Forensics Report. Cross-model (fresh codex per dimension) and reviewer≠adjudicator: the model proposes findings, the deterministic adjudicator decides the verdict. Observability-aware, detect-only, never an opaque AI-text classifier (a separate zero-weight AIS section lists AI writing-style impressions, never moving the verdict). Triggers: \"anti-autoresearch\", \"integrity audit this paper\", \"forensic review\", \"audit a submission\", \"审一篇投稿的诚信\"."
 argument-hint: [paper-dir | pdf-path | arxiv-id]
 allowed-tools: Bash(*), Read, Write, Grep, Glob, Skill, WebSearch, WebFetch, mcp__codex__codex, mcp__mcp-dblp__search, mcp__mcp-dblp__fuzzy_title_search, mcp__mcp-dblp__get_venue_info
 ---
@@ -57,6 +57,7 @@ shout "fraud" from a PDF. Same artifacts → same ledger → same verdict.
         baseline-comparison-audit  (if ≥1 comparison / SOTA scope claim)
         experiment-forensics       (always · L0/L1 = info "could-not-verify" · L2 = full code audit)
         presentation-signals       (always · AUXILIARY · capped at minor)
+        ai-style-impressions       (always · AIS track · NOT integrity · zero verdict weight)
         proof-derivation-forensics (if ≥1 theorem/proof/derivation claim · verdict-bearing · dim=proof · L1 source, CAN reach HARD_FLAGS; L0 PDF-only → info)
         eval-design-forensics      (if ≥1 comparison/eval claim · family H · dim=evaluation · L0/L1 stated-tells: leakage / judge-validity / selective-reporting)
         │
@@ -93,7 +94,7 @@ THREAD_POLICY      = FRESH mcp__codex__codex per dimension / per cited key; NEVE
                      (codex-reply is deliberately NOT in allowed-tools — the bias guard)
 RUN_THREADS        = serial   — one codex thread at a time; concurrent codex MCP calls can hang
 LEDGER_VERSION     = 0.1       (stamped by tools/build_claim_ledger.py)
-TAXONOMY_VERSION   = 0.4       (references/hack-pattern-taxonomy.md; 51 hard patterns A–H + 2 ADV advisory; stamped into every report)
+TAXONOMY_VERSION   = 0.5       (references/hack-pattern-taxonomy.md; 46 integrity patterns A–H + 13 AIS impressions + 2 ADV advisory; stamped into every report)
 OBSERVABILITY      = derived   L0 (pdf/text) · L1 (latex, no results) · L2 (repo + results); L3 NEVER (no reproduction)
 ADJUDICATOR        = deterministic-rules-v0   (tools/adjudicate_findings.py — the ONLY verdict source)
 DETECT_ONLY        = true · EMITS_VERDICT = true (computed by code, not by a model)
@@ -207,7 +208,8 @@ print(f"STEP1 ledger      : {'present' if have else 'MISSING'}{'  ⚠ STALE → 
 for f in ("consistency-audit.deterministic", "consistency-audit", "citation-forensics",
           "baseline-comparison-audit", "experiment-forensics",
           "presentation-signals.deterministic", "presentation-signals",
-          "proof-derivation-forensics", "eval-design-forensics"):
+          "proof-derivation-forensics", "eval-design-forensics",
+          "ai-style-impressions.deterministic", "ai-style-impressions"):
     p = os.path.join(D, f + ".findings.json")
     print(f"STEP2 {f:<32}: {'ok' if (os.path.isfile(p) and is_array(p)) else 'todo'}")
 print(f"STEP3 adversarial memo            : {'present' if os.path.isfile(os.path.join(D,'adversarial-case-builder.memo.md')) else 'todo'}")
@@ -384,7 +386,7 @@ CONTRIB_SECT = {"abstract", "intro", "introduction"}
 has_contrib = any((c.get("type") in ("scope", "method", "comparison")
                    or ((c.get("location") or {}).get("section", "") or "").lower() in CONTRIB_SECT)
                   and c.get("claim_id") and c.get("text_span") for c in cl)
-print("RUN (always): /consistency-audit  /experiment-forensics  /presentation-signals")
+print("RUN (always): /consistency-audit  /experiment-forensics  /presentation-signals  /ai-style-impressions")
 print(f"RUN /citation-forensics            : {has_cite}   (≥1 citation claim)")
 print(f"RUN /baseline-comparison-audit     : {has_cmp}    (≥1 comparison/SOTA scope claim)")
 print(f"RUN /proof-derivation-forensics    : {has_proof}   (≥1 theorem/proof/derivation marker; self-guards → [] if none)")
@@ -403,9 +405,10 @@ expects; the `Owns` column is the taxonomy-v0.4 patterns that skill may emit:
 | `/citation-forensics "<PAPER_DIR>"` | ≥1 `citation` claim | `citation-forensics.findings.json` | HP-CITE-HALLUC, HP-CITE-CONTEXT, HP-CITE-RETRACTED |
 | `/baseline-comparison-audit "<PAPER_DIR>"` | ≥1 comparison/SOTA scope claim | `baseline-comparison-audit.findings.json` | HP-MISSING-BASELINE, HP-WEAK-BASELINE, HP-SIG-OVERLAP, HP-DELTA-ERROR(cross-claim), HP-RESOURCE-IDENTITY-MISMATCH |
 | `/experiment-forensics "<PAPER_DIR>"` | **always** (depth scales with L) | `experiment-forensics.findings.json` | HP-FAKE-GT, HP-SELF-NORM, HP-PHANTOM-RESULT, HP-DEAD-METRIC, HP-SCOPE-INFLATE(verified), HP-METHOD-DRIFT(L2), HP-SUSPICIOUS-REGULARITY(L2), HP-PLACEHOLDER-DATA(L2), HP-RESULT-ARTIFACT-MISMATCH(L2), HP-MISSING-REPRO-ARTIFACT(L2) |
-| `/presentation-signals "<PAPER_DIR>"` | **always** (AUXILIARY, capped at `minor`) | `presentation-signals.deterministic.findings.json` (+ semantic `presentation-signals.findings.json`) | HP-DUP-TABLE, HP-PIPELINE-ARTIFACT, HP-THIN-FLOAT, HP-LLM-FIGURE, HP-PAGE-PADDING, HP-JARGON-STUFF, HP-AI-FLAVOR, HP-DEFENSIVE-HEDGE, HP-NARRATIVE-ARC-BREAK, HP-INVENTED-CODENAME |
+| `/presentation-signals "<PAPER_DIR>"` | **always** (AUXILIARY, capped at `minor`) | `presentation-signals.deterministic.findings.json` (+ semantic `presentation-signals.findings.json`) | HP-DUP-TABLE, HP-PIPELINE-ARTIFACT, HP-THIN-FLOAT, HP-LLM-FIGURE, HP-PAGE-PADDING |
 | `/proof-derivation-forensics "<PAPER_DIR>"` | ≥1 theorem/proof/derivation claim (self-guards: writes `[]` if `HAS_PROOFS=no`) | `proof-derivation-forensics.findings.json` | HP-PROOF-OBLIGATION-GAP, HP-PROOF-CIRCULARITY, HP-DERIVATION-INVALID, HP-SYMBOL-SEMANTIC-DRIFT, HP-ASSUMPTION-SMUGGLE, HP-UNDEFINED-NOTATION |
 | `/eval-design-forensics "<PAPER_DIR>"` | ≥1 comparison/eval claim (family H, L0/L1 stated-tells; dim=evaluation) | `eval-design-forensics.findings.json` | HP-EVAL-LEAKAGE, HP-JUDGE-VALIDITY, HP-SELECTIVE-REPORTING |
+| `/ai-style-impressions "<PAPER_DIR>"` | **always** (AIS track · NOT integrity · **zero verdict weight** · separate report section) | `ai-style-impressions.deterministic.findings.json` (+ semantic `ai-style-impressions.findings.json`) | AIS-NARRATIVE-ARC-BREAK, AIS-LLM-PHRASE-TICS, AIS-DEFENSIVE-HEDGE, AIS-JARGON-STUFF, AIS-INVENTED-CODENAME, AIS-CLAUSE-FORMULA-WALL, AIS-GRATUITOUS-PSEUDOCODE, AIS-BULLET-LIST-OVERUSE, AIS-BOLD-MODULE-SPAM, AIS-RESTATE-OVERCLAIM, AIS-FOCUS-DRIFT, AIS-SINGLE-STYLE-FIGURES, AIS-APPENDIX-DUMPING-GROUND |
 
 Notes the orchestrator must honor:
 - **experiment-forensics always runs**, but at **L0/L1 it emits only info-level
@@ -515,7 +518,8 @@ claims = {c["claim_id"]: " ".join((c.get("text_span") or "").split())
           for c in json.load(open(f"{D}/claims.json", encoding="utf-8"))["claims"] if c.get("claim_id")}
 nw = lambda s: " ".join((s or "").split()); ABOVE = {"critical", "major", "minor"}
 mandatory = ["consistency-audit.deterministic", "consistency-audit", "experiment-forensics",
-             "presentation-signals.deterministic", "presentation-signals"]
+             "presentation-signals.deterministic", "presentation-signals",
+             "ai-style-impressions.deterministic", "ai-style-impressions"]
 missing = []
 for f in mandatory:
     p = f"{D}/{f}.findings.json"; ok = os.path.isfile(p)
@@ -622,7 +626,7 @@ printf '  findings: %s\n' "${FINDINGS[@]##*/}"
 python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "${FINDINGS[@]}" \
     --ledger "$PAPER_DIR/claims.json" \
-    --paper-id "$PAPER_ID" --observability-level "$L" --taxonomy-version 0.4 \
+    --paper-id "$PAPER_ID" --observability-level "$L" --taxonomy-version 0.5 \
     --memo "$(cat "$PAPER_DIR/adversarial-case-builder.memo.md" 2>/dev/null)" \
     --limitation "Run observability level L$L — see references/observability-levels.md for what this tier can and cannot decide." \
     --out "$PAPER_DIR/report.json" --md "$PAPER_DIR/REPORT.md"
@@ -734,7 +738,7 @@ python3 "$ROOT/tools/check_presentation.py"        --ledger "$PAPER_DIR/claims.j
 python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "$PAPER_DIR"/*.deterministic.findings.json \
     --ledger "$PAPER_DIR/claims.json" --paper-id mypaper --observability-level "$L" \
-    --taxonomy-version 0.4 \
+    --taxonomy-version 0.5 \
     --limitation "Deterministic-only run (no cross-model reviewer): semantic + code-level dimensions were NOT run." \
     --out "$PAPER_DIR/report.json" --md "$PAPER_DIR/REPORT.md"
 ```

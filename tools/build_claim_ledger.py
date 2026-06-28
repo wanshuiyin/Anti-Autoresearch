@@ -30,8 +30,8 @@ SCOPE_WORDS = re.compile(
 # Defensive-hedge cues: a *recall-oriented* net so sentences that defend against an
 # anticipated objection ("we do not claim ...", "this does not mean ...", "目的不是…而是…")
 # land in the ledger as `scope` claims even when they carry no number/citation. The
-# strict precision list that DECIDES HP-DEFENSIVE-HEDGE (and its count/section gate) lives
-# in tools/check_presentation.py (DEFENSIVE_HEDGE_PATTERNS); keep that a subset of this.
+# strict precision list that DECIDES AIS-DEFENSIVE-HEDGE (and its count/section gate) lives
+# in tools/check_ai_style.py (DEFENSIVE_HEDGE_PATTERNS); keep that a subset of this.
 # This is scope language, not a verdict: capturing it here only makes it anchorable.
 HEDGE_CUES = re.compile(
     r"(we (?:do|are|did|will) not (?:claim|argu|propos|aim|seek|intend|mean|attempt|suggest)\w*|"

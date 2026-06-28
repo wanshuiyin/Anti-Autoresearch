@@ -137,7 +137,7 @@ This is an **auditor** skill in the integrity-forensics pipeline
   `mcp__codex__codex-reply`** across passes (the bias guard — reply is deliberately
   absent from `allowed-tools`). See `references/reviewer-independence.md`.
 - **PATTERNS_OWNED** (must match `references/hack-pattern-taxonomy.md`,
-  `taxonomy_version 0.4`): `HP-FAKE-GT`, `HP-SELF-NORM`, `HP-PHANTOM-RESULT`,
+  `taxonomy_version 0.5`): `HP-FAKE-GT`, `HP-SELF-NORM`, `HP-PHANTOM-RESULT`,
   `HP-DEAD-METRIC`, `HP-SCOPE-INFLATE` (verified form), `HP-METHOD-DRIFT` (L2
   confirm), `HP-SUSPICIOUS-REGULARITY` (L2 confirm), `HP-PLACEHOLDER-DATA` (L2),
   `HP-RESULT-ARTIFACT-MISMATCH` (L2), `HP-MISSING-REPRO-ARTIFACT` (verdict-bearing
@@ -709,7 +709,7 @@ span; without it every above-info finding fails closed to `info`):
 # DO NOT run here — this is the orchestrator's job.
 python3 "$ROOT/tools/adjudicate_findings.py" --findings "$TARGET"/*.findings.json \
     --ledger "$TARGET/claims.json" --paper-id <id> --observability-level <L> \
-    --taxonomy-version 0.4 --out "$TARGET/report.json" --md "$TARGET/REPORT.md"
+    --taxonomy-version 0.5 --out "$TARGET/report.json" --md "$TARGET/REPORT.md"
 ```
 
 ## Output contract

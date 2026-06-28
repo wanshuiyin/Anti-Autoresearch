@@ -152,7 +152,7 @@ REVIEWER_SANDBOX      = read-only                # detect-only; never mutate the
 REVIEWER_CWD          = <paper-dir>              # so it can read claims.json + sources directly
 THREAD_POLICY         = fresh mcp__codex__codex per DIMENSION (and per entry on fan-out);
                         NEVER mcp__codex__codex-reply across dimensions/entries
-TAXONOMY_VERSION      = 0.4                      # references/hack-pattern-taxonomy.md
+TAXONOMY_VERSION      = 0.5                      # references/hack-pattern-taxonomy.md
 PROFILE_VERSION       = 0.1                      # the per-domain baseline profile above (advisory)
 PATTERNS_OWNED        = HP-MISSING-BASELINE, HP-WEAK-BASELINE, HP-SIG-OVERLAP,
                         HP-DELTA-ERROR (cross-row comparison form only — see Step 4),
@@ -837,7 +837,7 @@ LEDGER="<abs path to claims.json>"; D="$(dirname "$LEDGER")"
 python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "$D/baseline-comparison-audit.findings.json" \
     --ledger "$LEDGER" \
-    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.4 \
+    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.5 \
     --out "$D/baseline.report.json" --md "$D/baseline.REPORT.md"
 # prints e.g.: verdict=SOFT_FLAGS crit=0 maj=1 min=2 -> baseline.report.json, baseline.REPORT.md
 ```

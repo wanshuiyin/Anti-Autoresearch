@@ -77,7 +77,14 @@ def test_surface_only_skill_capped_to_minor():
 
 def test_surface_pattern_capped_even_under_other_skill():
     # an F-pattern smuggled in under a non-surface skill is STILL capped at minor
-    f = _f(skill="consistency-audit", pattern_id="HP-AI-FLAVOR")  # critical by default
+    f = _f(skill="consistency-audit", pattern_id="HP-THIN-FLOAT")  # critical by default
+    assert _final([f]) == ["minor"]
+    assert "surface-only-cap" in f["_adjudication"]
+
+
+def test_surface_pattern_strip_bypass_rejected():
+    # a dirty pattern_id with a trailing space must STILL hit the surface cap (-> minor)
+    f = _f(skill="consistency-audit", pattern_id="HP-THIN-FLOAT ")  # critical by default
     assert _final([f]) == ["minor"]
     assert "surface-only-cap" in f["_adjudication"]
 
@@ -86,7 +93,71 @@ def test_advisory_pattern_capped_even_under_other_skill():
     # an ADV-* advisory pattern smuggled in under a verdict-bearing skill is STILL info
     f = _f(skill="consistency-audit", pattern_id="ADV-TRIVIAL-COMBINATION")  # critical by default
     assert _final([f]) == ["info"]
-    assert "advisory-pattern-cap" in f["_adjudication"]
+    assert "zero-weight-cap" in f["_adjudication"]
+
+
+def test_ais_skill_zero_weight():
+    # an AIS impression, even proposed critical + anchored, is forced to info, weight 0
+    f = _f(skill="ai-style-impressions", pattern_id="AIS-DEFENSIVE-HEDGE")
+    assert _final([f]) == ["info"]
+    assert f["_verdict_weight"] == 0
+    assert "zero-weight-cap" in f["_adjudication"]
+
+
+def test_ais_prefix_zero_weight_under_other_skill():
+    # an AIS-* pattern smuggled under a verdict-bearing skill is STILL zero-weight info
+    f = _f(skill="consistency-audit", pattern_id="AIS-LLM-PHRASE-TICS")
+    assert _final([f]) == ["info"]
+    assert f["_verdict_weight"] == 0
+
+
+def test_deprecated_style_pattern_zero_weight():
+    # an OLD HP-* style id migrated to AIS is forced zero-weight: a stale findings.json
+    # can no longer push HP-AI-FLAVOR to SOFT_FLAGS
+    f = _f(skill="presentation-signals", pattern_id="HP-AI-FLAVOR")
+    assert _final([f]) == ["info"]
+    assert f["_verdict_weight"] == 0
+
+
+def test_zero_weight_never_moves_overall_verdict():
+    # THE invariant: a clean paper with an AIS finding proposed critical stays CLEAN, and the
+    # AIS impression is still reported (counts.ai_style_impressions == 1, critical == 0).
+    import types
+    ais = _f(skill="ai-style-impressions", pattern_id="AIS-DEFENSIVE-HEDGE")  # critical, anchored
+    stats = A.adjudicate([ais], 2, LEDGER)
+    args = types.SimpleNamespace(observability_level=2, limitation=None,
+                                 taxonomy_version="0.5", paper_id="t", generated_at="x", memo="")
+    rep = A.build_report([ais], args, stats, anchoring_verified=True)
+    assert rep["overall_verdict"] == "CLEAN_GIVEN_EVIDENCE"
+    assert rep["counts"]["ai_style_impressions"] == 1
+    assert rep["counts"]["critical"] == 0
+
+
+def test_zero_weight_not_in_dimension_verdicts():
+    # a zero-weight finding (deprecated style id under a verdict-bearing skill) must NOT
+    # create an integrity dimension verdict
+    import types
+    f = _f(skill="presentation-signals", pattern_id="HP-AI-FLAVOR")  # critical, anchored, zero-weight
+    stats = A.adjudicate([f], 2, LEDGER)
+    args = types.SimpleNamespace(observability_level=2, limitation=None,
+                                 taxonomy_version="0.5", paper_id="t", generated_at="x", memo="")
+    rep = A.build_report([f], args, stats, anchoring_verified=True)
+    assert rep["dimension_verdicts"] == {}, rep["dimension_verdicts"]
+    assert rep["overall_verdict"] == "CLEAN_GIVEN_EVIDENCE"
+
+
+def test_integrity_and_ais_coexist():
+    # a real integrity critical + an AIS critical -> HARD from integrity; AIS stays zero-weight
+    import types
+    integ = _f(skill="consistency-audit", pattern_id="HP-NUM-INFLATE")  # critical, anchored
+    ais = _f(skill="ai-style-impressions", pattern_id="AIS-DEFENSIVE-HEDGE")
+    stats = A.adjudicate([integ, ais], 2, LEDGER)
+    args = types.SimpleNamespace(observability_level=2, limitation=None,
+                                 taxonomy_version="0.5", paper_id="t", generated_at="x", memo="")
+    rep = A.build_report([integ, ais], args, stats, anchoring_verified=True)
+    assert rep["overall_verdict"] == "HARD_FLAGS"
+    assert integ["_verdict_weight"] == 1 and ais["_verdict_weight"] == 0
+    assert rep["counts"]["ai_style_impressions"] == 1
 
 
 def test_needs_external_check_capped_to_info():

@@ -9,7 +9,7 @@
     "finding_id": {"type": "string", "description": "e.g. \"F001\"."},
     "skill": {
       "type": "string",
-      "enum": ["consistency-audit", "experiment-forensics", "baseline-comparison-audit", "citation-forensics", "presentation-signals", "proof-derivation-forensics", "adversarial-case-builder", "novelty-duplication-advisory", "evidence-ledger", "eval-design-forensics"]
+      "enum": ["consistency-audit", "experiment-forensics", "baseline-comparison-audit", "citation-forensics", "presentation-signals", "proof-derivation-forensics", "adversarial-case-builder", "novelty-duplication-advisory", "evidence-ledger", "eval-design-forensics", "ai-style-impressions"]
     },
     "pattern_id": {"type": "string", "description": "Optional ref into references/hack-pattern-taxonomy.md (e.g. \"HP-NUM-INFLATE\"). The taxonomy is a post-hoc MAPPING layer, never the detector itself."},
     "title": {"type": "string"},

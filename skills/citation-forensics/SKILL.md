@@ -115,7 +115,7 @@ REVIEWER_REASONING   = xhigh                    # always; effort never lowers re
 REVIEWER_SANDBOX     = read-only                # detect-only; never mutate the paper or .bib
 REVIEWER_CWD         = <PAPER_DIR>              # so it can re-open claims.json + the .bib to confirm a span
 THREAD_POLICY        = ONE fresh mcp__codex__codex per CITED KEY; NEVER mcp__codex__codex-reply across keys
-TAXONOMY_VERSION     = 0.4                      # references/hack-pattern-taxonomy.md §E
+TAXONOMY_VERSION     = 0.5                      # references/hack-pattern-taxonomy.md §E
 PATTERNS             = HP-CITE-HALLUC (existence/metadata) | HP-CITE-CONTEXT (wrong context) | HP-CITE-RETRACTED (retracted/withdrawn)
 OBS_REQUIRED         = 0 for all three patterns # decidable at L0 (text + canonical / retraction sources)
 FACT_GATHERING       = executor, Step 2: DBLP MCP + WebSearch/WebFetch -> resolution.json (FACTS, never a verdict)
@@ -562,7 +562,7 @@ def nw(s):                                    # mirror adjudicator _norm_ws (whi
     return " ".join((s or "").split())
 
 ALLOWED    = {"HP-CITE-HALLUC", "HP-CITE-CONTEXT", "HP-CITE-RETRACTED"}   # the ONLY patterns this skill emits
-OBS        = {"HP-CITE-HALLUC": 0, "HP-CITE-CONTEXT": 0, "HP-CITE-RETRACTED": 0}   # all decidable at L0 (taxonomy 0.4 §E)
+OBS        = {"HP-CITE-HALLUC": 0, "HP-CITE-CONTEXT": 0, "HP-CITE-RETRACTED": 0}   # all decidable at L0 (taxonomy 0.5 §E)
 SEV        = {"critical", "major", "minor", "info"}
 VL         = {"fail", "warn", "clean", "needs_external_check"}
 FPR        = {"low", "medium", "high"}
@@ -699,7 +699,7 @@ LEDGER="<abs LEDGER>"; D="$(dirname "$LEDGER")"
 python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "$D/citation-forensics.findings.json" \
     --ledger "$LEDGER" \
-    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.4 \
+    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.5 \
     --out "$D/report.json" --md "$D/REPORT.md"
 ```
 
