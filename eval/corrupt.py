@@ -47,6 +47,18 @@ CORRUPTIONS = {
     "stat_inconsistency": [
         ("(z = 2.10, p = 0.036)", "(z = 1.10, p = 0.036)"),
     ],
+    # defensive-hedge density: 4 strong "we do not claim / not X but rather Y" constructions
+    # injected across Introduction and Method — a *pattern*, not the one legitimate scoping
+    # sentence the clean paper already has ("we make no claim of broad generality").
+    "defensive_hedge": [
+        ("improvement evaluated on one benchmark.",
+         "improvement evaluated on one benchmark. We do not claim that this routing module "
+         "is optimal. This does not mean that simpler designs cannot work."),
+        ("is performed on the training split only.",
+         "is performed on the training split only. We are not proposing a fundamentally new "
+         "architecture. Our goal is not to maximize raw accuracy, but rather to isolate the "
+         "routing effect."),
+    ],
 }
 
 

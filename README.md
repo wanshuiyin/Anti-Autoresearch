@@ -28,7 +28,7 @@ its own paper. Reviewers, area chairs, and honest authors increasingly need to
 
 ## 📰 News
 
-- **v0.4 (2026-06)** — Taxonomy v0.4: **48 hack-patterns across 8 families** — A. Numeric self-consistency (数值自洽:表内·表文·增量算术对得上) · B. Method & scope (方法与范围:说的方法/范围≠实际做的) · C. Baseline integrity (baseline 诚信:对比基线缺失·偏弱·不公平) · D. Experiment integrity (实验诚信:假 GT·幽灵结果·代码≠数字,需代码) · E. Citation integrity (引用诚信:伪造·张冠李戴·撤稿) · F. Presentation & surface signals (表面信号:排版·文风·配图) · G. Proof & derivation integrity (证明诚信:漏证·循环论证·无效推导) · H. Evaluation design & validity (评测设计有效性:数据泄漏·LLM 裁判可信度·选择性报告, new). The deterministic eval gate grew 3→7 patterns (GRIM / GRIMMER / statcheck); added CI, the `eval-design-forensics` skill, and a prior-art acknowledgments section.
+- **v0.4 (2026-06)** — Taxonomy v0.4: **49 hack-patterns across 8 families** — A. Numeric self-consistency (数值自洽:表内·表文·增量算术对得上) · B. Method & scope (方法与范围:说的方法/范围≠实际做的) · C. Baseline integrity (baseline 诚信:对比基线缺失·偏弱·不公平) · D. Experiment integrity (实验诚信:假 GT·幽灵结果·代码≠数字,需代码) · E. Citation integrity (引用诚信:伪造·张冠李戴·撤稿) · F. Presentation & surface signals (表面信号:排版·文风·配图) · G. Proof & derivation integrity (证明诚信:漏证·循环论证·无效推导) · H. Evaluation design & validity (评测设计有效性:数据泄漏·LLM 裁判可信度·选择性报告, new). The deterministic eval gate grew 3→8 patterns (GRIM / GRIMMER / statcheck, plus a conservative defensive-hedge density screen); added CI, the `eval-design-forensics` skill, the `HP-INVENTED-CODENAME` surface pattern, and a prior-art acknowledgments section.
 - **v0.1 (2026-06)** — Initial release: reviewer-side integrity forensics for autoresearch / AI-Scientist papers. Ships the evidence ledger, deterministic adjudicator, and observability tiers. Not an AI-text detector.
 
 ## 🚀 Quickstart
@@ -130,10 +130,10 @@ is 6%, a citation for a claim the cited paper never makes, a method described on
 way and evaluated another.
 
 Those are checkable under a declared observability level. Concretely, taxonomy v0.4
-names **48 hack-patterns across 8 families** (numeric self-consistency · method /
+names **49 hack-patterns across 8 families** (numeric self-consistency · method /
 scope · baseline integrity · experiment integrity · citation integrity ·
 presentation / surface signals · proof & derivation integrity · evaluation design &
-validity) — the repo's **coverage vocabulary**, not a 48-detector benchmark.
+validity) — the repo's **coverage vocabulary**, not a 49-detector benchmark.
 
 > **Shipped v0:** the deterministic spine and the **seven** ✓-marked patterns (across
 > the representative list below and the full catalog) are eval-tested; the other 41 are
@@ -409,7 +409,7 @@ only: Pangram, GPTZero, and the Problematic Paper Screener.
 ## 💬 Community
 
 **The taxonomy grows with the community.** Caught an autoresearch / AI-Scientist paper
-pulling a trick that isn't in the [48-pattern catalog](references/hack-pattern-taxonomy.md)
+pulling a trick that isn't in the [49-pattern catalog](references/hack-pattern-taxonomy.md)
 yet? That is the single most valuable contribution here — open an issue with the concrete
 example, or send a PR adding the pattern (with an eval fixture + a false-positive case so
 it doesn't over-fire). New auditor skills, adjudicator gates, and corruption fixtures are

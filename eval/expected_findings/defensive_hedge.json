@@ -1,0 +1,8 @@
+{
+  "fixture": "synthetic_corruptions/defensive_hedge.tex",
+  "corruption": "defensive_hedge",
+  "required_patterns": ["HP-DEFENSIVE-HEDGE"],
+  "forbidden_above_info": false,
+  "min_verdict": "SOFT_FLAGS",
+  "note": "Four strong defensive-hedge constructions ('we do not claim ...', 'this does not mean ...', 'we are not proposing ...', 'our goal is not ... but rather ...') across Introduction and Method. The conservative density screen (>=4 distinct hedge sentences across >=2 non-excluded sections) fires HP-DEFENSIVE-HEDGE, capped at minor by SURFACE_PATTERNS -> at most SOFT_FLAGS, never HARD. The clean paper's single legitimate scoping sentence ('we make no claim of broad generality') is below threshold and must NOT trip it. Flags the RECURRENCE of the hedge shape only; never an authorship/AI-generation verdict."
+}

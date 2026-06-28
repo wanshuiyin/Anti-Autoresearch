@@ -26,7 +26,7 @@
 
 ## 📰 动态
 
-- **v0.4 (2026-06)** — Taxonomy v0.4:**48 个 hack-pattern、8 个家族** —— A. Numeric self-consistency(数值自洽:表内·表文·增量算术对得上)· B. Method & scope(方法与范围:说的方法/范围≠实际做的)· C. Baseline integrity(baseline 诚信:对比基线缺失·偏弱·不公平)· D. Experiment integrity(实验诚信:假 GT·幽灵结果·代码≠数字,需代码)· E. Citation integrity(引用诚信:伪造·张冠李戴·撤稿)· F. Presentation & surface signals(表面信号:排版·文风·配图)· G. Proof & derivation integrity(证明诚信:漏证·循环论证·无效推导)· H. Evaluation design & validity(评测设计有效性:数据泄漏·LLM 裁判可信度·选择性报告,新增)。确定性 eval 门控由 3→7 个(含 GRIM / GRIMMER / statcheck);新增 CI、`eval-design-forensics` skill、先行工作致谢。
+- **v0.4 (2026-06)** — Taxonomy v0.4:**49 个 hack-pattern、8 个家族** —— A. Numeric self-consistency(数值自洽:表内·表文·增量算术对得上)· B. Method & scope(方法与范围:说的方法/范围≠实际做的)· C. Baseline integrity(baseline 诚信:对比基线缺失·偏弱·不公平)· D. Experiment integrity(实验诚信:假 GT·幽灵结果·代码≠数字,需代码)· E. Citation integrity(引用诚信:伪造·张冠李戴·撤稿)· F. Presentation & surface signals(表面信号:排版·文风·配图)· G. Proof & derivation integrity(证明诚信:漏证·循环论证·无效推导)· H. Evaluation design & validity(评测设计有效性:数据泄漏·LLM 裁判可信度·选择性报告,新增)。确定性 eval 门控由 3→8 个(含 GRIM / GRIMMER / statcheck,以及一个保守的防御性写作密度筛);新增 CI、`eval-design-forensics` skill、`HP-INVENTED-CODENAME` 表面模式、先行工作致谢。
 - **v0.1 (2026-06)** — 首次发布:面向 autoresearch / AI-Scientist 论文的审稿侧诚信取证。证据账本 + 确定性裁决器 + 可观测性分层。不是 AI 文本检测器。
 
 ## 🚀 快速开始
@@ -122,9 +122,9 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 6%、为某条主张引用了一篇根本没这么说的论文、方法描述与实际评测不一致。
 
 这些都是在**声明的可观测性层级下可核查**的。具体地,taxonomy v0.4 编码了
-**8 个家族、48 个 hack-pattern**(数值自洽 · 方法/范围 · baseline 诚信 · 实验诚信 ·
+**8 个家族、49 个 hack-pattern**(数值自洽 · 方法/范围 · baseline 诚信 · 实验诚信 ·
 引用诚信 · 表象/surface 信号 · 证明 & 推导诚信 · 评测设计与有效性)—— 这是本仓库的
-**覆盖词表**,而不是 "48 个检测器的 benchmark"。
+**覆盖词表**,而不是 "49 个检测器的 benchmark"。
 
 > **已交付 v0:**确定性脊柱 + 带 ✓ 的 **7 个**模式(分布在下面的代表性列表和完整目录里)
 > 经 eval 测试;其余 41 个是 agent 层合同(跨模型 reviewer 提出带 span 锚点的 finding,
@@ -342,7 +342,7 @@ Problematic Paper Screener。
 ## 💬 交流群
 
 **这套分类法靠社区一起长大。** 看到某篇 autoresearch / AI-Scientist 论文耍了个
-[48 模式目录](references/hack-pattern-taxonomy.md)里还没有的花招?那是这里最有价值的贡献
+[49 模式目录](references/hack-pattern-taxonomy.md)里还没有的花招?那是这里最有价值的贡献
 —— 开个 issue 贴上具体例子,或直接发 PR 把这个模式补进去(配一条 eval fixture + 一个假阳
 案例,免得它乱开火)。新的 auditor skill、裁决器 gate、corruption fixture 同样欢迎。
 **[CONTRIBUTING.md](CONTRIBUTING.md)** 讲清了一个 pattern 怎么写、以及每条 flag 必须守的
