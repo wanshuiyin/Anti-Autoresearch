@@ -116,7 +116,7 @@ DEFENSE_POINTS      = 3-7 atomic anchored points (empty array under honest-null)
 CLASSIFICATION      = already_addressed | partially_addressed | unresolved
 ANCHOR_UNIVERSE     = ledger claim_ids (claims.json) + finding_ids (sibling *.findings.json, skill-prefixed)
 DISPOSITION         = kill_constructed | partial_case | honest_null   # informational, NOT the report verdict
-TAXONOMY_VERSION    = 0.3               # references/hack-pattern-taxonomy.md
+TAXONOMY_VERSION    = 0.4               # references/hack-pattern-taxonomy.md
 MEMO_FILE           = adversarial-case-builder.memo.md          # canonical output (fed to --memo)
 FINDINGS_FILE       = adversarial-case-builder.findings.json    # info-only mirror (or []), capped at info
 TRACE_POLICY        = forensic (never silently dropped)
@@ -654,7 +654,7 @@ LEDGER="<abs path to claims.json>"; D="$(dirname "$LEDGER")"
 python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "$D"/*.findings.json \
     --ledger "$LEDGER" \
-    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.3 \
+    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.4 \
     --memo "$(cat "$D/adversarial-case-builder.memo.md")" \
     --out "$D/report.json" --md "$D/REPORT.md"
 ```

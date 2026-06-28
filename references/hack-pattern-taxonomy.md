@@ -3,7 +3,7 @@
 ```
 taxonomy_version: 0.4
 last_reviewed: 2026-06-28
-patterns: 49 hard (families A–H) + 2 advisory (no verdict weight)
+patterns: 51 hard (families A–H) + 2 advisory (no verdict weight)
 status: living document — versioned; the version is stamped into every report
 ```
 
@@ -245,6 +245,23 @@ demoted to `info`.
   see family G); the supporting experiment exists elsewhere in the paper.
 - **severity_rule:** major; critical if it is the central claim.
 - **min_evidence:** the conclusion span + the (absent) experimental-design span for that relation.
+
+### HP-ACRONYM-DRIFT — the same component/term is named or expanded inconsistently
+- **level:** L0 (decidable from the text; the conflicting spans are explicit)
+- **framing note:** a checkable SELF-INCONSISTENCY in terminology — NOT a "looks AI-written"
+  vibe signal. The finding asserts only that two spans name the same load-bearing object
+  incompatibly; never authorship or misconduct. (Reviewer: "模块名冗长甚至有前后缩写不一致".)
+- **signals:** one acronym is defined with two incompatible expansions; OR a single
+  load-bearing component / method / module is referred to by two or more incompatible names
+  or acronyms across the paper (abstract ↔ method ↔ experiments), so a reader cannot tell
+  whether they are the same thing.
+- **fp_cases:** a standard acronym legitimately reused for different things; an author-declared
+  overloading; a local, clearly-scoped section abbreviation; near-synonyms the paper explicitly
+  equates. Require the two spans to name the SAME load-bearing object AND be genuinely
+  incompatible — else do not raise. (Verbose names / bold-spam alone are presentation only →
+  HP-JARGON-STUFF, not this.)
+- **severity_rule:** minor; major only if the drift makes a central method/result ambiguous.
+- **min_evidence:** the two conflicting name/expansion spans for the same object.
 
 ---
 
@@ -530,8 +547,11 @@ demoted to `info`.
 - **level:** L0
 - **signals:** hallmarks of unedited LLM text — connective filler overused as a tic
   ("It is worth noting that", "值得注意的是", "意义在于", "not only … but also", chains of
-  "however / therefore / moreover"), hedged filler, uniform paragraph shapes. **Gross cases
-  only.** Distinct from HP-DEFENSIVE-HEDGE (the specific not-X-but-Y defensive posture).
+  "however / therefore / moreover", clichéd em-dashes / semicolons, "therefore" dropped
+  mid-sentence), flowery empty adverbs ("elegantly", "theoretically"), hedged filler, uniform
+  paragraph shapes. **Gross cases only.** Distinct from HP-DEFENSIVE-HEDGE (the specific
+  not-X-but-Y defensive posture). These remain illustrative — a high-FP surface note, never an
+  authorship verdict; we are not a vibe/AI-text classifier.
 - **fp_cases:** huge — many honest authors use LLM assistance; non-native writing;
   house style. This is the single most FP-prone pattern in the taxonomy.
 - **severity_rule:** minor (capped); very high FP. **Never** treat as evidence of
@@ -670,6 +690,25 @@ demoted to `info`.
   with HP-THEOREM-SCOPE-DRIFT.
 - **min_evidence:** the proof step using the assumption + the (absent) assumption in the
   theorem statement.
+
+### HP-UNDEFINED-NOTATION — a load-bearing symbol is used but never defined
+- **level:** L1 (verdict-bearing on the LaTeX source; at L0 PDF surface `info` only — PDF math
+  extraction is unreliable)
+- **framing note:** a checkable rigor/readability gap — a symbol / operator / index carries
+  meaning in a key equation, lemma, or proof yet is **never defined and is not inferable from
+  standard convention**. The finding asserts only that absence-of-definition, never authorship.
+  Distinct from HP-SYMBOL-SEMANTIC-DRIFT (a *defined* symbol that CHANGES meaning mid-paper);
+  here the symbol is simply never pinned down. The "short clause then a wall of formulas" style
+  on its own is presentation only (HP-NARRATIVE-ARC-BREAK / HP-PAGE-PADDING), not this.
+- **signals:** a central equation / theorem / algorithm uses notation (a variable, operator,
+  subscript/superscript, or set) with no defining sentence anywhere and no standard reading, so
+  the result cannot be checked as written. (Reviewer: "method 部分全是没有 denote 的符号和公式".)
+- **fp_cases:** notation genuinely standard in the subfield; a symbol defined in a
+  figure/caption/appendix the reader can find; reused notation from a cited setup. Require the
+  symbol to be load-bearing (it appears in a claimed result/proof) AND undefined.
+- **severity_rule:** major if a checkable result/proof depends on the undefined symbol; minor if
+  peripheral. PDF-only (L0): `info`.
+- **min_evidence:** the equation/proof span using the symbol + the (absent) definition.
 
 ## H. Evaluation design & reporting validity (L0/L1 stated · confirmed at L2 · CAN be critical)
 
