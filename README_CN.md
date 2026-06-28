@@ -58,6 +58,20 @@ claude
 `*.findings.json` 写进论文目录。把代码/结果产物和论文放一起即可解锁 L2 检查;仅
 PDF/源码的运行按设计受可观测性限制。
 
+### 零裁决权重 —— AIS + advisory 两轨(上报,但永不动 verdict)
+
+有三个 skill 的产出是**上报但对诚信 verdict 零权重**的 —— 它们代表诚信之外的另几类:**AIS**
+文风轨道 + **advisory** 备忘。它们对人类审稿人有用(文风印象、最致命的拒稿段、与前作的重叠),
+所以报告会在独立小节里展示;但确定性 verdict **只**由 46 个 integrity 模式驱动。一篇论文可以
+`CLEAN_GIVEN_EVIDENCE` 同时挂一长串。`/anti-autoresearch` 会自动跑它们;要单独跑,先建账本
+(见下一节)再像任意 auditor 一样调用。
+
+| Skill | 写什么 |
+|-------|--------|
+| `/ai-style-impressions` | *(AIS · 独立报告小节)* AI 文风印象:防御写作、LLM 口头禅、公式墙、bullet/加粗滥用、自创代号、单一风格配图 |
+| `/adversarial-case-builder` | *(memo,不定罪)* 一个敌意审稿人会写的、最致命的、有证据支撑的拒稿段落 |
+| `/novelty-duplication-advisory` | *(memo,不定罪)* 与前作的重叠:trivial 组合("缝合")和重复发表候选,摆出来给人判断 |
+
 ### 单 skill 用法
 
 每个 auditor 也都是独立 skill —— 安装脚本会把它们和 workflow 一起装上,所以你可以只跑
@@ -72,10 +86,8 @@ claude
 # 2) 然后针对该账本,跑下面任意一个 auditor → <skill>.findings.json
 ```
 
-**各 skill** —— 都接收论文目录、读账本。**verdict-bearing auditor** 提出带 span 锚点的
-finding,由确定性裁决器转成判决;下面的**零裁决权重** skill 只上报,永不动判决。
-
-**Verdict-bearing auditors(参与判决)**
+**verdict-bearing auditor** —— 都接收论文目录、读账本,提出带 span 锚点的 finding,由确定性
+裁决器转成判决(零权重的 AIS + advisory skill 在上面那节):
 
 | Skill | 抓什么 |
 |-------|--------|
@@ -86,14 +98,6 @@ finding,由确定性裁决器转成判决;下面的**零裁决权重** skill 只
 | `/proof-derivation-forensics` | *(L1 —— 需 LaTeX 源)* 写出来的证明:跳过的义务、循环论证、无效步骤、符号漂移、偷藏假设 |
 | `/eval-design-forensics` | 评测有效性:训练/测试泄漏、有利益冲突或未验证的 LLM-judge 指标、选择性报告(丢条件 / 换指标) |
 | `/presentation-signals` | *(封顶 `minor` → 最多 SOFT)* 可核查的表象迹象:重复表、残留 pipeline/模板串、LLM 配图、页数注水 —— 当上下文,永不定罪 |
-
-**零裁决权重 —— 上报,但永不动 verdict**
-
-| Skill | 写什么 |
-|-------|--------|
-| `/ai-style-impressions` | *(AIS · 独立报告小节)* AI 文风印象:防御写作、LLM 口头禅、公式墙、bullet/加粗滥用、自创代号、单一风格配图 |
-| `/adversarial-case-builder` | *(memo,不定罪)* 一个敌意审稿人会写的、最致命的、有证据支撑的拒稿段落 |
-| `/novelty-duplication-advisory` | *(memo,不定罪)* 与前作的重叠:trivial 组合("缝合")和重复发表候选,摆出来给人判断 |
 
 单个 skill 只**提出**带 span 锚点的 findings,**永远不给 verdict**。要判决,把 findings
 喂给确定性裁决器(下一节那条 `python3 tools/adjudicate_findings.py … --ledger …`)——
