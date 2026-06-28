@@ -78,7 +78,11 @@ claude
 # 2) Then run any auditor below against that ledger → <skill>.findings.json
 ```
 
-**The auditors** — each takes the paper dir, reads the ledger, writes `<skill>.findings.json`:
+**The skills** — each takes the paper dir and reads the ledger. The **verdict-bearing
+auditors** propose span-anchored findings the deterministic adjudicator turns into the
+verdict; the **zero-verdict-weight** skills below are reported but can never move it.
+
+**Verdict-bearing auditors**
 
 | Skill | What it catches |
 |-------|-----------------|
@@ -88,8 +92,13 @@ claude
 | `/experiment-forensics` | *(L2 — needs code+results)* fake / derived ground truth, score self-normalization, phantom results, placeholder data, code output ≠ reported numbers |
 | `/proof-derivation-forensics` | *(L1 — needs LaTeX source)* the written proof: skipped obligations, circularity, invalid steps, symbol drift, smuggled assumptions |
 | `/eval-design-forensics` | the evaluation's validity: train/test leakage, a conflicted or unvalidated LLM-judge metric, selective reporting (dropped conditions / switched metrics) |
-| `/presentation-signals` | *(capped at `minor`)* checkable surface tells: duplicate tables, leftover pipeline/template strings, LLM-generated figures, page-padding — context, never a verdict |
-| `/ai-style-impressions` | *(**zero verdict weight** · separate report section)* AI writing-style impressions: defensive hedging, LLM phrasing tics, clause-then-formula walls, bullet/bold spam, invented codenames, single-style figures — reported, never moves the verdict |
+| `/presentation-signals` | *(capped at `minor` → at most SOFT)* checkable surface tells: duplicate tables, leftover pipeline/template strings, LLM-generated figures, page-padding — context, never a verdict |
+
+**Zero verdict weight — reported, never moves the verdict**
+
+| Skill | What it writes |
+|-------|----------------|
+| `/ai-style-impressions` | *(AIS · separate report section)* AI writing-style impressions: defensive hedging, LLM phrasing tics, clause-then-formula walls, bullet/bold spam, invented codenames, single-style figures |
 | `/adversarial-case-builder` | *(memo, no verdict)* the single strongest evidence-bound rejection paragraph a hostile reviewer would write |
 | `/novelty-duplication-advisory` | *(memo, no verdict)* prior-work overlap: trivial-combination ("缝合 / stapling") and duplicate-publication candidates, laid out for a human to weigh |
 

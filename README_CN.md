@@ -72,7 +72,10 @@ claude
 # 2) 然后针对该账本,跑下面任意一个 auditor → <skill>.findings.json
 ```
 
-**各 auditor** —— 都接收论文目录、读账本、写 `<skill>.findings.json`:
+**各 skill** —— 都接收论文目录、读账本。**verdict-bearing auditor** 提出带 span 锚点的
+finding,由确定性裁决器转成判决;下面的**零裁决权重** skill 只上报,永不动判决。
+
+**Verdict-bearing auditors(参与判决)**
 
 | Skill | 抓什么 |
 |-------|--------|
@@ -82,8 +85,13 @@ claude
 | `/experiment-forensics` | *(L2 —— 需代码+结果)* 假 / 派生 GT、分数自归一化、幽灵结果、placeholder 数据、代码产出 ≠ 报告数字 |
 | `/proof-derivation-forensics` | *(L1 —— 需 LaTeX 源)* 写出来的证明:跳过的义务、循环论证、无效步骤、符号漂移、偷藏假设 |
 | `/eval-design-forensics` | 评测有效性:训练/测试泄漏、有利益冲突或未验证的 LLM-judge 指标、选择性报告(丢条件 / 换指标) |
-| `/presentation-signals` | *(封顶 `minor`)* 可核查的表象迹象:重复表、残留 pipeline/模板串、LLM 配图、页数注水 —— 当上下文,永不定罪 |
-| `/ai-style-impressions` | *(**零裁决权重** · 独立报告小节)* AI 文风印象:防御写作、LLM 口头禅、公式墙、bullet/加粗滥用、自创代号、单一风格配图 —— 上报,但永不动 verdict |
+| `/presentation-signals` | *(封顶 `minor` → 最多 SOFT)* 可核查的表象迹象:重复表、残留 pipeline/模板串、LLM 配图、页数注水 —— 当上下文,永不定罪 |
+
+**零裁决权重 —— 上报,但永不动 verdict**
+
+| Skill | 写什么 |
+|-------|--------|
+| `/ai-style-impressions` | *(AIS · 独立报告小节)* AI 文风印象:防御写作、LLM 口头禅、公式墙、bullet/加粗滥用、自创代号、单一风格配图 |
 | `/adversarial-case-builder` | *(memo,不定罪)* 一个敌意审稿人会写的、最致命的、有证据支撑的拒稿段落 |
 | `/novelty-duplication-advisory` | *(memo,不定罪)* 与前作的重叠:trivial 组合("缝合")和重复发表候选,摆出来给人判断 |
 
