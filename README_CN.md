@@ -81,14 +81,16 @@ claude
 | `/baseline-comparison-audit` | "SOTA" / "超过" 背后缺失 / 偏弱 / 调参不公的 baseline |
 | `/experiment-forensics` | *(L2 —— 需代码+结果)* 假 / 派生 GT、分数自归一化、幽灵结果、placeholder 数据、代码产出 ≠ 报告数字 |
 | `/proof-derivation-forensics` | *(L1 —— 需 LaTeX 源)* 写出来的证明:跳过的义务、循环论证、无效步骤、符号漂移、偷藏假设 |
-| `/presentation-signals` | *(封顶 `minor`)* 表象迹象:重复表、LLM 配图、页数注水、AI 味文风 —— 当上下文,永不定罪 |
+| `/eval-design-forensics` | 评测有效性:训练/测试泄漏、有利益冲突或未验证的 LLM-judge 指标、选择性报告(丢条件 / 换指标) |
+| `/presentation-signals` | *(封顶 `minor`)* 可核查的表象迹象:重复表、残留 pipeline/模板串、LLM 配图、页数注水 —— 当上下文,永不定罪 |
+| `/ai-style-impressions` | *(**零裁决权重** · 独立报告小节)* AI 文风印象:防御写作、LLM 口头禅、公式墙、bullet/加粗滥用、自创代号、单一风格配图 —— 上报,但永不动 verdict |
 | `/adversarial-case-builder` | *(memo,不定罪)* 一个敌意审稿人会写的、最致命的、有证据支撑的拒稿段落 |
 | `/novelty-duplication-advisory` | *(memo,不定罪)* 与前作的重叠:trivial 组合("缝合")和重复发表候选,摆出来给人判断 |
 
 单个 skill 只**提出**带 span 锚点的 findings,**永远不给 verdict**。要判决,把 findings
 喂给确定性裁决器(下一节那条 `python3 tools/adjudicate_findings.py … --ledger …`)——
-模型从不打分。另外两点:`consistency-audit` 和 `presentation-signals` 还会写一份
-`*.deterministic.findings.json`(没接跨模型 reviewer 也能用);而 **`/anti-autoresearch`**
+模型从不打分。另外两点:`consistency-audit`、`presentation-signals`、`ai-style-impressions`
+还会写一份 `*.deterministic.findings.json`(没接跨模型 reviewer 也能用);而 **`/anti-autoresearch`**
 一把跑完上面所有 auditor,并额外做 ingest(arxiv-id / pdf → 工作目录 + `pdftotext`)、
 自动定可观测层级、自动选哪些 auditor 适用、以及最后的跨维度判决 + `REPORT.md`。
 
@@ -124,13 +126,13 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 **局部**自洽:摘要里一个任何表格都没有的数字、号称"提升 16%"而操作数算出来只有
 6%、为某条主张引用了一篇根本没这么说的论文、方法描述与实际评测不一致。
 
-这些都是在**声明的可观测性层级下可核查**的。具体地,taxonomy v0.4 编码了
+这些都是在**声明的可观测性层级下可核查**的。具体地,taxonomy v0.5 编码了
 **8 个家族、46 个 integrity 模式 + 13 个 AI 文风印象(AIS,零裁决权重)**(数值自洽 · 方法/范围 · baseline 诚信 · 实验诚信 ·
 引用诚信 · 表象/surface 信号 · 证明 & 推导诚信 · 评测设计与有效性)—— 这是本仓库的
 **覆盖词表**,而不是"检测器 benchmark"。
 
 > **已交付 v0:**确定性脊柱 + 带 ✓ 的 **7 个**模式(分布在下面的代表性列表和完整目录里)
-> 经 eval 测试;其余 41 个是 agent 层合同(跨模型 reviewer 提出带 span 锚点的 finding,
+> 经 eval 测试;其余 39 个 integrity 模式是 agent 层合同(跨模型 reviewer 提出带 span 锚点的 finding,
 > 确定性裁决器打分或降级)—— 不是"自带 eval 的检测器"承诺。
 
 完整目录(含检测信号与假阳案例)见 [taxonomy](references/hack-pattern-taxonomy.md)。
@@ -148,7 +150,7 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 - `HP-CITE-HALLUC` — DOI / arXiv 号 / venue / 作者名,根本查无此文。
 
 <details>
-<summary><b>……另外 38 个,逐条列全(覆盖全部 8 个家族)</b></summary>
+<summary><b>……另外 36 个 integrity 模式 + 13 个 AIS 印象,逐条列全</b></summary>
 
 **A · 数值自洽**
 - `HP-AGG-DRIFT` — 写着"多 seed 平均",那个数其实是最好的一个 seed。
@@ -166,6 +168,7 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 - `HP-ARGUMENT-CHAIN-BREAK` — 实质性的断链:动机引出的问题不是方法解决的那个,或实验测的量不是机制能预测的。
 - `HP-CAUSAL-EVIDENCE-LEAP` — 下了一个因果 / 等价的结论,可全文没有哪个实验真的去变量去测它。
 - `HP-RESOURCE-IDENTITY-MISMATCH` — 命名的数据集/模型/基准被描述的属性与其公开记录矛盾("ImageNet-1k,5000 类" —— 实为 1000)。
+- `HP-ACRONYM-DRIFT` — 同一个载荷组件/术语在全文被给了两个不兼容的名字或缩写展开。
 
 **C · baseline 诚信**
 - `HP-WEAK-BASELINE` — 新方法拿到的调参和算力,baseline 明显没给。
@@ -187,10 +190,6 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 - `HP-THIN-FLOAT` — "大规模实证"全文就两张表加一张孤零零的图。
 - `HP-LLM-FIGURE` — 那张"图"是装饰性的模型作画,不是图表也不是真示意图。
 - `HP-PAGE-PADDING` — 超大浮动图、重复段落、空话,都在替页数干活。
-- `HP-JARGON-STUFF` — 名词堆成山,周围的论证几乎没贡献什么。
-- `HP-AI-FLAVOR` — 模板化过渡 + 整齐划一的段落节奏;当上下文,不当证据。
-- `HP-DEFENSIVE-HEDGE` — 通篇"本文不是 X 而是 Y"的防御式对冲,光在挡反对意见,不直接说做了什么。
-- `HP-NARRATIVE-ARC-BREAK` — 摘要读着像实验日志堆砌,没有"背景 → 贡献 → 证据"的弧线。
 - `HP-PIPELINE-ARTIFACT` — 残留的流水线/模板字符串("As an AI language model"、"regenerate response"、"[INSERT X]")漏进了成稿正文。✓(精确匹配,低误报)
 
 **G · 证明 & 推导诚信**(在 L1 可定罪 —— 从写出来的数学判定)
@@ -198,11 +197,27 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 - `HP-DERIVATION-INVALID` — (L1) 某个代数 / 概率 / 微积分步骤根本不成立(不等式用反、极限取错)。
 - `HP-SYMBOL-SEMANTIC-DRIFT` — (L1) 某个符号 / 算子 / 不等号方向在定义、公式、证明之间换了意思。
 - `HP-ASSUMPTION-SMUGGLE` — (L1) 证明悄悄用了定理陈述里从没列出的假设(独立性、凸性……)。
+- `HP-UNDEFINED-NOTATION` — (L1) 某个载荷符号在关键公式/证明里被使用,却全文未定义、也无法由标准约定推断。
 
 **H · 评测设计与有效性**(L0/L1 stated → L2 confirmed)
 - `HP-EVAL-LEAKAGE` — 训练/测试泄漏(先预处理再切分、跨切分重复、时间泄漏、预训练污染)使分数可能并不衡量泛化。采用 Kapoor–Narayanan 泄漏分类法。
 - `HP-JUDGE-VALIDITY` — 作为论据的指标是个 LLM 裁判,但*同族*(与被比系统同模型)或*未校验*(没有人类一致性验证)。
 - `HP-SELECTIVE-REPORTING` — setup 声明过的条件(某数据集 / baseline / 指标 / seed 数)在结果里被悄悄丢掉,或换指标以利于本方法。
+
+**AIS · AI 文风印象**(零裁决权重 —— 在独立小节报告,永不动 verdict;是印象,不是诚信 finding)
+- `AIS-NARRATIVE-ARC-BREAK` — intro 只有一两段且生硬 / 摘要像 dump,没有"背景 → 贡献 → 证据"弧线。
+- `AIS-LLM-PHRASE-TICS` — LLM 口头禅("值得注意的是"、"not only … but also"、老套破折号/分号、华而不实副词)。
+- `AIS-DEFENSIVE-HEDGE` — 通篇"我们并不声称…… / 不是 X 而是 Y"而不直接说做了什么(带确定性密度筛)。
+- `AIS-JARGON-STUFF` — 名词堆砌、周围无实质内容。
+- `AIS-INVENTED-CODENAME` — 自创的、内部味的实验/运行代号当成已定义来用。
+- `AIS-CLAUSE-FORMULA-WALL` — 一句话接一串公式、反复出现、无连接性叙述。
+- `AIS-GRATUITOUS-PSEUDOCODE` — 伪代码只是复述正文 / 无操作性内容。
+- `AIS-BULLET-LIST-OVERUSE` — 本该递进的逻辑被压成平行 bullet。
+- `AIS-BOLD-MODULE-SPAM` — 冗长模块名 + 滥用加粗。
+- `AIS-RESTATE-OVERCLAIM` — 反复重申"我们提出一个 X……"的修辞循环。
+- `AIS-FOCUS-DRIFT` — high-level motivation 突然转到细枝末节。
+- `AIS-SINGLE-STYLE-FIGURES` — 配图是单一的生成式视觉风格。
+- `AIS-APPENDIX-DUMPING-GROUND` — appendix 像未整合的 AI 痕迹堆砌。
 
 </details>
 
@@ -235,11 +250,13 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
    需要代码才能判的 finding 在仅 PDF 运行时**自动降级** —— 你永远无法"从一份
    PDF 喊造假"。见 [references/observability-levels.md](references/observability-levels.md)。
 
-**表象 / AI 味信号有一道单独的防火墙。** AI 味文风、重复表格、LLM 配图、凑页数,只作为
-**高假阳的上下文**报告:裁决器把 `presentation-signals` 以及所有 taxonomy-F 的
-`pattern_id` **硬封顶在 `minor`**,所以它们最多触发 `SOFT_FLAGS` —— 绝不会成为作者身份
-或学术不端的判决。这个封顶是**代码强制**的(`tools/adjudicate_findings.py` 里的
-`SURFACE_ONLY_SKILLS`),不是口头承诺。
+**表象信号与 AI 文风印象各有防火墙。** family-F 表象迹象(重复表格、LLM 配图、凑页数、残留
+pipeline 串)只作为**高假阳的上下文**报告:裁决器**硬封顶在 `minor`**(`SURFACE_ONLY_SKILLS`
+/ `SURFACE_PATTERNS`),最多触发 `SOFT_FLAGS`。纯 **AI 文风印象**(AIS 轨道 —— 防御写作、LLM
+口头禅……)走得更远:它们是**零裁决权重** —— 强制 `info`、被排除在 `overall_verdict` / 计数 /
+维度之外,并在一个独立的"非诚信"小节里报告;一篇论文可以 `CLEAN_GIVEN_EVIDENCE` 同时挂一长串。
+两道封顶都是**代码强制 + 回归测试**的(`tools/adjudicate_findings.py` 的 `_is_zero_weight` +
+只用 weight-1 算 verdict),不是口头承诺。
 
 外加一个 **eval 测试台**(`eval/`):每次改动都在干净 + 人工注入缺陷的 fixture 上
 验证确定性核心 —— 量出假阳/召回,而不是凭感觉。
@@ -278,8 +295,8 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 `experiment-audit`、`citation-forensics` ← `citation-audit`、
 `baseline-comparison-audit` ← `paper-claim-audit`、`proof-derivation-forensics` ←
 `proof-checker`、`adversarial-case-builder` ← `kill-argument`、
-`novelty-duplication-advisory` ← `novelty-check`,外加新的 `evidence-ledger` 脊柱
-与 `presentation-signals`。
+`novelty-duplication-advisory` ← `novelty-check`,外加新的 `evidence-ledger` 脊柱、
+`presentation-signals`、`eval-design-forensics`,以及零权重的 `ai-style-impressions`(AIS 轨道)。
 
 ## 🤝 先行工作与致谢
 

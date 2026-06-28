@@ -87,16 +87,19 @@ claude
 | `/baseline-comparison-audit` | the missing / weak / mistuned baselines hiding behind a "SOTA" or "outperforms" claim |
 | `/experiment-forensics` | *(L2 — needs code+results)* fake / derived ground truth, score self-normalization, phantom results, placeholder data, code output ≠ reported numbers |
 | `/proof-derivation-forensics` | *(L1 — needs LaTeX source)* the written proof: skipped obligations, circularity, invalid steps, symbol drift, smuggled assumptions |
-| `/presentation-signals` | *(capped at `minor`)* surface tells: duplicate tables, LLM-generated figures, page-padding, AI-flavor prose — context, never a verdict |
+| `/eval-design-forensics` | the evaluation's validity: train/test leakage, a conflicted or unvalidated LLM-judge metric, selective reporting (dropped conditions / switched metrics) |
+| `/presentation-signals` | *(capped at `minor`)* checkable surface tells: duplicate tables, leftover pipeline/template strings, LLM-generated figures, page-padding — context, never a verdict |
+| `/ai-style-impressions` | *(**zero verdict weight** · separate report section)* AI writing-style impressions: defensive hedging, LLM phrasing tics, clause-then-formula walls, bullet/bold spam, invented codenames, single-style figures — reported, never moves the verdict |
 | `/adversarial-case-builder` | *(memo, no verdict)* the single strongest evidence-bound rejection paragraph a hostile reviewer would write |
 | `/novelty-duplication-advisory` | *(memo, no verdict)* prior-work overlap: trivial-combination ("缝合 / stapling") and duplicate-publication candidates, laid out for a human to weigh |
 
 A single skill only **proposes** span-anchored findings — it never returns a verdict.
 To get one, feed the findings to the deterministic adjudicator (the
 `python3 tools/adjudicate_findings.py … --ledger …` command in the next section); the
-model never grades. Two more notes: `consistency-audit` and `presentation-signals` also
-write a `*.deterministic.findings.json` (works with no cross-model reviewer wired); and
-**`/anti-autoresearch`** runs every auditor above in one shot, adding ingest
+model never grades. Two more notes: `consistency-audit`, `presentation-signals`, and
+`ai-style-impressions` also write a `*.deterministic.findings.json` (works with no
+cross-model reviewer wired); and **`/anti-autoresearch`** runs every auditor above in one
+shot, adding ingest
 (arxiv-id / pdf → workdir + `pdftotext`), automatic observability, auto-selection of
 which auditors apply, and the final cross-dimension verdict + `REPORT.md`.
 
@@ -142,8 +145,8 @@ validity) — the repo's **coverage vocabulary**, not a detector benchmark — p
 **13-signal AI writing-style impression track (AIS)** that carries **zero verdict weight**.
 
 > **Shipped v0:** the deterministic spine and the **seven** ✓-marked patterns (across
-> the representative list below and the full catalog) are eval-tested; the other 41 are
-> agent-layer contracts (a cross-model reviewer proposes span-anchored findings, the
+> the representative list below and the full catalog) are eval-tested; the other 39 integrity
+> patterns are agent-layer contracts (a cross-model reviewer proposes span-anchored findings, the
 > deterministic adjudicator scores or demotes them) — not bundled-eval detector claims.
 
 The full catalog, with detection signals and false-positive cases, lives in
@@ -162,7 +165,7 @@ by the deterministic eval today):
 - `HP-CITE-HALLUC` — the DOI / arXiv id / venue / author list simply doesn't exist.
 
 <details>
-<summary><b>… the other 38, listed in full (across all 8 families)</b></summary>
+<summary><b>… the other 36 integrity patterns + the 13 AIS impressions, in full</b></summary>
 
 **A · Numeric self-consistency**
 - `HP-AGG-DRIFT` — they write "mean over seeds", but the number is really the best seed.
@@ -180,6 +183,7 @@ by the deterministic eval today):
 - `HP-ARGUMENT-CHAIN-BREAK` — a substantive missing link: the problem motivated isn't the one the method addresses, or the experiments measure something the mechanism doesn't predict.
 - `HP-CAUSAL-EVIDENCE-LEAP` — a causal / equivalence relation is concluded that no experiment in the paper actually varies or tests.
 - `HP-RESOURCE-IDENTITY-MISMATCH` — a named dataset/model/benchmark described with a property its public record contradicts ("ImageNet-1k, 5,000 classes" — it's 1,000).
+- `HP-ACRONYM-DRIFT` — the same load-bearing component/term gets two incompatible names or acronym expansions across the paper.
 
 **C · Baseline integrity**
 - `HP-WEAK-BASELINE` — the new method gets tuning and compute the baseline plainly did not.
@@ -201,10 +205,6 @@ by the deterministic eval today):
 - `HP-THIN-FLOAT` — a "broad empirical study" somehow has two tables and one lonely figure.
 - `HP-LLM-FIGURE` — the "figure" is decorative model art, not a plot or a real diagram.
 - `HP-PAGE-PADDING` — oversized floats, repeated text, or empty prose doing page-count labor.
-- `HP-JARGON-STUFF` — dense buzzwords pile up while the surrounding argument adds almost nothing.
-- `HP-AI-FLAVOR` — boilerplate transitions and identical paragraph rhythms; context, not evidence.
-- `HP-DEFENSIVE-HEDGE` — pervasive "not X but Y" hedging that defends against objections instead of stating what was done.
-- `HP-NARRATIVE-ARC-BREAK` — the abstract reads like an experiment-log dump with no background → contribution → evidence arc.
 - `HP-PIPELINE-ARTIFACT` — a leftover pipeline/template string ("As an AI language model", "regenerate response", "[INSERT X]") survives into the finished text. ✓ (exact-match, low-FP)
 
 **G · Proof & derivation integrity** (verdict-bearing at L1 — from the written math)
@@ -212,11 +212,27 @@ by the deterministic eval today):
 - `HP-DERIVATION-INVALID` — (L1) an algebra / probability / calculus step does not follow (a misapplied inequality, a wrong limit).
 - `HP-SYMBOL-SEMANTIC-DRIFT` — (L1) a symbol / operator / inequality direction changes meaning between definition, formula, and proof.
 - `HP-ASSUMPTION-SMUGGLE` — (L1) the proof relies on an assumption (independence, convexity, …) the theorem statement never lists.
+- `HP-UNDEFINED-NOTATION` — (L1) a load-bearing symbol is used in a key equation/proof but never defined and not inferable from standard convention.
 
 **H · Evaluation design & validity** (L0/L1 stated → L2 confirmed)
 - `HP-EVAL-LEAKAGE` — train/test leakage (preprocess-before-split, duplicates across splits, temporal leak, pretraining contamination) means the score may not measure generalization. Adopts the Kapoor–Narayanan leakage taxonomy.
 - `HP-JUDGE-VALIDITY` — the load-bearing metric is an LLM judge that's *conflicted* (same family as a compared system) or *unvalidated* (no human-agreement check).
 - `HP-SELECTIVE-REPORTING` — a condition the setup declared (a dataset / baseline / metric / seed-count) is dropped from the results, or the metric is switched to favor the method.
+
+**AIS · AI writing-style impressions** (zero verdict weight — reported in a separate section, NEVER move the verdict; impressions, not integrity findings)
+- `AIS-NARRATIVE-ARC-BREAK` — abrupt 1–2¶ intro / dump-like abstract; no background → contribution → evidence arc.
+- `AIS-LLM-PHRASE-TICS` — LLM phrasing tics ("it is worth noting", "not only … but also", clichéd em-dash/semicolon, flowery adverbs).
+- `AIS-DEFENSIVE-HEDGE` — pervasive "we do not claim … / not X but rather Y" instead of stating what was done (deterministic density screen).
+- `AIS-JARGON-STUFF` — dense term-stuffing with no surrounding content.
+- `AIS-INVENTED-CODENAME` — an undefined, internal-flavored run/experiment codename used as if defined.
+- `AIS-CLAUSE-FORMULA-WALL` — a short clause then a wall of formulas, repeated, no connective prose.
+- `AIS-GRATUITOUS-PSEUDOCODE` — pseudocode that just restates the prose / adds no operational content.
+- `AIS-BULLET-LIST-OVERUSE` — sequential logic flattened into parallel-looking bullets.
+- `AIS-BOLD-MODULE-SPAM` — verbose module names with excessive bolding.
+- `AIS-RESTATE-OVERCLAIM` — a rhetorical restatement loop ("we propose an X …" repeated).
+- `AIS-FOCUS-DRIFT` — high-level motivation pivots to a minor implementation detail.
+- `AIS-SINGLE-STYLE-FIGURES` — figures share a generic generated visual grammar.
+- `AIS-APPENDIX-DUMPING-GROUND` — the appendix reads like an unintegrated AI-trace dump.
 
 </details>
 
@@ -253,12 +269,16 @@ just noise."* Three structural defenses, not just a disclaimer:
    You can never shout "fraud" from a PDF. See
    [references/observability-levels.md](references/observability-levels.md).
 
-**Surface / AI-flavor signals have a separate firewall.** AI-flavor prose, duplicate
-tables, LLM-generated figures, and page-padding are reported only as
-*high-false-positive context*: the adjudicator hard-caps `presentation-signals` and
-every taxonomy-F `pattern_id` at `minor`, so they can reach at most `SOFT_FLAGS` —
-never an authorship or misconduct verdict. That cap is enforced in code
-(`SURFACE_ONLY_SKILLS` in `tools/adjudicate_findings.py`), not just promised.
+**Surface signals and AI writing-style impressions have firewalls.** Family-F surface tells
+(duplicate tables, LLM-generated figures, page-padding, leftover pipeline strings) are
+reported only as *high-false-positive context*: the adjudicator hard-caps them at `minor`
+(`SURFACE_ONLY_SKILLS` / `SURFACE_PATTERNS`), so they reach at most `SOFT_FLAGS`. The pure
+**AI writing-style impressions** (the AIS track — defensive hedging, LLM phrasing tics, …) go
+further: they carry **zero verdict weight** — forced to `info`, excluded from
+`overall_verdict` / counts / dimensions, and rendered in a separate "NOT integrity" section.
+A paper can be `CLEAN_GIVEN_EVIDENCE` while listing many. Both caps are enforced in code
+(`_is_zero_weight` + the weight-1-only verdict in `tools/adjudicate_findings.py`), not just
+promised — and regression-tested.
 
 And an **eval harness** (`eval/`) proves the deterministic core on clean +
 synthetically-corrupted fixtures every change — measured false-positive / recall,
@@ -278,7 +298,8 @@ input (pdf | pdf+latex | pdf+repo+results)
         experiment-forensics       L2: fake GT / self-norm / phantom · ARIS experiment-audit
         proof-derivation-forensics L1: proof gap / circularity / invalid step · verdict-bearing · ARIS proof-checker
         eval-design-forensics      L0/L1: data leakage / conflicted-or-unvalidated LLM judge / selective reporting
-        presentation-signals       surface/AI-flavor · auxiliary, capped at minor
+        presentation-signals       checkable surface tells · auxiliary, capped at minor
+        ai-style-impressions       AI writing-style impressions · ZERO verdict weight · separate section
         adversarial-case-builder   evidence-bound memo, no verdict · ARIS kill-argument
         novelty-duplication-advisory  prior-work overlap memo, no verdict · ARIS novelty-check
    │
@@ -287,7 +308,7 @@ input (pdf | pdf+latex | pdf+repo+results)
 
 | Path | What |
 |------|------|
-| `skills/` | the ten auditor skills (LLM proposes findings, span-anchored) |
+| `skills/` | the eleven auditor / impression skills (LLM proposes findings, span-anchored) |
 | `workflows/anti-autoresearch/` | the end-to-end orchestrator |
 | `tools/` | deterministic spine: manifest/observability derivation · ledger builder · numeric checks · adjudicator |
 | `schemas/` | JSON contracts: claims · finding · report · artifact manifest |
@@ -338,7 +359,8 @@ author checking their own work: `consistency-audit` ← `paper-claim-audit`,
 `baseline-comparison-audit` ← `paper-claim-audit`, `proof-derivation-forensics` ←
 `proof-checker`, `adversarial-case-builder` ← `kill-argument`,
 `novelty-duplication-advisory` ← `novelty-check`, plus the new `evidence-ledger`
-spine and `presentation-signals`.
+spine, `presentation-signals`, `eval-design-forensics`, and the zero-weight
+`ai-style-impressions` (the AIS track).
 
 ## 🤝 Prior art & acknowledgments
 
