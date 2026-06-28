@@ -89,7 +89,7 @@ REVIEWER_REASONING      = xhigh                    # always; effort never lowers
 REVIEWER_SANDBOX        = read-only                # detect-only; never mutate the paper
 REVIEWER_CWD            = <paper-dir>              # so it can read claims.json + sources directly
 THREAD_POLICY           = fresh mcp__codex__codex per run; NEVER mcp__codex__codex-reply
-TAXONOMY_VERSION        = 0.3                      # references/hack-pattern-taxonomy.md
+TAXONOMY_VERSION        = 0.4                      # references/hack-pattern-taxonomy.md
 DETERMINISTIC_FINDINGS  = consistency-audit.deterministic.findings.json   # Step 1 (tool)
 SEMANTIC_FINDINGS       = consistency-audit.findings.json                 # Step 4 (validated)
 TRACE_POLICY            = forensic (never silently dropped)
@@ -364,6 +364,16 @@ mcp__codex__codex:
         needs the code/results. If the relation is instead established THEORETICALLY
         (a proof/derivation is given), it is NOT an evidence leap — it is a proof
         obligation: route to proof-derivation-forensics (family G).
+    13. NAME / ACRONYM DRIFT — the SAME load-bearing component, method, or module is named
+        or expanded INCOMPATIBLY across the paper: one acronym defined with two different
+        expansions, or one component referred to by two incompatible names/acronyms
+        (abstract ↔ method ↔ experiments), so a reader cannot tell they are the same thing.
+                                                            [HP-ACRONYM-DRIFT]
+        severity: minor; major if the drift makes a central method/result ambiguous. FP: a
+        standard acronym reused for different things; author-declared overloading; a local
+        scoped abbreviation; verbose names / bold-spam ALONE (that is the surface tell
+        HP-JARGON-STUFF, presentation-signals, NOT this). Require the two spans to name the
+        SAME object and be genuinely incompatible. level 0.
     BONUS. SUSPICIOUS REGULARITY — numbers across rows related by a too-clean
         arithmetic pattern (a constant additive/multiplicative offset, implausibly
         smooth monotonicity, identical decimals across unrelated settings).
@@ -431,11 +441,11 @@ ledger_path, proposed_path, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
 def nw(s):                                   # mirror adjudicator _norm_ws (whitespace only)
     return " ".join((s or "").split())
 
-# fallback observability level if the reviewer omitted it (taxonomy 0.3 decidable tier)
+# fallback observability level if the reviewer omitted it (taxonomy 0.4 decidable tier)
 OBS = {"HP-NUM-INFLATE":0,"HP-APPENDIX-CONTRA":0,"HP-UNIT-DIR-MISMATCH":0,
        "HP-AGG-DRIFT":0,"HP-DENOM-DRIFT":0,"HP-METHOD-DRIFT":0,"HP-ABLATION-ATTRIB":0,
        "HP-CAPTION-MISMATCH":0,"HP-SCOPE-INFLATE":0,"HP-THEOREM-SCOPE-DRIFT":0,
-       "HP-ARGUMENT-CHAIN-BREAK":0,"HP-CAUSAL-EVIDENCE-LEAP":0,
+       "HP-ARGUMENT-CHAIN-BREAK":0,"HP-CAUSAL-EVIDENCE-LEAP":0,"HP-ACRONYM-DRIFT":0,
        "HP-DELTA-ERROR":0,"HP-SUSPICIOUS-REGULARITY":2}
 SURFACE = {"HP-DUP-TABLE","HP-THIN-FLOAT","HP-LLM-FIGURE","HP-PAGE-PADDING",
            "HP-JARGON-STUFF","HP-AI-FLAVOR"}   # owned by presentation-signals; drop here
@@ -568,7 +578,7 @@ python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "$D/consistency-audit.deterministic.findings.json" \
                "$D/consistency-audit.findings.json" \
     --ledger "$LEDGER" \
-    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.3 \
+    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.4 \
     --out "$D/report.json" --md "$D/REPORT.md"
 ```
 
@@ -614,7 +624,7 @@ human-readable rendering is the orchestrator's job, not this skill's.
 - **Hand off external claims.** "SOTA / first" → `needs_external_check` +
   `requires_external_check: true`; to baseline / citation forensics, not a guess.
 - **Taxonomy is a mapping layer, not a detector.** Detect from the ledger +
-  checklist, then map to a `pattern_id` (v0.3); never start from "go find HP-X."
+  checklist, then map to a `pattern_id` (v0.4); never start from "go find HP-X."
 - **Two files, no merge.** Deterministic and semantic findings stay in separate
   files (disjoint ids) to avoid double-counting under the orchestrator's glob.
 - **Detect-only.** Never edit the audited paper (reviewer sandbox is read-only).

@@ -93,7 +93,7 @@ THREAD_POLICY      = FRESH mcp__codex__codex per dimension / per cited key; NEVE
                      (codex-reply is deliberately NOT in allowed-tools — the bias guard)
 RUN_THREADS        = serial   — one codex thread at a time; concurrent codex MCP calls can hang
 LEDGER_VERSION     = 0.1       (stamped by tools/build_claim_ledger.py)
-TAXONOMY_VERSION   = 0.3       (references/hack-pattern-taxonomy.md; 39 hard patterns A–G + 2 ADV advisory; stamped into every report)
+TAXONOMY_VERSION   = 0.4       (references/hack-pattern-taxonomy.md; 51 hard patterns A–H + 2 ADV advisory; stamped into every report)
 OBSERVABILITY      = derived   L0 (pdf/text) · L1 (latex, no results) · L2 (repo + results); L3 NEVER (no reproduction)
 ADJUDICATOR        = deterministic-rules-v0   (tools/adjudicate_findings.py — the ONLY verdict source)
 DETECT_ONLY        = true · EMITS_VERDICT = true (computed by code, not by a model)
@@ -164,7 +164,7 @@ every reviewer call obeys:
   truthfully (legit "best config", labeled pilots, rounding, deterministic metrics are
   common FPs); **(5) HAND OFF EXTERNAL CLAIMS** — "first / SOTA" the text cannot settle ⇒
   `verdict_local: needs_external_check` + `requires_external_check: true`; **(6)
-  pattern_id ∈ taxonomy v0.3 only**.
+  pattern_id ∈ taxonomy v0.4 only**.
 - **Reviewer ≠ adjudicator.** The reviewer *proposes* findings; only
   `tools/adjudicate_findings.py` *decides* the verdict (Layer 2). The model is demoted
   from judge to evidence-extractor.
@@ -395,16 +395,16 @@ PY
 
 Run the applicable skills (pass `PAPER_DIR` so each locates the ledger). **Keep the
 reviewer calls serial.** Each row's `Writes` column is the exact filename the Step-4 glob
-expects; the `Owns` column is the taxonomy-v0.3 patterns that skill may emit:
+expects; the `Owns` column is the taxonomy-v0.4 patterns that skill may emit:
 
-| Skill | Run when | Writes | Owns (pattern_ids, taxonomy v0.3) |
+| Skill | Run when | Writes | Owns (pattern_ids, taxonomy v0.4) |
 |-------|----------|--------|-----------------------------------|
-| `/consistency-audit "<PAPER_DIR>"` | **always** (flagship; L0-decidable) | `consistency-audit.deterministic.findings.json` (+ semantic `consistency-audit.findings.json`) | HP-NUM-INFLATE, HP-DELTA-ERROR, HP-AGG-DRIFT, HP-DENOM-DRIFT, HP-UNIT-DIR-MISMATCH, HP-CAPTION-MISMATCH, HP-APPENDIX-CONTRA, HP-METHOD-DRIFT, HP-ABLATION-ATTRIB, HP-SCOPE-INFLATE, HP-THEOREM-SCOPE-DRIFT, HP-SUSPICIOUS-REGULARITY(L0→info), HP-ARGUMENT-CHAIN-BREAK, HP-CAUSAL-EVIDENCE-LEAP, HP-GRANULARITY-IMPOSSIBLE, HP-VARIANCE-IMPOSSIBLE, HP-STAT-INCONSISTENCY |
+| `/consistency-audit "<PAPER_DIR>"` | **always** (flagship; L0-decidable) | `consistency-audit.deterministic.findings.json` (+ semantic `consistency-audit.findings.json`) | HP-NUM-INFLATE, HP-DELTA-ERROR, HP-AGG-DRIFT, HP-DENOM-DRIFT, HP-UNIT-DIR-MISMATCH, HP-CAPTION-MISMATCH, HP-APPENDIX-CONTRA, HP-METHOD-DRIFT, HP-ABLATION-ATTRIB, HP-SCOPE-INFLATE, HP-THEOREM-SCOPE-DRIFT, HP-SUSPICIOUS-REGULARITY(L0→info), HP-ARGUMENT-CHAIN-BREAK, HP-CAUSAL-EVIDENCE-LEAP, HP-ACRONYM-DRIFT, HP-GRANULARITY-IMPOSSIBLE, HP-VARIANCE-IMPOSSIBLE, HP-STAT-INCONSISTENCY |
 | `/citation-forensics "<PAPER_DIR>"` | ≥1 `citation` claim | `citation-forensics.findings.json` | HP-CITE-HALLUC, HP-CITE-CONTEXT, HP-CITE-RETRACTED |
 | `/baseline-comparison-audit "<PAPER_DIR>"` | ≥1 comparison/SOTA scope claim | `baseline-comparison-audit.findings.json` | HP-MISSING-BASELINE, HP-WEAK-BASELINE, HP-SIG-OVERLAP, HP-DELTA-ERROR(cross-claim), HP-RESOURCE-IDENTITY-MISMATCH |
 | `/experiment-forensics "<PAPER_DIR>"` | **always** (depth scales with L) | `experiment-forensics.findings.json` | HP-FAKE-GT, HP-SELF-NORM, HP-PHANTOM-RESULT, HP-DEAD-METRIC, HP-SCOPE-INFLATE(verified), HP-METHOD-DRIFT(L2), HP-SUSPICIOUS-REGULARITY(L2), HP-PLACEHOLDER-DATA(L2), HP-RESULT-ARTIFACT-MISMATCH(L2), HP-MISSING-REPRO-ARTIFACT(L2) |
 | `/presentation-signals "<PAPER_DIR>"` | **always** (AUXILIARY, capped at `minor`) | `presentation-signals.deterministic.findings.json` (+ semantic `presentation-signals.findings.json`) | HP-DUP-TABLE, HP-PIPELINE-ARTIFACT, HP-THIN-FLOAT, HP-LLM-FIGURE, HP-PAGE-PADDING, HP-JARGON-STUFF, HP-AI-FLAVOR, HP-DEFENSIVE-HEDGE, HP-NARRATIVE-ARC-BREAK, HP-INVENTED-CODENAME |
-| `/proof-derivation-forensics "<PAPER_DIR>"` | ≥1 theorem/proof/derivation claim (self-guards: writes `[]` if `HAS_PROOFS=no`) | `proof-derivation-forensics.findings.json` | HP-PROOF-OBLIGATION-GAP, HP-PROOF-CIRCULARITY, HP-DERIVATION-INVALID, HP-SYMBOL-SEMANTIC-DRIFT, HP-ASSUMPTION-SMUGGLE |
+| `/proof-derivation-forensics "<PAPER_DIR>"` | ≥1 theorem/proof/derivation claim (self-guards: writes `[]` if `HAS_PROOFS=no`) | `proof-derivation-forensics.findings.json` | HP-PROOF-OBLIGATION-GAP, HP-PROOF-CIRCULARITY, HP-DERIVATION-INVALID, HP-SYMBOL-SEMANTIC-DRIFT, HP-ASSUMPTION-SMUGGLE, HP-UNDEFINED-NOTATION |
 | `/eval-design-forensics "<PAPER_DIR>"` | ≥1 comparison/eval claim (family H, L0/L1 stated-tells; dim=evaluation) | `eval-design-forensics.findings.json` | HP-EVAL-LEAKAGE, HP-JUDGE-VALIDITY, HP-SELECTIVE-REPORTING |
 
 Notes the orchestrator must honor:
@@ -543,7 +543,7 @@ inside a sub-skill → it re-invokes the identical prompt in a fresh thread (nev
 `codex-reply`); if it still fails it writes `[]` and the run continues. Unanchored
 above-info findings are not a stop condition (the adjudicator demotes them); a *large*
 count signals a thin ledger/source — note it in the report's limitations. Any
-`pattern_id` present MUST be in `references/hack-pattern-taxonomy.md` (v0.3); never patch
+`pattern_id` present MUST be in `references/hack-pattern-taxonomy.md` (v0.4); never patch
 findings by hand.
 
 ## Step 3 — Advisory memos (last; memo-only, no verdict weight)
@@ -622,7 +622,7 @@ printf '  findings: %s\n' "${FINDINGS[@]##*/}"
 python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "${FINDINGS[@]}" \
     --ledger "$PAPER_DIR/claims.json" \
-    --paper-id "$PAPER_ID" --observability-level "$L" --taxonomy-version 0.3 \
+    --paper-id "$PAPER_ID" --observability-level "$L" --taxonomy-version 0.4 \
     --memo "$(cat "$PAPER_DIR/adversarial-case-builder.memo.md" 2>/dev/null)" \
     --limitation "Run observability level L$L — see references/observability-levels.md for what this tier can and cannot decide." \
     --out "$PAPER_DIR/report.json" --md "$PAPER_DIR/REPORT.md"
@@ -689,7 +689,7 @@ Present in this shape (fill from `report.json` / `REPORT.md`):
 
 ```
 🔬 Integrity Forensics — <PAPER_ID>
-   Verdict: <CLEAN_GIVEN_EVIDENCE | SOFT_FLAGS | HARD_FLAGS>   Observability: L<L>   Taxonomy: v0.3
+   Verdict: <CLEAN_GIVEN_EVIDENCE | SOFT_FLAGS | HARD_FLAGS>   Observability: L<L>   Taxonomy: v0.4
    Findings above info: critical <n> · major <n> · minor <n>   (demoted: obs <n>, unanchored <n>)
    Top flags: <ID> <severity> <pattern_id> — <one-line, where>
    Could NOT check at L<L>: <one line from limitations — e.g. "code/result-level patterns need L2">
@@ -734,7 +734,7 @@ python3 "$ROOT/tools/check_presentation.py"        --ledger "$PAPER_DIR/claims.j
 python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "$PAPER_DIR"/*.deterministic.findings.json \
     --ledger "$PAPER_DIR/claims.json" --paper-id mypaper --observability-level "$L" \
-    --taxonomy-version 0.3 \
+    --taxonomy-version 0.4 \
     --limitation "Deterministic-only run (no cross-model reviewer): semantic + code-level dimensions were NOT run." \
     --out "$PAPER_DIR/report.json" --md "$PAPER_DIR/REPORT.md"
 ```
@@ -803,7 +803,7 @@ deterministic adjudicator, and presents.
   it retrieves and *lays out* prior-work overlap but **never** rules trivial/duplicate, and
   absence of a retrieved match is **not** evidence of originality (the only auditor that
   consults an external corpus, which is exactly why it carries no verdict weight).
-- **`pattern_id` ∈ taxonomy v0.3 only**; the taxonomy is a post-hoc mapping layer, not
+- **`pattern_id` ∈ taxonomy v0.4 only**; the taxonomy is a post-hoc mapping layer, not
   the detector (`references/hack-pattern-taxonomy.md`).
 - **The adjudicator ingests validated findings only.** The `*.findings.json` glob feeds
   the adjudicator; defensively exclude any raw/intermediate `*.proposed.findings.json` a

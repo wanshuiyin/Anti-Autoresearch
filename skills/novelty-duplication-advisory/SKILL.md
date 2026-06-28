@@ -52,7 +52,7 @@ wider literature:
   is reportable; the **absence** of a match proves nothing, because your search corpus is
   never complete.
 
-Both are listed in `references/hack-pattern-taxonomy.md` (v0.3) under **Advisory signals (NOT
+Both are listed in `references/hack-pattern-taxonomy.md` (v0.4) under **Advisory signals (NOT
 in the 39 · zero verdict weight · reviewer-judgment only)** — `ADV-TRIVIAL-COMBINATION` and
 `ADV-DUPLICATE-PUBLICATION`. The taxonomy is explicit: *"Novelty is a reviewer judgment; the
 tool can lay out the prior-work overlap, it cannot rule 'trivial'"* and *"the absence of a
@@ -163,7 +163,7 @@ ANCHOR_UNIVERSE      = contribution claims = type∈{scope,method,comparison} OR
 DISPOSITION          = candidate_overlap_surfaced | no_candidate_overlap_found | retrieval_incomplete
                        (INFORMATIONAL, NOT a verdict; "no overlap found" ≠ "the paper is original")
 ADVISORY_PATTERNS    = ADV-TRIVIAL-COMBINATION · ADV-DUPLICATE-PUBLICATION   (zero verdict weight)
-TAXONOMY_VERSION     = 0.3                     # references/hack-pattern-taxonomy.md
+TAXONOMY_VERSION     = 0.4                     # references/hack-pattern-taxonomy.md
 MEMO_FILE            = novelty-duplication-advisory.memo.md            # canonical human-facing output
 FINDINGS_FILE        = novelty-duplication-advisory.findings.json      # info-only mirror (or []); globbed, capped at info
 PROFILE_FILE         = novelty-duplication-advisory.profile.json       # executor-built retrieval profile (from the ledger)
@@ -256,7 +256,7 @@ mkdir -p "$TRACE"; echo "TRACE = $TRACE"   # carry this absolute path into every
 ```
 
 Write `"$TRACE/run.meta.json"` (via **Write**) =
-`{"skill":"novelty-duplication-advisory","paper_id":"<PAPER_ID>","run_level_L":<L>,"taxonomy_version":"0.3","retrieval":{"duplicate":"pending","combination":"pending"},"generated_at":"<UTC ISO-8601>"}`.
+`{"skill":"novelty-duplication-advisory","paper_id":"<PAPER_ID>","run_level_L":<L>,"taxonomy_version":"0.4","retrieval":{"duplicate":"pending","combination":"pending"},"generated_at":"<UTC ISO-8601>"}`.
 
 ## Step 1 — Build the retrieval profile from the ledger (executor, deterministic)
 
@@ -986,7 +986,7 @@ L=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["observabilit
 python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "$D"/*.findings.json \
     --ledger "$LEDGER" \
-    --paper-id "$PAPER_ID" --observability-level "$L" --taxonomy-version 0.3 \
+    --paper-id "$PAPER_ID" --observability-level "$L" --taxonomy-version 0.4 \
     --out "$D/report.json" --md "$D/REPORT.md"
 ```
 
@@ -1059,7 +1059,7 @@ It writes **no verdict and no report** of its own — `report.json` / `REPORT.md
   advisory from text + the public corpus). Output asks a reviewer to CHECK/WEIGH, never
   "reject" / "plagiarism" / "the authors faked X." The tool audits overlap, not provenance.
 - **Detect-only.** Never edit the audited paper (no `Edit`; reviewer sandbox read-only).
-- **Taxonomy is a mapping layer (v0.3).** The two `ADV-*` ids are advisory signals with zero
+- **Taxonomy is a mapping layer (v0.4).** The two `ADV-*` ids are advisory signals with zero
   verdict weight — set them on the info-only findings, never to claim a decision.
 - **Reproducible.** Same ledger + same candidates snapshot + same reviewer outputs → same
   validated memo + same disposition.

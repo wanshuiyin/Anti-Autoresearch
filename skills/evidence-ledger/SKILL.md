@@ -82,7 +82,7 @@ this skill.
 ## Constants
 
 - **LEDGER_VERSION = `0.1`** — stamped into `claims.json` by `build_claim_ledger.py`; never hand-edit.
-- **TAXONOMY_VERSION = `0.3`** — the ledger is **taxonomy-agnostic** (it tags no `pattern_id`); patterns are applied *post-hoc* by auditors (`references/hack-pattern-taxonomy.md`, now 39 hard patterns A–G + 2 advisory). Never tag a claim with a `pattern_id` here. v0.3 added the family **B** (argument-chain / causal-leap), **D** (reproducibility-artifact) and **G** (proof & derivation) patterns; the ledger stays untagged, but its **enrichment** (Step 3) now surfaces the *anchors* those auditors quote.
+- **TAXONOMY_VERSION = `0.4`** — the ledger is **taxonomy-agnostic** (it tags no `pattern_id`); patterns are applied *post-hoc* by auditors (`references/hack-pattern-taxonomy.md`, now 51 hard patterns A–H + 2 advisory). Never tag a claim with a `pattern_id` here. v0.4 added the family **B** (argument-chain / causal-leap), **D** (reproducibility-artifact) and **G** (proof & derivation) patterns; the ledger stays untagged, but its **enrichment** (Step 3) now surfaces the *anchors* those auditors quote.
 - **OBSERVABILITY = derived** — `L0` (PDF/text only) · `L1` (LaTeX, no results) · `L2` (repo + results). **`L3` is never emitted in v0** (we never promise reproduction). The rule is deterministic (`references/observability-levels.md`).
 - **EMITS_FINDINGS = `false` · EMITS_VERDICT = `false`** — load-bearing. This skill produces a ledger, not judgments.
 - **DETECT_ONLY = `true`** — never edits the audited paper; only reads sources and writes its own outputs (this is why `Edit` is absent from `allowed-tools`).
@@ -314,7 +314,7 @@ PY
 The regex backbone has high recall on the *numeric/citation* surface but misses the
 *semantic, proof/derivation, and structure* spans auditors need: the
 **method-definition** span, **theorem statements with their assumptions**, explicit
-**scope** sentences, the **baseline** list, **comparison framings** — and, for the v0.3
+**scope** sentences, the **baseline** list, **comparison framings** — and, for the v0.4
 families, the spans that families **B** (argument-chain / causal-leap), **D**
 (reproducibility) and **G** (proof & derivation) anchor to: **definitions**, **proof /
 derivation steps**, **formulas / equations**, **stated assumptions**, load-bearing
@@ -393,7 +393,7 @@ mcp__codex__codex:
     ADD claims ONLY of these SEVEN schema types (numbers and table cells are already
     covered by the deterministic layer — do NOT emit `number` or `table_cell`, and do
     NOT invent any new type string). Each type's CONTENT is broadened below to carry the
-    proof/derivation + structure spans the v0.3 family-B/D/G auditors anchor to:
+    proof/derivation + structure spans the v0.4 family-B/D/G auditors anchor to:
       - method      : the sentence(s) that DEFINE the proposed method / its key
                       conditions (e.g. "no test-time labels", backbone, training data);
                       ALSO a formal **definition** of a symbol/operator/construct, a
@@ -503,7 +503,7 @@ PY
 
 The gate enforces, all mandatory:
 
-1. **Type allow-list** — only the seven semantic types (`method`, `scope`, `baseline`, `comparison`, `citation`, `caption`, `artifact_ref`); `number`/`table_cell` are rejected (the deterministic layer owns numbers). The v0.3 proof/derivation + structure content (theorem statements, assumptions, definitions, proof steps, equations, conclusions, the motivation span, reproducibility-artifact references) rides on these **same seven** types (Step 3's mapping table), so this gate — and `claims.json`'s schema enum — are unchanged.
+1. **Type allow-list** — only the seven semantic types (`method`, `scope`, `baseline`, `comparison`, `citation`, `caption`, `artifact_ref`); `number`/`table_cell` are rejected (the deterministic layer owns numbers). The v0.4 proof/derivation + structure content (theorem statements, assumptions, definitions, proof steps, equations, conclusions, the motivation span, reproducibility-artifact references) rides on these **same seven** types (Step 3's mapping table), so this gate — and `claims.json`'s schema enum — are unchanged.
 2. **Span is verbatim** — `text_span` must be a substring of the source after whitespace-normalization (the extractor itself joins lines with single spaces, so normalize both sides). Paraphrase → reject.
 3. **No invented numbers** — any `value` field is stripped; a number can only enter the ledger via Step 2.
 4. **Real source** — `location.file` must be one of the ledger's `source_files`.
@@ -566,7 +566,7 @@ Written into the paper directory (the paths every downstream auditor and the
 orchestrator expect):
 
 - **`artifact_manifest.json`** — `schemas/artifact_manifest.schema.json`. Records the observable inputs (hashed) and the derived **observability level** that caps all downstream severity (`repo.rerunnable` is always `false` in v0).
-- **`claims.json`** — `schemas/claims.schema.json`. **The evidence ledger:** span-anchored, hashed, deterministic backbone (+ any validated enrichment claims tagged `extractor: manual, confidence: medium`). The *only* structure auditors may reason over; `source_files[]` carry content hashes so every finding is reproducible against an immutable input. When Step 3 runs, the enrichment claims also carry the **proof/derivation + structure anchors** (theorem statements, assumptions, definitions, proof steps, equations, conclusions, the motivation span, reproducibility-artifact references) the v0.3 family-B/D/G auditors quote — all on the **existing** schema `type`s (no new vocabulary).
+- **`claims.json`** — `schemas/claims.schema.json`. **The evidence ledger:** span-anchored, hashed, deterministic backbone (+ any validated enrichment claims tagged `extractor: manual, confidence: medium`). The *only* structure auditors may reason over; `source_files[]` carry content hashes so every finding is reproducible against an immutable input. When Step 3 runs, the enrichment claims also carry the **proof/derivation + structure anchors** (theorem statements, assumptions, definitions, proof steps, equations, conclusions, the motivation span, reproducibility-artifact references) the v0.4 family-B/D/G auditors quote — all on the **existing** schema `type`s (no new vocabulary).
 - **`.aris/traces/evidence-ledger/<date>_run<NN>/`** — **only when Step 3 ran**: `codex_raw.md` (raw reviewer reply), `enrichment_candidates.json` (parsed array), `enrichment_rejects.json` (the anchoring guard's rejects).
 
 Explicitly **NOT** emitted: any `<skill>.findings.json`, any `overall_verdict`, any
@@ -591,7 +591,7 @@ python3 "$ROOT/tools/check_presentation.py" --ledger "$PAPER_DIR/claims.json" \
 # the deterministic adjudicator — --ledger is REQUIRED:
 python3 "$ROOT/tools/adjudicate_findings.py" --findings *.findings.json \
     --ledger "$PAPER_DIR/claims.json" --paper-id "$PAPER_ID" \
-    --observability-level "$L" --taxonomy-version 0.3 --out report.json --md REPORT.md
+    --observability-level "$L" --taxonomy-version 0.4 --out report.json --md REPORT.md
 ```
 
 `adjudicate_findings.py` **requires** `--ledger`: it re-verifies that each
@@ -604,7 +604,7 @@ not run any of these** — stop at a validated ledger.
 
 - **Deterministic first.** The numeric/citation/table backbone comes from code, not a model — that reproducibility is the whole credibility argument. Same source bytes → byte-identical ledger (omit `--generated-at`).
 - **Spans are real.** Every `text_span` is a verbatim substring of a hashed source. The executor rejects any enrichment span it cannot match (Step 4); the adjudicator rejects unanchored findings again downstream.
-- **Enrichment adds, never invents.** Only the seven semantic types — even the broadened v0.3 proof/derivation + structure content (theorem statements, assumptions, definitions, proof steps, equations, conclusions, the motivation span, reproducibility-artifact references) rides on those same `type`s, never a new one; never a number, never an altered value, never a removed/edited deterministic claim. The numeric/citation backbone stays 100% deterministic, and the ledger captures these spans as **anchors only** — it never judges a proof, an assumption, a broken chain, or a missing artifact (that is the family-B/D/G auditors' job).
+- **Enrichment adds, never invents.** Only the seven semantic types — even the broadened v0.4 proof/derivation + structure content (theorem statements, assumptions, definitions, proof steps, equations, conclusions, the motivation span, reproducibility-artifact references) rides on those same `type`s, never a new one; never a number, never an altered value, never a removed/edited deterministic claim. The numeric/citation backbone stays 100% deterministic, and the ledger captures these spans as **anchors only** — it never judges a proof, an assumption, a broken chain, or a missing artifact (that is the family-B/D/G auditors' job).
 - **Never over-state the level.** `L` is derived from the artifacts present and caps all downstream severity. A PDF-only run is L0 — full stop. Never set `repo.rerunnable: true` (no L3 in v0).
 - **No judgment here.** The ledger states *what the paper says*, never *whether it is right*. `EMITS_FINDINGS = false`, `EMITS_VERDICT = false`; no `pattern_id` tagging.
 - **Cross-model, fresh thread, no leakage.** The one enrichment call is `gpt-5.5` @ `xhigh`, `read-only`, a *different* family from the executor, a new `mcp__codex__codex` thread (never `codex-reply`), told only source paths + the ledger.

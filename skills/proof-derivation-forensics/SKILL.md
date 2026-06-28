@@ -130,10 +130,10 @@ REVIEWER_SANDBOX        = read-only                # detect-only; never mutate t
 REVIEWER_CWD            = <paper-dir>              # so it can read claims.json + the proof sources directly
 THREAD_POLICY           = fresh mcp__codex__codex per run (and per fan-out theorem group);
                           NEVER mcp__codex__codex-reply
-TAXONOMY_VERSION        = 0.3                      # references/hack-pattern-taxonomy.md
+TAXONOMY_VERSION        = 0.4                      # references/hack-pattern-taxonomy.md
 OWNED_PATTERNS          = HP-PROOF-OBLIGATION-GAP · HP-PROOF-CIRCULARITY ·
                           HP-DERIVATION-INVALID · HP-SYMBOL-SEMANTIC-DRIFT ·
-                          HP-ASSUMPTION-SMUGGLE          # family G; emit ONLY these
+                          HP-ASSUMPTION-SMUGGLE · HP-UNDEFINED-NOTATION   # family G; emit ONLY these
 OBLIGATION_SCAFFOLD     = <TRACE_DIR>/obligation-ledger.md   # Step 1 — EXTRACTION ONLY,
                           not a verdict, NOT claims.json, NOT the anchor substrate
 FINDINGS                = proof-derivation-forensics.findings.json   # Step 3 — the ONLY
@@ -404,7 +404,7 @@ mcp__codex__codex:
        algebraic contradiction). Everything else is at most "major". (The adjudicator
        caps high-FP findings at minor and medium-FP at major, so an honest FP label is
        what lets a real critical flaw stand.)
-    6. PATTERN SCOPE. pattern_id MUST be one of the FIVE family-G ids in the checklist.
+    6. PATTERN SCOPE. pattern_id MUST be one of the SIX family-G ids in the checklist.
        Do NOT emit any other HP-* here: abstract-vs-theorem scope drift
        (HP-THEOREM-SCOPE-DRIFT) and results arithmetic belong to consistency-audit;
        citation existence/context to citation-forensics; code/result fraud to
@@ -478,6 +478,18 @@ mcp__codex__codex:
         adversarial-case-builder; emit only the proof-internal smuggle here.
         example: a concentration bound uses independence of the X_i, but the theorem
         assumes only that they are identically distributed.
+     6. UNDEFINED NOTATION — a load-bearing symbol / operator / index / set carries meaning in
+        a key equation, lemma, or proof but is NEVER defined anywhere and is not inferable from
+        standard convention, so the result cannot be checked as written ("没有 denote 的符号").
+                                                            [HP-UNDEFINED-NOTATION]
+        severity: major if a checkable result/proof depends on the undefined symbol; minor if
+        peripheral. FP: notation genuinely standard in the subfield; a symbol defined in a
+        figure / caption / appendix; reused notation from a cited setup. Distinct from
+        HP-SYMBOL-SEMANTIC-DRIFT (a DEFINED symbol that CHANGES meaning); here it is simply
+        never pinned down. The "short clause then a wall of formulas" style alone is
+        presentation (HP-NARRATIVE-ARC-BREAK), NOT this. level: 1 (LaTeX source; an L0
+        PDF-only run surfaces info only).
+        example: Thm 3 bounds ‖A‖_σ but σ is never defined and is not a standard norm here.
 
     OUTPUT: a single JSON array, and NOTHING ELSE (no prose, no code fence). Each
     element conforms to schemas/finding.schema.json:
@@ -537,15 +549,15 @@ def nw(s):                                    # mirror adjudicator _norm_ws (whi
     return " ".join((s or "").split())
 
 GFAMILY = {"HP-PROOF-OBLIGATION-GAP", "HP-PROOF-CIRCULARITY", "HP-DERIVATION-INVALID",
-           "HP-SYMBOL-SEMANTIC-DRIFT", "HP-ASSUMPTION-SMUGGLE"}
-# fallback observability tier per pattern (taxonomy 0.3 lowest-decidable level) — used
+           "HP-SYMBOL-SEMANTIC-DRIFT", "HP-ASSUMPTION-SMUGGLE", "HP-UNDEFINED-NOTATION"}
+# fallback observability tier per pattern (taxonomy 0.4 lowest-decidable level) — used
 # ONLY when the reviewer omitted/garbled the field. ALL family-G patterns default to L1:
 # a verdict-bearing proof/derivation flaw is decided from the LaTeX SOURCE, because
 # PDF-extracted math is unreliable (mangled symbols, subscripts, equation structure) — an
 # L0 (PDF-only) "this step is invalid" risks flagging an extraction artifact. An unknown/
 # missing pattern fails closed to L2 (auto-demotes at L0/L1).
 OBS = {"HP-PROOF-OBLIGATION-GAP": 1, "HP-PROOF-CIRCULARITY": 1, "HP-DERIVATION-INVALID": 1,
-       "HP-SYMBOL-SEMANTIC-DRIFT": 1, "HP-ASSUMPTION-SMUGGLE": 1}
+       "HP-SYMBOL-SEMANTIC-DRIFT": 1, "HP-ASSUMPTION-SMUGGLE": 1, "HP-UNDEFINED-NOTATION": 1}
 SEV = {"critical", "major", "minor", "info"}
 VL  = {"fail", "warn", "clean", "needs_external_check"}
 FPR = {"low", "medium", "high"}
@@ -594,7 +606,7 @@ for f in proposed:
     f["evidence"] = anchored
     if f["severity"] in ABOVE_INFO and not anchored:
         f["severity"] = "info"; demoted += 1                     # unanchored -> info (adjudicator would too)
-    # a family-G finding above info MUST name one of the 5 G patterns; non-G ids were
+    # a family-G finding above info MUST name one of the 6 G patterns; non-G ids were
     # already dropped, so a MISSING pattern_id here cannot carry weight -> info.
     if pid not in GFAMILY and f["severity"] in ABOVE_INFO:
         f["severity"] = "info"; demoted += 1
@@ -662,7 +674,7 @@ ships no `save_trace.sh`, so use the **Write** tool to write these files into it
 
 ```
 $TRACE_DIR/
-  run.meta.json                  # {skill, paper_id, run_level_L, taxonomy_version:"0.3", has_proofs, generated_at}
+  run.meta.json                  # {skill, paper_id, run_level_L, taxonomy_version:"0.4", has_proofs, generated_at}
   obligation-ledger.md           # Step 1 — the EXTRACTION-ONLY scaffold (no verdicts)
   001-proof-review.request.json  # the exact prompt sent (paths + scaffold + checklist, no proof summaries)
   001-proof-review.response.md   # the FULL raw reviewer response (input to Step 3)
@@ -690,7 +702,7 @@ LEDGER="<abs path to claims.json>"; D="$(dirname "$LEDGER")"
 python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "$D/proof-derivation-forensics.findings.json" \
     --ledger "$LEDGER" \
-    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.3 \
+    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.4 \
     --out "$D/report.json" --md "$D/REPORT.md"
 ```
 
@@ -791,7 +803,7 @@ incremented per run/day — created in Step 1):
 
 | File | Written | Content |
 |------|---------|---------|
-| `run.meta.json` | Step 5 | `{skill, paper_id, run_level_L, taxonomy_version:"0.3", has_proofs, generated_at}` |
+| `run.meta.json` | Step 5 | `{skill, paper_id, run_level_L, taxonomy_version:"0.4", has_proofs, generated_at}` |
 | `obligation-ledger.md` | Step 1 | the extraction-only obligation scaffold (statements, typed symbols, obligations, anchor candidates) — **no validity verdicts** |
 | `00N-proof-review.request.json` | Step 5 | the exact prompt sent to the reviewer (paths + scaffold + checklist, no proof summary / no pre-judgment) — the **independence audit trail** |
 | `00N-proof-review.response.md` | Step 2 | the FULL raw reviewer response (the input Step 3 parsed) |
