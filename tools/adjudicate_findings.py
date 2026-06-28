@@ -12,8 +12,9 @@ Gates applied to every finding, in order (each may demote severity and is logged
                          (or any finding when no ledger is given) -> info.
   2. OBSERVABILITY gate — observability_level_required missing/invalid, or > run level -> info.
   3. FP-RISK gate      — false_positive_risk high -> cap at minor; medium -> cap at major.
-  4. MEMO gate         — memo-only skills + advisory (ADV-*) patterns     -> cap at info.
-  5. SURFACE gate      — presentation/AI-flavor patterns (by skill or id) -> cap at minor.
+  4. ZERO-WEIGHT gate  — advisory memos (ADV-*/memo skills) + the AI writing-style track
+                         (AIS-* / ai-style-impressions / deprecated style ids) -> info + weight 0.
+  5. SURFACE gate      — family-F presentation patterns (by skill or id)  -> cap at minor.
   6. EXTERNAL-CHECK    — needs_external_check / requires_external_check    -> info.
 
 Verdict rule (after gating):
@@ -45,18 +46,45 @@ SKILL_TO_DIMENSION = {
     "proof-derivation-forensics": "proof",
     "eval-design-forensics": "evaluation",
 }
-# memo-only skills contribute an informational memo, never a verdict-bearing finding.
-MEMO_ONLY_SKILLS = {"adversarial-case-builder", "novelty-duplication-advisory"}
-# presentation/AI-flavor signals are weak + high-FP: capped at minor so they can
-# contribute at most SOFT_FLAGS, never HARD_FLAGS. NOT an AI-generation verdict.
-# Capped by BOTH the emitting skill AND the pattern_id, so a surface pattern smuggled
-# in under another skill cannot bypass the cap (see references/hack-pattern-taxonomy F).
+# ZERO verdict weight: advisory memos AND the AI writing-style impression track (AIS).
+# These are REPORTED (AIS in its own report section) but can NEVER move the integrity
+# verdict — they are forced to info here AND excluded from the verdict computation. A paper
+# can be integrity-CLEAN while carrying a long AIS list. Enforced three ways (emitting skill,
+# pattern PREFIX, and the deprecated-id set) so a zero-weight finding smuggled in under
+# another skill/severity is still neutralized. See references/hack-pattern-taxonomy.md (AIS).
+ZERO_WEIGHT_SKILLS = {"adversarial-case-builder", "novelty-duplication-advisory",
+                      "ai-style-impressions"}
+ZERO_WEIGHT_PREFIXES = ("ADV-", "AIS-")
+# Style ids MIGRATED to the AIS track in v0.5; kept as deprecated aliases but forced
+# zero-weight so an old findings.json cannot still push them to SOFT_FLAGS.
+DEPRECATED_STYLE_PATTERNS = {"HP-AI-FLAVOR", "HP-DEFENSIVE-HEDGE", "HP-NARRATIVE-ARC-BREAK",
+                             "HP-JARGON-STUFF", "HP-INVENTED-CODENAME"}
+# Family F (still verdict-bearing surface): weak + high-FP, capped at minor so they
+# contribute at most SOFT_FLAGS, never HARD_FLAGS. The pure-style signals USED to live here
+# but moved to the zero-weight AIS track (above); what remains is checkable-ish presentation.
 SURFACE_ONLY_SKILLS = {"presentation-signals"}
 SURFACE_PATTERNS = {"HP-DUP-TABLE", "HP-THIN-FLOAT", "HP-LLM-FIGURE",
-                    "HP-PAGE-PADDING", "HP-JARGON-STUFF", "HP-AI-FLAVOR",
-                    "HP-DEFENSIVE-HEDGE", "HP-NARRATIVE-ARC-BREAK",
-                    "HP-INVENTED-CODENAME", "HP-PIPELINE-ARTIFACT"}
+                    "HP-PAGE-PADDING", "HP-PIPELINE-ARTIFACT"}
 FP_CAP = {"high": "minor", "medium": "major", "low": "critical"}
+
+
+def _is_zero_weight(f):
+    """A finding that must never move the integrity verdict (advisory memo or AI-style
+    impression). Checked by emitting skill, pattern_id PREFIX, and the deprecated-style set."""
+    pid = f.get("pattern_id")
+    pid = pid.strip() if isinstance(pid, str) else ""   # tolerate dirty JSON trailing space
+    return (f.get("skill") in ZERO_WEIGHT_SKILLS
+            or pid.startswith(ZERO_WEIGHT_PREFIXES)
+            or pid in DEPRECATED_STYLE_PATTERNS)
+
+
+def _is_ais(f):
+    """An AI writing-style IMPRESSION (the zero-weight AIS track), as distinct from an ADV
+    advisory memo — used to render the separate, clearly-non-integrity AIS report section."""
+    pid = f.get("pattern_id")
+    pid = pid.strip() if isinstance(pid, str) else ""
+    return (f.get("skill") == "ai-style-impressions"
+            or pid.startswith("AIS-") or pid in DEPRECATED_STYLE_PATTERNS)
 
 
 def _cap(sev, cap):
@@ -172,22 +200,24 @@ def adjudicate(findings, run_level, ledger_map=None):
             reasons.append(f"fp-cap({fpr})")
             sev = capped
 
-        # 4. MEMO gate — memo-only skills AND advisory (ADV-*) patterns never raise the
-        #    verdict. The advisory cap is by pattern_id PREFIX, so an ADV-* finding smuggled
-        #    in under a non-memo skill with severity=critical is STILL forced to info — the
-        #    taxonomy's "advisory · zero verdict weight" rule is ENFORCED, not just documented.
-        pid = f.get("pattern_id")
-        pid = pid if isinstance(pid, str) else ""
-        if f.get("skill") in MEMO_ONLY_SKILLS or pid.startswith("ADV-"):
+        # 4. ZERO-WEIGHT gate — advisory memos AND the AI writing-style impression track
+        #    (AIS-* / ai-style-impressions / the deprecated style ids) are reported but NEVER
+        #    move the integrity verdict: forced to info here AND given _verdict_weight 0 below
+        #    (the verdict is computed from weight-1 findings ONLY). Enforced by skill, pattern
+        #    PREFIX, and the deprecated-id set, so nothing smuggled in can bypass it.
+        if _is_zero_weight(f):
             capped = _cap(sev, "info")
             if capped != sev:
-                reasons.append("advisory-pattern-cap" if pid.startswith("ADV-") else "memo-only-skill")
+                reasons.append("zero-weight-cap")
                 sev = capped
 
-        # 5. SURFACE gate — presentation/AI-flavor signals capped at minor (by skill
+        # 5. SURFACE gate — family-F presentation signals capped at minor (by skill
         #    OR pattern_id), so a pile of surface signals is at most a SOFT_FLAGS
-        #    "look closer", never HARD — even if smuggled in under another skill.
-        if f.get("skill") in SURFACE_ONLY_SKILLS or f.get("pattern_id") in SURFACE_PATTERNS:
+        #    "look closer", never HARD — even if smuggled in under another skill. The
+        #    pattern_id is .strip()'d so a dirty "HP-THIN-FLOAT " can't bypass the cap.
+        pid5 = f.get("pattern_id")
+        pid5 = pid5.strip() if isinstance(pid5, str) else ""
+        if f.get("skill") in SURFACE_ONLY_SKILLS or pid5 in SURFACE_PATTERNS:
             capped = _cap(sev, "minor")
             if capped != sev:
                 reasons.append("surface-only-cap")
@@ -204,6 +234,7 @@ def adjudicate(findings, run_level, ledger_map=None):
 
         f["_severity_original"] = original
         f["_severity_final"] = sev
+        f["_verdict_weight"] = 0 if _is_zero_weight(f) else 1
         f["_adjudication"] = reasons
     return stats
 
@@ -219,6 +250,8 @@ def verdict_of(severities):
 def dimension_verdicts(findings):
     dims = {}
     for f in findings:
+        if f.get("_verdict_weight", 1) != 1:   # zero-weight (AIS/ADV) never forms a dimension verdict
+            continue
         dim = SKILL_TO_DIMENSION.get(f.get("skill"))
         if not dim:
             continue
@@ -229,10 +262,14 @@ def dimension_verdicts(findings):
 
 
 def build_report(findings, args, stats, anchoring_verified):
-    finals = [f["_severity_final"] for f in findings]
+    # The integrity verdict is computed from verdict-WEIGHT-1 findings ONLY. Zero-weight
+    # findings (AIS style impressions + ADV memos) are reported but provably cannot move it.
+    weighted = [f for f in findings if f.get("_verdict_weight", 1) == 1]
+    finals = [f["_severity_final"] for f in weighted]
     counts = {k: sum(1 for s in finals if s == k) for k in ("critical", "major", "minor", "info")}
     counts["downgraded_for_observability"] = stats["downgraded_obs"]
     counts["unanchored_demoted"] = stats["unanchored"]
+    counts["ai_style_impressions"] = sum(1 for f in findings if _is_ais(f))
 
     limitations = list(args.limitation or [])
     if args.observability_level < 2:
@@ -254,14 +291,18 @@ def build_report(findings, args, stats, anchoring_verified):
     # All proposed flags failed anchoring -> very likely an empty or STALE/mismatched ledger
     # (claim_ids are positional, so a findings.json from before a paper edit mis-anchors
     # wholesale). Surface this loudly: a CLEAN verdict here means "couldn't anchor", not "clean".
-    proposed_above = sum(
-        1 for f in findings if SEV_ORDER.get(f.get("_severity_original", "info"), 0) > 0)
-    if proposed_above and stats["unanchored"] >= proposed_above:
+    # Scoped to verdict-bearing (weight-1) findings: an AIS/ADV finding failing anchoring is
+    # not a stale-ledger signal.
+    weighted_proposed = [f for f in weighted
+                         if SEV_ORDER.get(f.get("_severity_original", "info"), 0) > 0]
+    weighted_unanchored = [f for f in weighted_proposed if any(
+        r in ("unanchored-demotion", "no-ledger-fail-closed") for r in f.get("_adjudication", []))]
+    if weighted_proposed and len(weighted_unanchored) >= len(weighted_proposed):
         limitations.append(
             "All %d proposed above-info finding(s) failed anchoring and were demoted to info "
             "— likely an empty or stale/mismatched ledger (claim_ids are positional; a "
             "findings.json from before a paper edit mis-anchors wholesale). Rebuild the ledger "
-            "with /evidence-ledger and re-audit before trusting this result." % proposed_above
+            "with /evidence-ledger and re-audit before trusting this result." % len(weighted_proposed)
         )
 
     return {
@@ -312,7 +353,8 @@ def render_md(report):
         "| ID | Dimension | Severity | Pattern | Where | FP-risk |",
         "|----|-----------|----------|---------|-------|---------|",
     ]
-    shown = [f for f in report["findings"] if f["_severity_final"] != "info"]
+    shown = [f for f in report["findings"]
+             if f["_severity_final"] != "info" and f.get("_verdict_weight", 1) == 1]
     for f in sorted(shown, key=lambda x: -SEV_ORDER[x["_severity_final"]]):
         loc = ""
         for ev in f.get("evidence", []) or []:
@@ -344,6 +386,42 @@ def render_md(report):
             lines.append(f"  - _adjudicator: {', '.join(f['_adjudication'])}_")
         lines.append("")
 
+    ais = [f for f in report["findings"] if _is_ais(f)]
+    if ais:
+        lines += [
+            "## AI Writing-Style Impressions — NOT integrity findings · ZERO verdict weight",
+            "",
+            "> Transparent, itemized impressions of AI-generated **writing style**. These are "
+            "**not** factual/integrity inconsistencies and carry **zero** weight on the verdict "
+            "above — a paper can be `CLEAN_GIVEN_EVIDENCE` and still list many. No authorship "
+            "probability is implied; this is reviewer-impression context, not a judgment.",
+            "",
+            "| ID | Signal | Where |",
+            "|----|--------|-------|",
+        ]
+        for f in ais:
+            loc = ""
+            for ev in f.get("evidence", []) or []:
+                l = ev.get("location") or {}
+                fname = os.path.basename(l.get("file", "?")) if l.get("file") else "?"
+                loc = f"{fname}:{l.get('section', l.get('line', ''))}"
+                break
+            lines.append(f"| {f.get('finding_id','?')} | {f.get('pattern_id','—')} | {loc or '—'} |")
+        lines += ["", "### Impression detail", ""]
+        for f in ais:
+            lines.append(f"**{f.get('finding_id','?')} — {f.get('title','')}** "
+                         f"(`{f.get('pattern_id','—')}` · impression, no verdict weight)")
+            lines.append("")
+            lines.append(f"- {f.get('description','')}")
+            for ev in f.get("evidence", []) or []:
+                if (ev.get("span") or "").strip():
+                    lines.append(f"  - where `{ev.get('claim_id','?')}`: “{ev['span'].strip()}”")
+            if f.get("fp_case"):
+                lines.append(f"  - not-necessarily-AI: {f['fp_case']}")
+            if f.get("recommended_reviewer_action"):
+                lines.append(f"  - reviewer note: {f['recommended_reviewer_action']}")
+            lines.append("")
+
     if report.get("adversarial_memo"):
         lines += ["## Adversarial memo (informational — no verdict weight)", "",
                   report["adversarial_memo"], ""]
@@ -356,6 +434,7 @@ def render_md(report):
         f"·  info: {c['info']}",
         f"- demoted for observability: {c['downgraded_for_observability']}  ·  "
         f"demoted unanchored: {c.get('unanchored_demoted', 0)}",
+        f"- AI writing-style impressions (zero verdict weight): {c.get('ai_style_impressions', 0)}",
         "",
         "## Limitations",
         "",
@@ -375,7 +454,7 @@ def main(argv=None):
                     "without it nothing can be anchored and all findings fail closed to info.")
     ap.add_argument("--paper-id", required=True)
     ap.add_argument("--observability-level", type=int, required=True, choices=[0, 1, 2, 3])
-    ap.add_argument("--taxonomy-version", default="0.4")
+    ap.add_argument("--taxonomy-version", default="0.5")
     ap.add_argument("--memo", default="", help="adversarial memo text (informational)")
     ap.add_argument("--limitation", action="append", help="extra limitation line (repeatable)")
     ap.add_argument("--generated-at", default="", help="override timestamp (for reproducible eval)")

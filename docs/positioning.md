@@ -23,9 +23,11 @@ this text produced by an LLM?"* via token-distribution / stylometry.
 you nothing about whether the experiments are consistent — and the bias runs the
 other way too: Liang et al. (2023, *Patterns*; arXiv:2304.02819) found GPT detectors
 misclassified **>60% of non-native-English TOEFL essays** as AI-written. Stylometry
-penalizes a writing register, not dishonesty. This is exactly why every surface /
-AI-flavor signal in this repo is high-false-positive context (taxonomy family F,
-capped at `minor`), never a verdict.
+penalizes a writing register, not dishonesty. This is exactly why our AI writing-style
+signals live in a separate **AIS track with ZERO verdict weight** (transparent and
+itemized — reported, but provably unable to move the integrity verdict), and the remaining
+surface signals (family F) are high-FP context capped at `minor`. Never a verdict, and never
+an opaque authorship score: a paper can be integrity-`CLEAN` while listing many AIS impressions.
 
 **B — AI-review detectors.** Work measuring and flagging LLM-generated *peer
 reviews*. Important for venue integrity, but orthogonal to auditing the *paper*.

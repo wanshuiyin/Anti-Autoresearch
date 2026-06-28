@@ -21,12 +21,17 @@ its own paper. Reviewers, area chairs, and honest authors increasingly need to
 > Regardless of *who or what* wrote a paper, does the science hold together and
 > reflect its own evidence? Anti-Autoresearch audits a submission for
 > **self-consistency** and **fabrication**, and produces a span-anchored,
-> reviewer-ready report. It is **not** an AI-text detector, and it does **not**
-> judge misconduct — it surfaces discrepancies a human reviewer should investigate.
+> reviewer-ready report. It is **not** an *opaque* AI-text classifier (no authorship
+> probabilities, no "AI-written" verdict) and does **not** judge misconduct — it surfaces
+> discrepancies a human reviewer should investigate. Separately, it lists transparent,
+> itemized **AI writing-style impressions** in a quarantined, **zero-verdict-weight**
+> section (a paper can be integrity-`CLEAN` while listing many), because reviewers react to them.
 
 ---
 
 ## 📰 News
+
+- **v0.5 (2026-06)** — Added the **AIS track** (AI Writing-Style Impressions): 13 transparent, itemized writing-style signals (defensive hedging, LLM phrasing tics, clause-then-formula walls, bullet/bold spam, invented codenames, single-style figures, …) reported in a **separate, zero-verdict-weight section** — a paper can be integrity-`CLEAN_GIVEN_EVIDENCE` while listing many. The 5 pure-style patterns moved out of family F into AIS. Taxonomy restructured to **46 integrity patterns (A–H) + 13 AIS + 2 advisory**; new `/ai-style-impressions` skill; the adjudicator now *provably* excludes zero-weight findings from the verdict (regression-tested). These are transparent impressions, never an authorship verdict — we are not an *opaque* AI-text classifier.
 
 - **v0.4 (2026-06)** — Taxonomy v0.4: **51 hack-patterns across 8 families** — A. Numeric self-consistency (数值自洽:表内·表文·增量算术对得上) · B. Method & scope (方法与范围:说的方法/范围≠实际做的) · C. Baseline integrity (baseline 诚信:对比基线缺失·偏弱·不公平) · D. Experiment integrity (实验诚信:假 GT·幽灵结果·代码≠数字,需代码) · E. Citation integrity (引用诚信:伪造·张冠李戴·撤稿) · F. Presentation & surface signals (表面信号:排版·文风·配图) · G. Proof & derivation integrity (证明诚信:漏证·循环论证·无效推导) · H. Evaluation design & validity (评测设计有效性:数据泄漏·LLM 裁判可信度·选择性报告, new). The deterministic eval gate grew 3→8 patterns (GRIM / GRIMMER / statcheck, plus a conservative defensive-hedge density screen); added CI, the `eval-design-forensics` skill, the `HP-INVENTED-CODENAME` surface pattern, and a prior-art acknowledgments section. Two more checkable self-consistency patterns — `HP-ACRONYM-DRIFT` (family B) and `HP-UNDEFINED-NOTATION` (family G) — were distilled from a "vibe-paper tells" thread while refusing its pure-stylometry items (we are not a vibe classifier).
 - **v0.1 (2026-06)** — Initial release: reviewer-side integrity forensics for autoresearch / AI-Scientist papers. Ships the evidence ledger, deterministic adjudicator, and observability tiers. Not an AI-text detector.
@@ -129,11 +134,12 @@ an abstract number that no table reports, a "16% improvement" that the operands 
 is 6%, a citation for a claim the cited paper never makes, a method described one
 way and evaluated another.
 
-Those are checkable under a declared observability level. Concretely, taxonomy v0.4
-names **51 hack-patterns across 8 families** (numeric self-consistency · method /
+Those are checkable under a declared observability level. Concretely, taxonomy v0.5
+names **46 integrity patterns across 8 families** (numeric self-consistency · method /
 scope · baseline integrity · experiment integrity · citation integrity ·
 presentation / surface signals · proof & derivation integrity · evaluation design &
-validity) — the repo's **coverage vocabulary**, not a 51-detector benchmark.
+validity) — the repo's **coverage vocabulary**, not a detector benchmark — plus a
+**13-signal AI writing-style impression track (AIS)** that carries **zero verdict weight**.
 
 > **Shipped v0:** the deterministic spine and the **seven** ✓-marked patterns (across
 > the representative list below and the full catalog) are eval-tested; the other 41 are
@@ -409,7 +415,7 @@ only: Pangram, GPTZero, and the Problematic Paper Screener.
 ## 💬 Community
 
 **The taxonomy grows with the community.** Caught an autoresearch / AI-Scientist paper
-pulling a trick that isn't in the [51-pattern catalog](references/hack-pattern-taxonomy.md)
+pulling a trick that isn't in the [pattern catalog](references/hack-pattern-taxonomy.md)
 yet? That is the single most valuable contribution here — open an issue with the concrete
 example, or send a PR adding the pattern (with an eval fixture + a false-positive case so
 it doesn't over-fire). New auditor skills, adjudicator gates, and corruption fixtures are

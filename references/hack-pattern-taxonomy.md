@@ -1,9 +1,9 @@
 # Autoresearch Hack-Pattern Taxonomy
 
 ```
-taxonomy_version: 0.4
+taxonomy_version: 0.5
 last_reviewed: 2026-06-28
-patterns: 51 hard (families A–H) + 2 advisory (no verdict weight)
+patterns: 46 integrity (families A–H) + 13 AI-style impressions (AIS · zero verdict weight) + 2 advisory (zero verdict weight)
 status: living document — versioned; the version is stamped into every report
 ```
 
@@ -466,18 +466,17 @@ demoted to `info`.
 
 ## F. Presentation & surface signals (auxiliary — NEVER a standalone verdict)
 
-> ⚠️ **Read this preamble before using any F-pattern.** These are the "AI-flavor /
-> low-effort" signals that reviewers notice first (generic prose, few/duplicated
-> floats, LLM-looking figures, padding to fill the page limit, jargon-stuffing).
-> They are **weak, high-false-positive, and presentation-level** — a polished paper
-> can be fraudulent and a rough paper can be honest. So in this repo F-patterns:
-> (a) are emitted only by `skills/presentation-signals`, (b) carry
-> `false_positive_risk: high` by default, (c) are **capped at `minor` by the
-> adjudicator** (`SURFACE_ONLY_SKILLS`) so they can contribute at most `SOFT_FLAGS`
-> — they can never produce `HARD_FLAGS` on their own, and they are **not** an
-> AI-generation verdict. Their job is to say *"combine with the substantive findings
-> and look closer"*, nothing more. We are not an AI-text classifier; for that, use a
-> dedicated detector.
+> ⚠️ **Read this preamble before using any F-pattern.** What remains in family F is the
+> **checkable-ish** presentation signal: duplicate tables, leftover pipeline/template strings,
+> too-few or LLM-looking figures, padding to fill the page limit. They are weak and high-FP —
+> a polished paper can be fraudulent and a rough one honest — so F-patterns: (a) are emitted
+> only by `skills/presentation-signals`, (b) carry `false_positive_risk: high` by default,
+> (c) are **capped at `minor`** (`SURFACE_PATTERNS`) so they contribute at most `SOFT_FLAGS`,
+> never `HARD_FLAGS`. **The pure AI writing-STYLE impressions that used to live here**
+> (AI-flavor prose, defensive hedging, narrative-arc, jargon-stuffing, invented codenames)
+> **moved in v0.5 to the zero-verdict-weight AIS track** ("AI writing-style impressions",
+> below): reported separately and unable to move the verdict at all. We are not an opaque
+> AI-text classifier.
 
 ### HP-DUP-TABLE — duplicate / near-identical tables
 - **level:** L0 (deterministic via the ledger's table cells)
@@ -534,98 +533,6 @@ demoted to `info`.
 - **fp_cases:** legitimately concise work; venue-specific length norms.
 - **severity_rule:** minor (capped); high FP.
 - **min_evidence:** the padding span(s).
-
-### HP-JARGON-STUFF — term-stuffing without substance
-- **level:** L0
-- **signals:** dense piling-up of technical terms where the surrounding argument
-  carries no actual content. (Reviewer: "堆砌名词吗".)
-- **fp_cases:** genuinely dense but correct technical writing.
-- **severity_rule:** minor (capped); very high FP.
-- **min_evidence:** the offending span.
-
-### HP-AI-FLAVOR — generic LLM-flavored prose
-- **level:** L0
-- **signals:** hallmarks of unedited LLM text — connective filler overused as a tic
-  ("It is worth noting that", "值得注意的是", "意义在于", "not only … but also", chains of
-  "however / therefore / moreover", clichéd em-dashes / semicolons, "therefore" dropped
-  mid-sentence), flowery empty adverbs ("elegantly", "theoretically"), hedged filler, uniform
-  paragraph shapes. **Gross cases only.** Distinct from HP-DEFENSIVE-HEDGE (the specific
-  not-X-but-Y defensive posture). These remain illustrative — a high-FP surface note, never an
-  authorship verdict; we are not a vibe/AI-text classifier.
-- **fp_cases:** huge — many honest authors use LLM assistance; non-native writing;
-  house style. This is the single most FP-prone pattern in the taxonomy.
-- **severity_rule:** minor (capped); very high FP. **Never** treat as evidence of
-  fabrication or as an authorship verdict.
-- **min_evidence:** representative span(s) — illustrative, not probative.
-
-### HP-DEFENSIVE-HEDGE — defensive "not X but Y" hedging instead of stating what was done
-- **level:** L0 (a conservative deterministic density arm in `tools/check_presentation.py`,
-  `DEFENSIVE_HEDGE_PATTERNS`; plus the agent-layer reading for sub-threshold cases)
-- **signals:** a high *density* of defensive-contrast constructions that defend against an
-  anticipated objection instead of directly stating what was built and shown. The curated
-  strong templates the deterministic screen counts: "we do not claim …", "we make no claim",
-  "this paper does not (claim/argue/prove) …", "this does not mean/imply …", "our goal is not
-  X but (rather) Y", "not X but rather Y"; 中文 "本文并不主张 / 本文不是要证明 / 这并不意味着 /
-  我们的目的不是…而是…". A sharper sub-signal: the text **volunteers a self-incriminating
-  limitation** that flags an attack surface a reviewer would not otherwise raise (e.g. "We do
-  not claim our cases are representative of all contexts" — which makes a reviewer think
-  *representativeness is a problem here*). The checkable signal is the **recurrence of the
-  hedge shape, NOT who wrote it** — never infer AI authorship or editing provenance. (Reviewer:
-  "本文不是什么什么，而是什么什么…论文应该直接表达做了什么"; another likens defensive patches to
-  "往有细小裂纹的瓷器上糊泥巴" —补上问题反而提醒别人这里有问题且破坏整体性.) Differs from
-  HP-AI-FLAVOR: that is generic LLM-flavored prose; this is the specific not-X-but-Y posture.
-- **deterministic screen:** fires only on a genuine PATTERN — ≥4 distinct stance-constrained
-  strong-template `scope` sentences across ≥2 non-excluded sections (excluding Limitations /
-  Related-Work / Ethics / Broader-Impact, where a hedge is expected) **and** ≥25% of all
-  non-excluded scope sentences. One scoping sentence never trips it (precision >> recall). A bare
-  "not X but rather Y" needs an author/paper-stance subject to count (so "not convex but rather
-  piecewise smooth" is ignored). PDF-text ledgers label every claim section `unknown`, so this
-  deterministic arm is effectively silent unless LaTeX section labels exist; the agent-layer
-  reading covers those cases.
-- **fp_cases:** a single deliberate scoping sentence; a genuine related-work contrast; a
-  Limitations paragraph (expected to hedge). **Note the real tension:** some venues / AI
-  reviewers penalize the *absence* of caveats, so measured hedging is a legitimate strategic
-  choice, **not** misconduct — which is exactly why this stays capped at minor and never
-  verdict-bearing.
-- **severity_rule:** minor (capped, surface-only); high FP. **Never** an authorship /
-  AI-generation verdict.
-- **routing:** if a specific hedge instead reveals a *real* scope/evaluation limitation, route
-  THAT to HP-SCOPE-INFLATE (family B) or eval-design-forensics (family H) — the substantive
-  problem, not the rhetorical shape.
-- **min_evidence:** representative hedge spans (≥2), span-anchored to the ledger.
-- **ack:** a widely-shared 2026 community thread on "防御性写作" in AI-assisted paper revision
-  (the not-X-but-Y posture, pre-emptive self-incrimination, and invented codenames — the last
-  captured as HP-INVENTED-CODENAME).
-
-### HP-NARRATIVE-ARC-BREAK — abstract / intro lacks the expected substantive arc
-- **level:** L0
-- **signals:** the abstract reads like an experiment-log dump, or is vague "general"
-  language with no specifics; so many undefined new terms it can't be understood; no
-  background → contribution → evidence arc; an Introduction that doesn't go problem →
-  why-hard → approach → validation. (Reviewer: "摘要写的像实验分析 / 读不到引言".)
-- **fp_cases:** a legitimately terse abstract; non-native phrasing; field conventions.
-- **severity_rule:** minor (capped, surface-only); high FP.
-- **min_evidence:** the abstract/intro span + which arc element is missing.
-
-### HP-INVENTED-CODENAME — undefined internal project/run codename written into the paper
-- **level:** L0 (semantic — **agent-layer only, no deterministic detector**: judging "internal-
-  flavored undefined codename vs legitimate method name" is not regex-able without heavy FP)
-- **signals:** an experiment/run/system **codename that reads like a generation-pipeline
-  internal label** appears in a table, caption, section heading, or core-results sentence and is
-  **never defined** — and it is not the paper's formal method name, a standard dataset/split, an
-  ablation label, or a config id. (Community observation: "agent 喜欢自创一些代号写进论文里" — an
-  agent referring to its own runs as, say, "Experiment Set Gamma" / "PHX-v3" that the paper never
-  introduces.) The checkable signal is an **undefined identifier used as if defined**, not who
-  wrote it — no stylometry, no authorship verdict.
-- **fp_cases:** legitimate named methods/systems; established benchmark/split names; deliberate
-  internal-but-defined release tags; ablation labels defined elsewhere. Very high FP — require the
-  codename to be (a) undefined in the text AND (b) load-bearing (≥2 occurrences or in a results
-  table), else do not raise.
-- **severity_rule:** minor (capped, surface-only); high FP. Recommended action is only "ask the
-  authors to define the term or de-internalize the naming." Never a misconduct/authorship verdict.
-- **routing:** if the codename points to a **missing results file / unreproducible run**, that is
-  HP-MISSING-REPRO-ARTIFACT or HP-PHANTOM-RESULT (family D, L2) — not this surface signal.
-- **min_evidence:** the codename span(s) + the absence of any defining sentence.
 
 ## G. Proof & derivation integrity (verdict-bearing at L1 — needs the LaTeX source · CAN be critical)
 
@@ -812,6 +719,127 @@ demoted to `info`.
   HP-SCOPE-INFLATE (B); a never-mentioned expected baseline → HP-MISSING-BASELINE (C); appendix-vs-main
   on the *same* quantity → HP-APPENDIX-CONTRA (A). Scoped to declared-but-unreported / cherry-picked-among-shown.
 - **ack:** Dodge et al. 2019 ("Show Your Work"); Pineau et al. 2021 (ML Reproducibility Checklist).
+
+## AI writing-style impressions (AIS track — NOT integrity · ZERO verdict weight)
+
+> The repo's ONLY non-integrity output. These are transparent, itemized impressions of
+> AI-generated **writing style** — the "vibe-paper" tells reviewers react to (borderline-reject
+> on impression). They are **not** factual/integrity inconsistencies and imply **no** authorship
+> probability. The adjudicator gives every `AIS-*` finding **zero verdict weight** (forced to
+> info, excluded from `overall_verdict`) and renders them in a separate report section; a paper
+> can be `CLEAN_GIVEN_EVIDENCE` while listing many. Owned by `skills/ai-style-impressions`
+> (+ the deterministic `tools/check_ai_style.py` for `AIS-DEFENSIVE-HEDGE`). We are **not an
+> opaque AI-text classifier**: no scores, never "this is AI-written" — each finding is a named,
+> located observation with an `fp_case`, and every one carries `not_integrity_finding: true`.
+> When a tell reflects a *real* defect it is ROUTED to the integrity family that owns it (per
+> entry). **Refused even as impressions:** a standalone single-punctuation tell (one
+> em-dash/semicolon/adverb); generic non-native English; any authorship probability; pure
+> aesthetics; presence-only flags. *(ack: distilled from two widely-shared 2026 reviewer threads
+> on "vibe paper" tells and "防御性写作".)*
+
+### AIS-NARRATIVE-ARC-BREAK — abrupt intro / dump-like abstract, no substantive arc
+- **level:** L0 (impression; zero verdict weight)
+- **signals:** a 1–2 paragraph intro with an abrupt motivation; an abstract that reads like an
+  experiment-log dump or vague "general" language; no background → contribution → evidence arc.
+- **fp_cases:** a legitimately terse abstract; non-native phrasing; field conventions.
+- **routing:** if the motivation→method→experiment chain SUBSTANTIVELY breaks → HP-ARGUMENT-CHAIN-BREAK (B).
+- **min_evidence:** the abstract/intro span + which arc element is missing.
+
+### AIS-LLM-PHRASE-TICS — generic LLM phrasing tics
+- **level:** L0 (impression; zero verdict weight). The single most FP-prone signal.
+- **signals:** connective filler overused as a tic — "it is worth noting" / "值得注意的是" / "意义在于",
+  "not only … but also", chains of "however / therefore / moreover", clichéd em-dashes / semicolons,
+  "therefore" mid-sentence, flowery empty adverbs ("elegantly", "theoretically"). **Gross cases only.**
+- **fp_cases:** HUGE — honest LLM-assisted writing, non-native English, house style. If in doubt, do not flag.
+- **routing:** none (pure style).
+- **min_evidence:** representative span(s) — illustrative, never probative.
+
+### AIS-DEFENSIVE-HEDGE — pervasive defensive "not X but Y" hedging
+- **level:** L0 (impression; zero verdict weight). Has a deterministic density screen in `tools/check_ai_style.py`.
+- **signals:** high density of "we do not claim …", "this paper does not …", "this does not mean", "our goal
+  is not X but Y", "not X but rather Y"; 中文 "本文并不主张 / 这并不意味着 / 目的不是…而是…". Deterministic screen:
+  ≥4 stance-constrained strong-template scope sentences across ≥2 non-excluded sections AND ≥25% of scope
+  sentences (excludes Limitations/Related-Work/Ethics). The checkable signal is the recurrence of the SHAPE,
+  not who wrote it.
+- **fp_cases:** one scoping sentence; a Limitations paragraph (expected to hedge); some venues penalize the
+  ABSENCE of caveats, so measured hedging is a legitimate strategic choice.
+- **routing:** if a hedge reveals a real scope/eval limitation → HP-SCOPE-INFLATE (B) / eval-design-forensics (H).
+- **min_evidence:** representative hedge spans (≥2), span-anchored.
+
+### AIS-JARGON-STUFF — term-stuffing without substance
+- **level:** L0 (impression; zero verdict weight)
+- **signals:** dense piling-up of technical terms where the surrounding argument carries no actual content.
+- **fp_cases:** genuinely dense but correct technical writing (very high FP).
+- **routing:** none.
+- **min_evidence:** the offending span.
+
+### AIS-INVENTED-CODENAME — undefined internal run/experiment codename
+- **level:** L0 (impression; zero verdict weight)
+- **signals:** an internal-project-flavored codename ("Experiment Set Gamma", "PHX-v3") used as if defined,
+  never introduced, and not a formal method name / dataset split / ablation label / config id. Require it to be
+  load-bearing (≥2 occurrences or in a results table).
+- **fp_cases:** legitimate named methods/systems; established benchmarks; defined release tags.
+- **routing:** if it points to a missing results file / unreproducible run → HP-MISSING-REPRO-ARTIFACT / HP-PHANTOM-RESULT (D).
+- **min_evidence:** the codename span(s) + the absence of a definition.
+
+### AIS-CLAUSE-FORMULA-WALL — fragmented clause-then-formula-wall presentation
+- **level:** L0 (impression; zero verdict weight)
+- **signals:** a short clause followed by a wall of formulas, repeated; equations dumped with no connective prose.
+- **fp_cases:** dense-but-correct theory; field norms.
+- **routing:** if a load-bearing symbol is actually UNDEFINED → HP-UNDEFINED-NOTATION (G).
+- **min_evidence:** the clause/equation block span(s).
+
+### AIS-GRATUITOUS-PSEUDOCODE — pseudocode that adds no operational content
+- **level:** L0 (impression; zero verdict weight)
+- **signals:** algorithm/pseudocode blocks that merely restate the prose or carry no operational detail.
+- **fp_cases:** genuinely clarifying algorithm listings.
+- **routing:** if the algorithm CONTRADICTS the described method → HP-METHOD-DRIFT (B).
+- **min_evidence:** the pseudocode block + the prose it restates.
+
+### AIS-BULLET-LIST-OVERUSE — sequential logic flattened into parallel bullets
+- **level:** L0 (impression; zero verdict weight)
+- **signals:** prose organized as many bullets, including sequential/progressive content forced into
+  parallel-looking bullets.
+- **fp_cases:** legitimate enumerations / checklists.
+- **routing:** none.
+- **min_evidence:** the bullet block span.
+
+### AIS-BOLD-MODULE-SPAM — verbose module names + excessive bolding
+- **level:** L0 (impression; zero verdict weight)
+- **signals:** verbose module names with excessive bolding / acronym staging.
+- **fp_cases:** reasonable emphasis; defined acronyms.
+- **routing:** if the SAME module gets incompatible abbreviations → HP-ACRONYM-DRIFT (B).
+- **min_evidence:** the offending name/bold spans.
+
+### AIS-RESTATE-OVERCLAIM — rhetorical restatement loop
+- **level:** L0 (impression; zero verdict weight)
+- **signals:** repeatedly re-asserting "we propose an X / we do an X" without adding content.
+- **fp_cases:** legitimate signposting.
+- **routing:** if the claim EXCEEDS the evidence → HP-SCOPE-INFLATE (B) / family H.
+- **min_evidence:** the restated spans.
+
+### AIS-FOCUS-DRIFT — motivation pivots to a minor detail
+- **level:** L0 (impression; zero verdict weight)
+- **signals:** a high-level motivation suddenly pivots to a minor implementation detail, or over-emphasizes an
+  unnecessary requirement (the model stressing a narrow ask it was given).
+- **fp_cases:** a modular paper with explicit cross-references.
+- **routing:** if the motivation→method→experiment chain substantively breaks → HP-ARGUMENT-CHAIN-BREAK (B).
+- **min_evidence:** the high-level span + the minor-detail span it drifts to.
+
+### AIS-SINGLE-STYLE-FIGURES — generic generated visual grammar
+- **level:** L0 (impression; visual — needs the rendered PDF; zero verdict weight)
+- **signals:** figures share a single generic "generated" visual grammar / single-style AI illustrations.
+- **fp_cases:** a legitimate consistent house figure style; conceptual teasers.
+- **routing:** checkable figure-vs-content thinness stays HP-LLM-FIGURE / HP-THIN-FLOAT (family F).
+- **min_evidence:** the figure references + a note on the shared style.
+
+### AIS-APPENDIX-DUMPING-GROUND — appendix as unintegrated trace dump
+- **level:** L0 (impression; zero verdict weight)
+- **signals:** an appendix that reads like unintegrated trace/dumping, AI-trace heavy, not referenced by the body.
+- **fp_cases:** legitimately long supplementary detail.
+- **routing:** contradicts the main text → HP-APPENDIX-CONTRA (B); an exact assistant/template artifact →
+  HP-PIPELINE-ARTIFACT (F); affects reported data → family D.
+- **min_evidence:** the appendix span(s) + what is unintegrated.
 
 ## Advisory signals (NOT a hard pattern · zero verdict weight · reviewer-judgment only)
 

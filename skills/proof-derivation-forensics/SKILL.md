@@ -130,7 +130,7 @@ REVIEWER_SANDBOX        = read-only                # detect-only; never mutate t
 REVIEWER_CWD            = <paper-dir>              # so it can read claims.json + the proof sources directly
 THREAD_POLICY           = fresh mcp__codex__codex per run (and per fan-out theorem group);
                           NEVER mcp__codex__codex-reply
-TAXONOMY_VERSION        = 0.4                      # references/hack-pattern-taxonomy.md
+TAXONOMY_VERSION        = 0.5                      # references/hack-pattern-taxonomy.md
 OWNED_PATTERNS          = HP-PROOF-OBLIGATION-GAP · HP-PROOF-CIRCULARITY ·
                           HP-DERIVATION-INVALID · HP-SYMBOL-SEMANTIC-DRIFT ·
                           HP-ASSUMPTION-SMUGGLE · HP-UNDEFINED-NOTATION   # family G; emit ONLY these
@@ -550,7 +550,7 @@ def nw(s):                                    # mirror adjudicator _norm_ws (whi
 
 GFAMILY = {"HP-PROOF-OBLIGATION-GAP", "HP-PROOF-CIRCULARITY", "HP-DERIVATION-INVALID",
            "HP-SYMBOL-SEMANTIC-DRIFT", "HP-ASSUMPTION-SMUGGLE", "HP-UNDEFINED-NOTATION"}
-# fallback observability tier per pattern (taxonomy 0.4 lowest-decidable level) — used
+# fallback observability tier per pattern (taxonomy 0.5 lowest-decidable level) — used
 # ONLY when the reviewer omitted/garbled the field. ALL family-G patterns default to L1:
 # a verdict-bearing proof/derivation flaw is decided from the LaTeX SOURCE, because
 # PDF-extracted math is unreliable (mangled symbols, subscripts, equation structure) — an
@@ -674,7 +674,7 @@ ships no `save_trace.sh`, so use the **Write** tool to write these files into it
 
 ```
 $TRACE_DIR/
-  run.meta.json                  # {skill, paper_id, run_level_L, taxonomy_version:"0.4", has_proofs, generated_at}
+  run.meta.json                  # {skill, paper_id, run_level_L, taxonomy_version:"0.5", has_proofs, generated_at}
   obligation-ledger.md           # Step 1 — the EXTRACTION-ONLY scaffold (no verdicts)
   001-proof-review.request.json  # the exact prompt sent (paths + scaffold + checklist, no proof summaries)
   001-proof-review.response.md   # the FULL raw reviewer response (input to Step 3)
@@ -702,7 +702,7 @@ LEDGER="<abs path to claims.json>"; D="$(dirname "$LEDGER")"
 python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "$D/proof-derivation-forensics.findings.json" \
     --ledger "$LEDGER" \
-    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.4 \
+    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.5 \
     --out "$D/report.json" --md "$D/REPORT.md"
 ```
 
@@ -803,7 +803,7 @@ incremented per run/day — created in Step 1):
 
 | File | Written | Content |
 |------|---------|---------|
-| `run.meta.json` | Step 5 | `{skill, paper_id, run_level_L, taxonomy_version:"0.4", has_proofs, generated_at}` |
+| `run.meta.json` | Step 5 | `{skill, paper_id, run_level_L, taxonomy_version:"0.5", has_proofs, generated_at}` |
 | `obligation-ledger.md` | Step 1 | the extraction-only obligation scaffold (statements, typed symbols, obligations, anchor candidates) — **no validity verdicts** |
 | `00N-proof-review.request.json` | Step 5 | the exact prompt sent to the reviewer (paths + scaffold + checklist, no proof summary / no pre-judgment) — the **independence audit trail** |
 | `00N-proof-review.response.md` | Step 2 | the FULL raw reviewer response (the input Step 3 parsed) |

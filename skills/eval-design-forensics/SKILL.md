@@ -166,7 +166,7 @@ REVIEWER_SANDBOX      = read-only                # detect-only; never mutate the
 REVIEWER_CWD          = <paper-dir>              # so it can read claims.json + the protocol/source directly
 THREAD_POLICY         = fresh mcp__codex__codex per PASS (and per entry on fan-out);
                         NEVER mcp__codex__codex-reply across passes/entries (the bias guard)
-TAXONOMY_VERSION      = 0.4                      # references/hack-pattern-taxonomy.md (family H)
+TAXONOMY_VERSION      = 0.5                      # references/hack-pattern-taxonomy.md (family H)
 LEAKAGE_TAXONOMY      = Kapoor & Narayanan 2023  # 8 types / 3 categories — adopted, paraphrased
 PATTERNS_OWNED / ALLOWED = HP-EVAL-LEAKAGE, HP-JUDGE-VALIDITY, HP-SELECTIVE-REPORTING   # emit ONLY these
 DIMENSION             = evaluation              # SKILL_TO_DIMENSION["eval-design-forensics"]
@@ -790,7 +790,7 @@ Populate it:
 
 ```
 .aris/traces/eval-design-forensics/<date>_run<NN>/
-  run.meta.json                       # {skill, paper_id, run_level_L, taxonomy_version:"0.4", leakage_taxonomy:"K&N 2023", generated_at, not_applicable?}
+  run.meta.json                       # {skill, paper_id, run_level_L, taxonomy_version:"0.5", leakage_taxonomy:"K&N 2023", generated_at, not_applicable?}
   leakage_grep.txt / judge_grep.txt / reporting_grep.txt / hashes.txt   # Step 2 L2 facts (if L2)
   contamination_dates.json            # optional public-record date fact (if gathered)
   001-leakage.request.json            # the EXACT Step-3 prompt sent (paths + ledger + facts + taxonomy + checklist)
@@ -820,7 +820,7 @@ LEDGER="<abs path to claims.json>"; D="$(dirname "$LEDGER")"
 python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "$D/eval-design-forensics.findings.json" \
     --ledger "$LEDGER" \
-    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.4 \
+    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.5 \
     --out "$D/eval-design.report.json" --md "$D/eval-design.REPORT.md"
 # prints e.g.: verdict=SOFT_FLAGS crit=0 maj=1 min=1 -> eval-design.report.json, eval-design.REPORT.md
 ```

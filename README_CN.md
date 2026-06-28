@@ -19,13 +19,16 @@
 
 > 不管论文是谁、是什么写的,它的科学结论是否自洽、是否被自己的证据支撑?
 > Anti-Autoresearch 审查一篇投稿的**自洽性**与**造假迹象**,产出带证据锚点、
-> 可供审稿人直接使用的报告。它**不是** AI 文本检测器,也**不下学术不端的结论**——
-> 它只把"值得人去核实的矛盾点"摆出来。
+> 可供审稿人直接使用的报告。它**不是不透明的** AI 文本分类器(不输出作者概率、不下
+> "AI 写的"判定),也**不下学术不端的结论**——只把"值得人去核实的矛盾点"摆出来。另外,
+> 它会在一个**零裁决权重**的独立小节里,透明、逐条地列出 **AI 文风印象**(一篇论文可以
+> integrity-`CLEAN` 同时挂一长串),因为审稿人确实会受其影响。
 
 ---
 
 ## 📰 动态
 
+- **v0.5 (2026-06)** — 新增 **AIS 轨道**(AI 文风印象):13 个透明、逐条的写作风格信号(防御性写作、LLM 口头禅、公式墙、bullet/加粗滥用、自创代号、单一风格配图……),在**独立的零裁决权重小节**里报告 —— 一篇论文可以 integrity-`CLEAN_GIVEN_EVIDENCE` 同时挂一长串。原 family F 里 5 个纯文风模式迁入 AIS。分类法重构为 **46 个 integrity 模式(A–H)+ 13 个 AIS + 2 个 advisory**;新增 `/ai-style-impressions` skill;裁决器现在**可证明地**把零权重 finding 排除在 verdict 之外(回归测试已覆盖)。这些是透明印象,绝不是作者判定 —— 我们不是**不透明的** AI 文本分类器。
 - **v0.4 (2026-06)** — Taxonomy v0.4:**51 个 hack-pattern、8 个家族** —— A. Numeric self-consistency(数值自洽:表内·表文·增量算术对得上)· B. Method & scope(方法与范围:说的方法/范围≠实际做的)· C. Baseline integrity(baseline 诚信:对比基线缺失·偏弱·不公平)· D. Experiment integrity(实验诚信:假 GT·幽灵结果·代码≠数字,需代码)· E. Citation integrity(引用诚信:伪造·张冠李戴·撤稿)· F. Presentation & surface signals(表面信号:排版·文风·配图)· G. Proof & derivation integrity(证明诚信:漏证·循环论证·无效推导)· H. Evaluation design & validity(评测设计有效性:数据泄漏·LLM 裁判可信度·选择性报告,新增)。确定性 eval 门控由 3→8 个(含 GRIM / GRIMMER / statcheck,以及一个保守的防御性写作密度筛);新增 CI、`eval-design-forensics` skill、`HP-INVENTED-CODENAME` 表面模式、先行工作致谢。又从一篇"vibe paper 特征"帖蒸馏出两个可核查的自洽模式 —— `HP-ACRONYM-DRIFT`(family B)与 `HP-UNDEFINED-NOTATION`(family G),同时拒绝其中纯 stylometry 的项(我们不做 vibe 分类器)。
 - **v0.1 (2026-06)** — 首次发布:面向 autoresearch / AI-Scientist 论文的审稿侧诚信取证。证据账本 + 确定性裁决器 + 可观测性分层。不是 AI 文本检测器。
 
@@ -122,9 +125,9 @@ python3 tools/adjudicate_findings.py --findings findings.json --ledger claims.js
 6%、为某条主张引用了一篇根本没这么说的论文、方法描述与实际评测不一致。
 
 这些都是在**声明的可观测性层级下可核查**的。具体地,taxonomy v0.4 编码了
-**8 个家族、51 个 hack-pattern**(数值自洽 · 方法/范围 · baseline 诚信 · 实验诚信 ·
+**8 个家族、46 个 integrity 模式 + 13 个 AI 文风印象(AIS,零裁决权重)**(数值自洽 · 方法/范围 · baseline 诚信 · 实验诚信 ·
 引用诚信 · 表象/surface 信号 · 证明 & 推导诚信 · 评测设计与有效性)—— 这是本仓库的
-**覆盖词表**,而不是 "51 个检测器的 benchmark"。
+**覆盖词表**,而不是"检测器 benchmark"。
 
 > **已交付 v0:**确定性脊柱 + 带 ✓ 的 **7 个**模式(分布在下面的代表性列表和完整目录里)
 > 经 eval 测试;其余 41 个是 agent 层合同(跨模型 reviewer 提出带 span 锚点的 finding,
@@ -342,7 +345,7 @@ Problematic Paper Screener。
 ## 💬 交流群
 
 **这套分类法靠社区一起长大。** 看到某篇 autoresearch / AI-Scientist 论文耍了个
-[51 模式目录](references/hack-pattern-taxonomy.md)里还没有的花招?那是这里最有价值的贡献
+[模式目录](references/hack-pattern-taxonomy.md)里还没有的花招?那是这里最有价值的贡献
 —— 开个 issue 贴上具体例子,或直接发 PR 把这个模式补进去(配一条 eval fixture + 一个假阳
 案例,免得它乱开火)。新的 auditor skill、裁决器 gate、corruption fixture 同样欢迎。
 **[CONTRIBUTING.md](CONTRIBUTING.md)** 讲清了一个 pattern 怎么写、以及每条 flag 必须守的

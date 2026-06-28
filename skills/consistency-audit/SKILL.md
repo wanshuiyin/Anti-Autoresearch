@@ -89,7 +89,7 @@ REVIEWER_REASONING      = xhigh                    # always; effort never lowers
 REVIEWER_SANDBOX        = read-only                # detect-only; never mutate the paper
 REVIEWER_CWD            = <paper-dir>              # so it can read claims.json + sources directly
 THREAD_POLICY           = fresh mcp__codex__codex per run; NEVER mcp__codex__codex-reply
-TAXONOMY_VERSION        = 0.4                      # references/hack-pattern-taxonomy.md
+TAXONOMY_VERSION        = 0.5                      # references/hack-pattern-taxonomy.md
 DETERMINISTIC_FINDINGS  = consistency-audit.deterministic.findings.json   # Step 1 (tool)
 SEMANTIC_FINDINGS       = consistency-audit.findings.json                 # Step 4 (validated)
 TRACE_POLICY            = forensic (never silently dropped)
@@ -441,7 +441,7 @@ ledger_path, proposed_path, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
 def nw(s):                                   # mirror adjudicator _norm_ws (whitespace only)
     return " ".join((s or "").split())
 
-# fallback observability level if the reviewer omitted it (taxonomy 0.4 decidable tier)
+# fallback observability level if the reviewer omitted it (taxonomy 0.5 decidable tier)
 OBS = {"HP-NUM-INFLATE":0,"HP-APPENDIX-CONTRA":0,"HP-UNIT-DIR-MISMATCH":0,
        "HP-AGG-DRIFT":0,"HP-DENOM-DRIFT":0,"HP-METHOD-DRIFT":0,"HP-ABLATION-ATTRIB":0,
        "HP-CAPTION-MISMATCH":0,"HP-SCOPE-INFLATE":0,"HP-THEOREM-SCOPE-DRIFT":0,
@@ -578,7 +578,7 @@ python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "$D/consistency-audit.deterministic.findings.json" \
                "$D/consistency-audit.findings.json" \
     --ledger "$LEDGER" \
-    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.4 \
+    --paper-id "<PAPER_ID>" --observability-level <L> --taxonomy-version 0.5 \
     --out "$D/report.json" --md "$D/REPORT.md"
 ```
 

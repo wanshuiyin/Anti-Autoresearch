@@ -32,7 +32,9 @@ FIXED_TS = "2026-01-01T00:00:00Z"
 VRANK = {"CLEAN_GIVEN_EVIDENCE": 0, "SOFT_FLAGS": 1, "HARD_FLAGS": 2}
 
 sys.path.insert(0, HERE)
+sys.path.insert(0, TOOLS)
 import corrupt  # noqa: E402
+import adjudicate_findings as ADJ  # noqa: E402  (reuse the real zero-weight predicate)
 
 
 def run(cmd):
@@ -62,6 +64,7 @@ def audit(name, tex):
     findings = os.path.join(RUN_DIR, f"{name}.findings.json")
     pres = os.path.join(RUN_DIR, f"{name}.pres.findings.json")
     stat = os.path.join(RUN_DIR, f"{name}.stat.findings.json")
+    ais = os.path.join(RUN_DIR, f"{name}.ais.findings.json")
     report = os.path.join(RUN_DIR, f"{name}.report.json")
     md = os.path.join(RUN_DIR, f"{name}.REPORT.md")
     run([os.path.join(TOOLS, "build_claim_ledger.py"), "--paper-id", name,
@@ -69,7 +72,8 @@ def audit(name, tex):
     run([os.path.join(TOOLS, "check_numeric_consistency.py"), "--ledger", ledger, "--out", findings])
     run([os.path.join(TOOLS, "check_presentation.py"), "--ledger", ledger, "--out", pres])
     run([os.path.join(TOOLS, "check_stat_consistency.py"), "--ledger", ledger, "--out", stat])
-    run([os.path.join(TOOLS, "adjudicate_findings.py"), "--findings", findings, pres, stat,
+    run([os.path.join(TOOLS, "check_ai_style.py"), "--ledger", ledger, "--out", ais])
+    run([os.path.join(TOOLS, "adjudicate_findings.py"), "--findings", findings, pres, stat, ais,
          "--ledger", ledger, "--paper-id", name, "--observability-level", "1",
          "--generated-at", FIXED_TS, "--out", report, "--md", md])
     with open(report, encoding="utf-8") as fh:
@@ -80,7 +84,13 @@ def evaluate(name, report):
     exp_path = os.path.join(EXPECT, f"{name}.json")
     with open(exp_path, encoding="utf-8") as fh:
         exp = json.load(fh)
-    above_info = [f for f in report["findings"] if f.get("_severity_final") != "info"]
+    def _is_ais(f):
+        pid = f.get("pattern_id") or ""
+        return f.get("skill") == "ai-style-impressions" or pid.startswith("AIS-")
+
+    # INTEGRITY findings = verdict-weight-1 only; AIS impressions never count here.
+    above_info = [f for f in report["findings"]
+                  if f.get("_severity_final") != "info" and f.get("_verdict_weight", 1) == 1]
     found = {f.get("pattern_id") for f in above_info if f.get("pattern_id")}
     required = set(exp.get("required_patterns", []))
 
@@ -89,6 +99,17 @@ def evaluate(name, report):
     fp_clean = exp.get("forbidden_above_info") and len(above_info) > 0
     tp = sorted(required & found)
 
+    # AIS impressions: present REGARDLESS of severity (they are forced to info), checked
+    # against required_ais_patterns; they must NEVER carry verdict weight (the invariant).
+    ais_found = {f.get("pattern_id") for f in report["findings"] if _is_ais(f) and f.get("pattern_id")}
+    required_ais = set(exp.get("required_ais_patterns", []))
+    ais_fn = sorted(required_ais - ais_found)
+    # leak guard covers the WHOLE zero-weight class (AIS-* / ai-style-impressions / ADV-* /
+    # memo skills / deprecated HP-style ids): every one must be weight 0 AND forced to info.
+    ais_leak = [f.get("finding_id") for f in report["findings"]
+                if ADJ._is_zero_weight(f)
+                and (f.get("_verdict_weight", 1) != 0 or f.get("_severity_final") != "info")]
+
     verdict = report["overall_verdict"]
     verr = None
     if "expected_verdict" in exp and verdict != exp["expected_verdict"]:
@@ -96,15 +117,17 @@ def evaluate(name, report):
     if "min_verdict" in exp and VRANK[verdict] < VRANK[exp["min_verdict"]]:
         verr = f"verdict {verdict} < min {exp['min_verdict']}"
 
-    # every above-info finding must be span-anchored (the core invariant)
+    # every above-info INTEGRITY finding must be span-anchored (the core invariant)
     unanchored = [f["finding_id"] for f in above_info
                   if not any((e.get("span") or "").strip() for e in f.get("evidence", []))]
 
-    ok = not fn and not extra and not fp_clean and not verr and not unanchored
+    ok = not fn and not extra and not fp_clean and not verr and not unanchored \
+        and not ais_fn and not ais_leak
     return {
         "name": name, "ok": ok, "verdict": verdict,
         "tp": tp, "fn": fn, "extra": extra, "fp_clean": fp_clean, "verr": verr,
         "unanchored": unanchored, "n_above_info": len(above_info),
+        "ais_tp": sorted(required_ais & ais_found), "ais_fn": ais_fn, "ais_leak": ais_leak,
     }
 
 
@@ -132,6 +155,12 @@ def main():
             detail.append(r["verr"])
         if r["unanchored"]:
             detail.append("UNANCHORED=" + ",".join(r["unanchored"]))
+        if r.get("ais_tp"):
+            detail.append("ais=" + ",".join(r["ais_tp"]))
+        if r.get("ais_fn"):
+            detail.append("AIS-MISSED=" + ",".join(r["ais_fn"]))
+        if r.get("ais_leak"):
+            detail.append("AIS-VERDICT-LEAK=" + ",".join(r["ais_leak"]))
         print(f"{r['name']:<20}{r['verdict']:<22}{'PASS' if r['ok'] else 'FAIL':<8}"
               f"{'; '.join(detail) or 'clean'}")
         all_ok = all_ok and r["ok"]
