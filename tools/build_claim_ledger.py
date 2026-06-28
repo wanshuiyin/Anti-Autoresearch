@@ -27,6 +27,20 @@ SCOPE_WORDS = re.compile(
     r"general(?:ly|izes)?|always|all (?:tasks|datasets|settings)|first to)\b",
     re.IGNORECASE,
 )
+# Defensive-hedge cues: a *recall-oriented* net so sentences that defend against an
+# anticipated objection ("we do not claim ...", "this does not mean ...", "目的不是…而是…")
+# land in the ledger as `scope` claims even when they carry no number/citation. The
+# strict precision list that DECIDES HP-DEFENSIVE-HEDGE (and its count/section gate) lives
+# in tools/check_presentation.py (DEFENSIVE_HEDGE_PATTERNS); keep that a subset of this.
+# This is scope language, not a verdict: capturing it here only makes it anchorable.
+HEDGE_CUES = re.compile(
+    r"(we (?:do|are|did|will) not (?:claim|argu|propos|aim|seek|intend|mean|attempt|suggest)\w*|"
+    r"we make no claim|this (?:does|did|should) not (?:mean|impl|suggest)\w*|"
+    r"our (?:goal|aim|purpose|intention|objective) is not|"
+    r"\b(?:we|this (?:paper|work|study))\b[^.;:]{0,40}\bnot\b[^.;:]{1,40}\bbut rather\b|"
+    r"本文(?:并)?不(?:声称|主张|是要|旨在)|并不声称|并不主张|这并不意味|目的不是)",
+    re.IGNORECASE,
+)
 NUMBER = re.compile(r"(?<![\w.])(\d+(?:\.\d+)?)\s*(\\?%|percent|points?|pts?|x|×)?")
 CITE = re.compile(r"\\cite[a-zA-Z]*\*?(?:\[[^\]]*\])*\{([^}]*)\}")
 CAPTION = re.compile(r"\\caption\*?\{")
@@ -202,7 +216,7 @@ def extract_from_latex(path):
                         "refs": keys, "evidence_anchor": anchor,
                         "extractor": "latex_regex", "confidence": "high",
                     })
-                if SCOPE_WORDS.search(sent):
+                if SCOPE_WORDS.search(sent) or HEDGE_CUES.search(sent):
                     claims.append({
                         "type": "scope", "text_span": sent[:400],
                         "location": {"file": path, "line": start, "section": sec},
@@ -239,7 +253,7 @@ def extract_from_text(path):
                     "evidence_anchor": anchor, "extractor": "pdf_text",
                     "confidence": "low",
                 })
-            if SCOPE_WORDS.search(sent):
+            if SCOPE_WORDS.search(sent) or HEDGE_CUES.search(sent):
                 claims.append({"type": "scope", "text_span": sent[:400],
                                "location": {"file": path, "section": "unknown"},
                                "evidence_anchor": anchor, "extractor": "pdf_text",

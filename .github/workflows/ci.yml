@@ -19,5 +19,7 @@ jobs:
         run: python3 -m py_compile tools/*.py tests/*.py
       - name: Adjudicator unit tests (the anti-slop invariants)
         run: python3 tests/test_adjudicator.py
+      - name: Presentation-screen unit tests (HP-DEFENSIVE-HEDGE FP boundaries)
+        run: python3 tests/test_presentation.py
       - name: Eval harness (clean + corruption fixtures — 100% recall, 0 clean FP)
         run: python3 eval/run_eval.py

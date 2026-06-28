@@ -63,7 +63,7 @@ which is the intersection of three things:
    *not* new, but prior work is either deterministic-but-narrow (statcheck/GRIM: one
    psychology NHST / means surface) or broad-but-LLM-scored (RIGOURATE: a single
    model-graded overstatement number). Our edge here is the **breadth** of the check —
-   across all seven taxonomy families — paired with the deterministic adjudicator and
+   across all eight taxonomy families — paired with the deterministic adjudicator and
    observability tiers below.
 2. **Fabrication forensics** specialized to pipeline failure modes — phantom
    results, fake/derived ground truth, self-normalized scores, missing/mistuned

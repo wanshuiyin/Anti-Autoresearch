@@ -2,8 +2,8 @@
 
 ```
 taxonomy_version: 0.4
-last_reviewed: 2026-06-26
-patterns: 48 hard (families A–H) + 2 advisory (no verdict weight)
+last_reviewed: 2026-06-28
+patterns: 49 hard (families A–H) + 2 advisory (no verdict weight)
 status: living document — versioned; the version is stamped into every report
 ```
 
@@ -528,8 +528,10 @@ demoted to `info`.
 
 ### HP-AI-FLAVOR — generic LLM-flavored prose
 - **level:** L0
-- **signals:** hallmarks of unedited LLM text (boilerplate transitions, hedged
-  filler, uniform paragraph shapes). **Gross cases only.**
+- **signals:** hallmarks of unedited LLM text — connective filler overused as a tic
+  ("It is worth noting that", "值得注意的是", "意义在于", "not only … but also", chains of
+  "however / therefore / moreover"), hedged filler, uniform paragraph shapes. **Gross cases
+  only.** Distinct from HP-DEFENSIVE-HEDGE (the specific not-X-but-Y defensive posture).
 - **fp_cases:** huge — many honest authors use LLM assistance; non-native writing;
   house style. This is the single most FP-prone pattern in the taxonomy.
 - **severity_rule:** minor (capped); very high FP. **Never** treat as evidence of
@@ -537,17 +539,43 @@ demoted to `info`.
 - **min_evidence:** representative span(s) — illustrative, not probative.
 
 ### HP-DEFENSIVE-HEDGE — defensive "not X but Y" hedging instead of stating what was done
-- **level:** L0
-- **signals:** a high *density* of "this paper is not X, but rather Y" / "we do not claim …;
-  instead …" constructions, where the text defends against anticipated objections rather than
-  directly stating what was built and shown. The checkable signal is the recurrence of the
-  defensive-contrast shape, **not** who wrote it — do not infer AI authorship or editing
-  provenance. (Reviewer: "本文不是什么什么，而是什么什么…论文应该直接表达做了什么".) Differs
-  from HP-AI-FLAVOR: that is generic LLM-flavored prose; this is the specific not-X-but-Y
-  rhetorical posture, regardless of authorship.
-- **fp_cases:** a single deliberate scoping sentence; a genuine related-work contrast.
-- **severity_rule:** minor (capped, surface-only); high FP.
-- **min_evidence:** representative hedge spans (≥2).
+- **level:** L0 (a conservative deterministic density arm in `tools/check_presentation.py`,
+  `DEFENSIVE_HEDGE_PATTERNS`; plus the agent-layer reading for sub-threshold cases)
+- **signals:** a high *density* of defensive-contrast constructions that defend against an
+  anticipated objection instead of directly stating what was built and shown. The curated
+  strong templates the deterministic screen counts: "we do not claim …", "we make no claim",
+  "this paper does not (claim/argue/prove) …", "this does not mean/imply …", "our goal is not
+  X but (rather) Y", "not X but rather Y"; 中文 "本文并不主张 / 本文不是要证明 / 这并不意味着 /
+  我们的目的不是…而是…". A sharper sub-signal: the text **volunteers a self-incriminating
+  limitation** that flags an attack surface a reviewer would not otherwise raise (e.g. "We do
+  not claim our cases are representative of all contexts" — which makes a reviewer think
+  *representativeness is a problem here*). The checkable signal is the **recurrence of the
+  hedge shape, NOT who wrote it** — never infer AI authorship or editing provenance. (Reviewer:
+  "本文不是什么什么，而是什么什么…论文应该直接表达做了什么"; another likens defensive patches to
+  "往有细小裂纹的瓷器上糊泥巴" —补上问题反而提醒别人这里有问题且破坏整体性.) Differs from
+  HP-AI-FLAVOR: that is generic LLM-flavored prose; this is the specific not-X-but-Y posture.
+- **deterministic screen:** fires only on a genuine PATTERN — ≥4 distinct stance-constrained
+  strong-template `scope` sentences across ≥2 non-excluded sections (excluding Limitations /
+  Related-Work / Ethics / Broader-Impact, where a hedge is expected) **and** ≥25% of all
+  non-excluded scope sentences. One scoping sentence never trips it (precision >> recall). A bare
+  "not X but rather Y" needs an author/paper-stance subject to count (so "not convex but rather
+  piecewise smooth" is ignored). PDF-text ledgers label every claim section `unknown`, so this
+  deterministic arm is effectively silent unless LaTeX section labels exist; the agent-layer
+  reading covers those cases.
+- **fp_cases:** a single deliberate scoping sentence; a genuine related-work contrast; a
+  Limitations paragraph (expected to hedge). **Note the real tension:** some venues / AI
+  reviewers penalize the *absence* of caveats, so measured hedging is a legitimate strategic
+  choice, **not** misconduct — which is exactly why this stays capped at minor and never
+  verdict-bearing.
+- **severity_rule:** minor (capped, surface-only); high FP. **Never** an authorship /
+  AI-generation verdict.
+- **routing:** if a specific hedge instead reveals a *real* scope/evaluation limitation, route
+  THAT to HP-SCOPE-INFLATE (family B) or eval-design-forensics (family H) — the substantive
+  problem, not the rhetorical shape.
+- **min_evidence:** representative hedge spans (≥2), span-anchored to the ledger.
+- **ack:** a widely-shared 2026 community thread on "防御性写作" in AI-assisted paper revision
+  (the not-X-but-Y posture, pre-emptive self-incrimination, and invented codenames — the last
+  captured as HP-INVENTED-CODENAME).
 
 ### HP-NARRATIVE-ARC-BREAK — abstract / intro lacks the expected substantive arc
 - **level:** L0
@@ -558,6 +586,26 @@ demoted to `info`.
 - **fp_cases:** a legitimately terse abstract; non-native phrasing; field conventions.
 - **severity_rule:** minor (capped, surface-only); high FP.
 - **min_evidence:** the abstract/intro span + which arc element is missing.
+
+### HP-INVENTED-CODENAME — undefined internal project/run codename written into the paper
+- **level:** L0 (semantic — **agent-layer only, no deterministic detector**: judging "internal-
+  flavored undefined codename vs legitimate method name" is not regex-able without heavy FP)
+- **signals:** an experiment/run/system **codename that reads like a generation-pipeline
+  internal label** appears in a table, caption, section heading, or core-results sentence and is
+  **never defined** — and it is not the paper's formal method name, a standard dataset/split, an
+  ablation label, or a config id. (Community observation: "agent 喜欢自创一些代号写进论文里" — an
+  agent referring to its own runs as, say, "Experiment Set Gamma" / "PHX-v3" that the paper never
+  introduces.) The checkable signal is an **undefined identifier used as if defined**, not who
+  wrote it — no stylometry, no authorship verdict.
+- **fp_cases:** legitimate named methods/systems; established benchmark/split names; deliberate
+  internal-but-defined release tags; ablation labels defined elsewhere. Very high FP — require the
+  codename to be (a) undefined in the text AND (b) load-bearing (≥2 occurrences or in a results
+  table), else do not raise.
+- **severity_rule:** minor (capped, surface-only); high FP. Recommended action is only "ask the
+  authors to define the term or de-internalize the naming." Never a misconduct/authorship verdict.
+- **routing:** if the codename points to a **missing results file / unreproducible run**, that is
+  HP-MISSING-REPRO-ARTIFACT or HP-PHANTOM-RESULT (family D, L2) — not this surface signal.
+- **min_evidence:** the codename span(s) + the absence of any defining sentence.
 
 ## G. Proof & derivation integrity (verdict-bearing at L1 — needs the LaTeX source · CAN be critical)
 

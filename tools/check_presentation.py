@@ -54,6 +54,41 @@ PIPELINE_ARTIFACT_PHRASES = (
     # legitimate HCI / web / accessibility prose. Precision >> recall: when in doubt, leave out.)
 )
 
+# --- HP-DEFENSIVE-HEDGE -------------------------------------------------------------
+# A DENSITY screen for defensive "we do not claim … / not X but rather Y" writing — the
+# rhetorical posture of defending against anticipated objections instead of stating what
+# was done. UNLIKE HP-PIPELINE-ARTIFACT this is NOT a low-FP exact match: one scoping
+# sentence is legitimate (and a Limitations section SHOULD hedge). So this is a deliberately
+# CONSERVATIVE sieve — it fires ONLY on a genuine pattern (many STRONG hedges across
+# multiple non-excluded sections), is capped at minor like every family-F signal, and flags
+# the RECURRENCE of the shape, never who wrote it (no stylometry, no authorship/AI verdict).
+# Keep these strict templates a SUBSET of build_claim_ledger.HEDGE_CUES — that recall-net is
+# what gets pure-prose hedges into the ledger so this screen has anchored spans to cite.
+DEFENSIVE_HEDGE_PATTERNS = (
+    r"\bwe do not claim\b",
+    r"\bwe make no claim\b",
+    r"\bwe are not (?:claiming|proposing|arguing|suggesting)\b",
+    r"\bwe do not (?:aim|seek|intend|attempt|propose|argue|wish) to\b",
+    r"\bthis (?:does|did|should) not (?:mean|imply|suggest)\b",
+    r"\bthis paper (?:does not|is not meant to|is not intended to) (?:claim|argue|prove|show|establish)\b",
+    r"\bour (?:goal|aim|purpose|intention|objective) is not\b[^.;:]{0,60}\bbut\b",
+    # "not X but rather Y" ONLY in an author/paper-stance context — a bare not-but-rather
+    # ("not convex but rather piecewise smooth") is a normal technical contrast, not a hedge.
+    r"\b(?:we|this (?:paper|work|study))\b[^.;:]{0,40}\bnot\b[^.;:]{1,40}\bbut rather\b",
+    r"本文(?:并)?不(?:声称|主张|是要证明|旨在)",
+    r"并不声称",
+    r"并不主张",
+    r"这并不意味着",
+    r"目的不是[^。;:]{0,40}而是",
+)
+# Hedges in these sections are EXPECTED and legitimate; never counted toward the screen.
+HEDGE_EXCLUDED_SECTION = re.compile(
+    r"limitation|related[\s_-]*work|ethic|broader[\s_-]*impact|acknowledg", re.IGNORECASE)
+HEDGE_MIN_SENTENCES = 4   # distinct hedge sentences required to fire (conservative)
+HEDGE_MIN_SECTIONS = 2    # ...spread across at least this many non-excluded sections
+HEDGE_MIN_RATIO = 0.25    # ...AND hedges must be >=this fraction of all scope sentences, so a
+                          # long honest paper with a few scattered caveats stays below threshold
+
 
 def _anchorable(s):
     """Mirror the adjudicator's `_anchorable` on the WHITESPACE-NORMALIZED span (the
@@ -203,6 +238,84 @@ def check_pipeline_artifacts(claims, start=0):
     return findings
 
 
+def check_defensive_hedge(claims, start=0):
+    """Deterministic family-F DENSITY screen for defensive-hedge writing
+    (HP-DEFENSIVE-HEDGE). Scans ledger claim spans for STRONG defensive templates and
+    fires ONE finding only when the paper shows a genuine pattern: at least
+    HEDGE_MIN_SENTENCES distinct hedge sentences spread across at least HEDGE_MIN_SECTIONS
+    non-excluded sections. Conservative by design (precision >> recall), capped at minor by
+    the adjudicator's SURFACE gate, and NEVER an authorship/AI-generation verdict — it flags
+    the recurrence of the hedge SHAPE only. Hits in limitations/related-work/ethics sections
+    are not counted (a hedge there is expected). ``start`` offsets the PRES### id counter so
+    it shares a namespace with the other presentation checks collision-free."""
+    rx = [re.compile(p, re.IGNORECASE) for p in DEFENSIVE_HEDGE_PATTERNS]
+    seen_scope, scope_total = set(), 0     # distinct non-excluded `scope` claims (the denominator)
+    seen_hit, hits = set(), []
+    for c in claims:
+        # Only `scope`-language claims (precision): a hedge that also carries a number/citation
+        # still gets its OWN scope claim from build_claim_ledger.HEDGE_CUES, so nothing is lost —
+        # and we avoid scanning every numeric sentence for a stray "not … but".
+        if c.get("type") != "scope":
+            continue
+        span_text = c.get("text_span")
+        if not isinstance(span_text, str) or not span_text:
+            continue
+        loc = c.get("location", {})
+        sec = loc.get("section", "") or ""
+        if HEDGE_EXCLUDED_SECTION.search(sec):     # a hedge in Limitations/Related-Work is expected
+            continue
+        norm = " ".join(span_text.split())
+        key = (sec, norm)                          # dedup by (section, normalized sentence)
+        if key not in seen_scope:
+            seen_scope.add(key)
+            scope_total += 1                       # denominator: every distinct scope sentence
+        if not any(r.search(span_text) for r in rx):
+            continue
+        if key in seen_hit:
+            continue
+        seen_hit.add(key)
+        hits.append({"claim_id": c.get("claim_id"), "span": norm[:300], "location": loc,
+                     "anchor": c.get("evidence_anchor", ""), "section": sec})
+    sections = {h["section"] for h in hits}
+    # Fire ONLY on a genuine pattern: enough distinct hedges, spread across sections, AND a
+    # high-enough share of the paper's scope language (so a few scattered caveats in a long
+    # honest paper stay below threshold). NB: PDF-only ledgers carry section "unknown" for every
+    # claim, so the >=2-section gate makes this effectively LaTeX-decided — conservative by design.
+    if (len(hits) < HEDGE_MIN_SENTENCES or len(sections) < HEDGE_MIN_SECTIONS
+            or len(hits) < HEDGE_MIN_RATIO * scope_total):
+        return []
+    evidence = [{"claim_id": h["claim_id"], "span": h["span"], "location": h["location"],
+                 "artifact_hash": h["anchor"]} for h in hits[:3]]
+    sec_list = ", ".join(sorted(s for s in sections if s)) or "multiple sections"
+    return [{
+        "finding_id": f"PRES{start + 1:03d}",
+        "skill": "presentation-signals",
+        "pattern_id": "HP-DEFENSIVE-HEDGE",
+        "title": "Pervasive defensive-hedge writing across multiple sections",
+        "description": (
+            f"{len(hits)} distinct defensive-hedge constructions (e.g. \"we do not claim …\", "
+            f"\"not X but rather Y\") across {len(sections)} non-excluded sections ({sec_list}). "
+            f"The text repeatedly defends against anticipated objections instead of directly "
+            f"stating what was done, which lowers information density and can flag attack "
+            f"surface to a reviewer. The checkable signal is the RECURRENCE of the hedge shape "
+            f"— NOT who wrote it: this is not stylometry and not an authorship/AI-generation "
+            f"verdict. If a specific hedge instead reveals a real scope/evaluation limitation, "
+            f"route THAT to HP-SCOPE-INFLATE / eval-design-forensics (substantive), not this "
+            f"surface signal."),
+        "severity": "minor",                          # capped (family F); SURFACE gate
+        "observability_level_required": 0,
+        "evidence": evidence,
+        "verdict_local": "warn",
+        "reviewer": {"deterministic": True},
+        "false_positive_risk": "high",
+        "recommended_reviewer_action": (
+            "Skim the cited sentences: if the paper over-hedges in its contribution/body "
+            "(rather than confining caveats to a single Limitations paragraph), suggest "
+            "stating results directly. This is a presentation signal, not evidence of "
+            "misconduct or AI authorship; hedges in Limitations/Related-Work are excluded."),
+    }]
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Deterministic surface-signal checks.")
     ap.add_argument("--ledger", required=True, help="claims.json from build_claim_ledger.py")
@@ -214,12 +327,14 @@ def main(argv=None):
     claims = ledger.get("claims", [])
     findings = check_duplicate_tables(claims)
     findings += check_pipeline_artifacts(claims, start=len(findings))   # share PRES### ids
+    findings += check_defensive_hedge(claims, start=len(findings))      # share PRES### ids
     with open(args.out, "w", encoding="utf-8") as fh:
         json.dump(findings, fh, indent=2, ensure_ascii=False)
     n_dup = sum(1 for f in findings if f["pattern_id"] == "HP-DUP-TABLE")
     n_pipe = sum(1 for f in findings if f["pattern_id"] == "HP-PIPELINE-ARTIFACT")
+    n_hedge = sum(1 for f in findings if f["pattern_id"] == "HP-DEFENSIVE-HEDGE")
     print(f"presentation findings: {len(findings)} "
-          f"({n_dup} dup-table, {n_pipe} pipeline-artifact) -> {args.out}")
+          f"({n_dup} dup-table, {n_pipe} pipeline-artifact, {n_hedge} defensive-hedge) -> {args.out}")
     return 0
 
 

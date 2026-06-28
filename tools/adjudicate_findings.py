@@ -55,7 +55,7 @@ SURFACE_ONLY_SKILLS = {"presentation-signals"}
 SURFACE_PATTERNS = {"HP-DUP-TABLE", "HP-THIN-FLOAT", "HP-LLM-FIGURE",
                     "HP-PAGE-PADDING", "HP-JARGON-STUFF", "HP-AI-FLAVOR",
                     "HP-DEFENSIVE-HEDGE", "HP-NARRATIVE-ARC-BREAK",
-                    "HP-PIPELINE-ARTIFACT"}
+                    "HP-INVENTED-CODENAME", "HP-PIPELINE-ARTIFACT"}
 FP_CAP = {"high": "minor", "medium": "major", "low": "critical"}
 
 
