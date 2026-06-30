@@ -109,6 +109,29 @@ def test_corruption_uses_these_hedges():
         assert sent in repl, f"corrupt.py defensive_hedge drifted from the tests: {sent!r}"
 
 
+def test_borrowed_patterns_in_sync():
+    """Patterns cross-referenced from anti-defensive-writing (MIT) must each be matched by a
+    DEFENSIVE_HEDGE_PATTERNS template AND caught by build_claim_ledger.HEDGE_CUES (so they
+    reach the ledger as scope claims), and stay stance-constrained (no bare technical contrast)."""
+    rx = [re.compile(p, re.IGNORECASE) for p in A.DEFENSIVE_HEDGE_PATTERNS]
+    hits = [
+        "This is not to say that simpler models are useless.",
+        "This should not be taken to mean that the method always wins.",
+        "Rather than arguing for a new paradigm, this paper argues for a small fix.",
+        "The goal of this paper is not to maximize accuracy but to isolate the effect.",
+    ]
+    for s in hits:
+        assert any(r.search(s) for r in rx), f"no strict template matches: {s!r}"
+        assert L.HEDGE_CUES.search(s), f"HEDGE_CUES misses (won't reach ledger): {s!r}"
+    # stance guard: a bare technical "rather than X, Y" with no author subject must NOT match
+    assert not any(r.search("Rather than convexity, the operator assumes smoothness.") for r in rx)
+    # "not only ... but also" is legitimate contribution framing, NOT defensive hedging
+    assert not any(r.search(
+        "The goal of this paper is not only to describe the method but also to evaluate it.") for r in rx)
+    assert not any(r.search(
+        "Our goal is not only to maximize accuracy but also to stay interpretable.") for r in rx)
+
+
 def _run():
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     for fn in fns:

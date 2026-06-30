@@ -2,7 +2,7 @@
 
 ```
 taxonomy_version: 0.5
-last_reviewed: 2026-06-28
+last_reviewed: 2026-07-01
 patterns: 46 integrity (families A–H) + 13 AI-style impressions (AIS · zero verdict weight) + 2 advisory (zero verdict weight)
 status: living document — versioned; the version is stamped into every report
 ```
@@ -748,7 +748,8 @@ demoted to `info`.
 ### AIS-LLM-PHRASE-TICS — generic LLM phrasing tics
 - **level:** L0 (impression; zero verdict weight). The single most FP-prone signal.
 - **signals:** connective filler overused as a tic — "it is worth noting" / "值得注意的是" / "意义在于",
-  "not only … but also", chains of "however / therefore / moreover", clichéd em-dashes / semicolons,
+  "not only … but also", chains of redundant "however / nevertheless / although / therefore / moreover"
+  transitions, clichéd em-dashes / semicolons,
   "therefore" mid-sentence, flowery empty adverbs ("elegantly", "theoretically"). **Gross cases only.**
 - **fp_cases:** HUGE — honest LLM-assisted writing, non-native English, house style. If in doubt, do not flag.
 - **routing:** none (pure style).
@@ -757,14 +758,21 @@ demoted to `info`.
 ### AIS-DEFENSIVE-HEDGE — pervasive defensive "not X but Y" hedging
 - **level:** L0 (impression; zero verdict weight). Has a deterministic density screen in `tools/check_ai_style.py`.
 - **signals:** high density of "we do not claim …", "this paper does not …", "this does not mean", "our goal
-  is not X but Y", "not X but rather Y"; 中文 "本文并不主张 / 这并不意味着 / 目的不是…而是…". Deterministic screen:
+  is not X but Y", "not X but rather Y", "this is not to say", "this should not be taken to mean", "rather than
+  arguing X, we argue Y", "the goal of this paper is not X but Y"; 中文 "本文并不主张 / 这并不意味着 / 目的不是…而是…". Deterministic screen:
   ≥4 stance-constrained strong-template scope sentences across ≥2 non-excluded sections AND ≥25% of scope
   sentences (excludes Limitations/Related-Work/Ethics). The checkable signal is the recurrence of the SHAPE,
   not who wrote it.
 - **fp_cases:** one scoping sentence; a Limitations paragraph (expected to hedge); some venues penalize the
   ABSENCE of caveats, so measured hedging is a legitimate strategic choice.
 - **routing:** if a hedge reveals a real scope/eval limitation → HP-SCOPE-INFLATE (B) / eval-design-forensics (H).
+- **also (agent-layer, gross cases only):** excessive modal hedging (may / could / potentially piled up),
+  caveats placed in high-impact positions, a paragraph that *opens* with a limitation, or a self-undermining
+  contribution statement — flag only when it repeatedly weakens the main claim in a high-impact section
+  (abstract / introduction / contribution / topic sentence), never in a Limitations section.
 - **min_evidence:** representative hedge spans (≥2), span-anchored.
+- **ack:** the discouraged-construction list is cross-referenced with Kiterlin/anti-defensive-writing (MIT) —
+  the author-side dual that *revises* defensive writing; here we only flag it, zero-weight.
 
 ### AIS-JARGON-STUFF — term-stuffing without substance
 - **level:** L0 (impression; zero verdict weight)
