@@ -37,6 +37,9 @@ HEDGE_CUES = re.compile(
     r"(we (?:do|are|did|will) not (?:claim|argu|propos|aim|seek|intend|mean|attempt|suggest)\w*|"
     r"we make no claim|this (?:does|did|should) not (?:mean|impl|suggest)\w*|"
     r"our (?:goal|aim|purpose|intention|objective) is not|"
+    r"this is not to say|this should not be taken to|"
+    r"rather than (?:arguing|claiming|proposing|suggesting)|"
+    r"the (?:goal|aim|purpose|objective) of (?:this paper|this work|this study|the paper)|"
     r"\b(?:we|this (?:paper|work|study))\b[^.;:]{0,40}\bnot\b[^.;:]{1,40}\bbut rather\b|"
     r"本文(?:并)?不(?:声称|主张|是要|旨在)|并不声称|并不主张|这并不意味|目的不是)",
     re.IGNORECASE,

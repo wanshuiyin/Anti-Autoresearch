@@ -32,10 +32,17 @@ DEFENSIVE_HEDGE_PATTERNS = (
     r"\bwe do not (?:aim|seek|intend|attempt|propose|argue|wish) to\b",
     r"\bthis (?:does|did|should) not (?:mean|imply|suggest)\b",
     r"\bthis paper (?:does not|is not meant to|is not intended to) (?:claim|argue|prove|show|establish)\b",
-    r"\bour (?:goal|aim|purpose|intention|objective) is not\b[^.;:]{0,60}\bbut\b",
+    r"\bour (?:goal|aim|purpose|intention|objective) is not\b(?!\s+(?:only|merely|simply|just)\b)[^.;:]{0,60}\bbut\b",
     # "not X but rather Y" ONLY in an author/paper-stance context — a bare not-but-rather
     # ("not convex but rather piecewise smooth") is a normal technical contrast, not a hedge.
     r"\b(?:we|this (?:paper|work|study))\b[^.;:]{0,40}\bnot\b[^.;:]{1,40}\bbut rather\b",
+    # additional author-stance defensive constructions, cross-referenced with the discouraged-
+    # pattern list of Kiterlin/anti-defensive-writing (MIT) — the author-side dual that revises
+    # defensive writing. Kept stance-constrained so normal technical contrasts don't trip them.
+    r"\bthis is not to say\b",
+    r"\bthis should not be taken to (?:mean|imply|suggest)\b",
+    r"\brather than (?:arguing|claiming|proposing|suggesting)\b[^.;:]{0,60}\b(?:we|this (?:paper|work|study))\b",
+    r"\bthe (?:goal|aim|purpose|objective) of (?:this paper|this work|this study|the paper)\b[^.;:]{0,40}\bis not\b(?!\s+(?:only|merely|simply|just)\b)[^.;:]{0,60}\bbut\b",
     r"本文(?:并)?不(?:声称|主张|是要证明|旨在)",
     r"并不声称",
     r"并不主张",

@@ -422,6 +422,7 @@ only.
 
 **Author-side self-audit (evaluated, scope-bounded).**
 - **academic-integrity-skill** — 1anj. An author-side, wet-lab/biomedical self-audit skill (image-forensics-heavy). We evaluated its non-image deterministic screens — raw-data terminal-digit / exact-duplicate forensics (last-digit / Benford tradition) and reported-vs-source reconciliation — and adopt neither as a check: digit forensics need raw per-sample tables our reviewer-side tiers rarely see, and reported-vs-source overlaps family D. Credited as prior art and the author-side counterpart to this reviewer-side toolkit. *(MIT.)*
+- **anti-defensive-writing** — Kiterlin. An author-side Codex skill that *revises* defensive writing (removes unnecessary caveats/hedges, strengthens prose). The clean **dual** of our `AIS-DEFENSIVE-HEDGE`: they fix it for the author, we flag it for the reviewer (zero-weight). We cross-referenced its discouraged-construction list to extend our deterministic hedge templates ("this is not to say", "this should not be taken to mean", "rather than arguing X, we argue Y"). *(MIT.)*
 
 Anti-Autoresearch's own contribution is not any single one of these checks but their
 **combination** into an autoresearch-specific taxonomy under a deterministic adjudicator
@@ -442,6 +443,7 @@ gathered 2026-06-27; not a ranking).
 | [allenai/scifact](https://github.com/allenai/scifact) | 265 | 2023-10 | Claim verification against evidence — the claim–evidence framing, applied to external literature rather than the paper's own. |
 | [DEFENSE-SEU/FactReview](https://github.com/DEFENSE-SEU/FactReview) | 70 | 2026-06 | Closest *framing* neighbor: an LLM reviewer that audits empirical claims and makes **no** accept/reject call. Differs by grounding against external literature + **executing the repo** (an L3 move we refuse) and model-produced claim statuses — vs our deterministic self-consistency + observability taxonomy. *(AGPL-3.0)* |
 | [1anj/academic-integrity-skill](https://github.com/1anj/academic-integrity-skill) | 51 | 2026-05 | Closest *sibling skill*, mirror stance: an **author-side** wet-lab/biomedical self-audit skill (image-forensics-heavy — blot/microscopy/flow, which we exclude). Authors self-check pre-submission vs us auditing third-party autoresearch output; its numeric/citation screens run on the author's raw data tables, not reviewer-side PDF/LaTeX. *(MIT)* |
+| [Kiterlin/anti-defensive-writing](https://github.com/Kiterlin/anti-defensive-writing) | 10 | 2026-06 | Author-side **dual** of our `AIS-DEFENSIVE-HEDGE`: a Codex skill that *revises* defensive writing (caveats/hedges → direct, claim-forward prose). They fix it pre-submission; we flag it reviewer-side at zero verdict weight. We cross-referenced its discouraged-construction list to extend our hedge templates. *(MIT)* |
 | [ahans30/Binoculars](https://github.com/ahans30/Binoculars) | 390 | 2024-05 | AI-text detector — **what we are NOT**: it answers "was this LLM-written?", a question orthogonal to integrity. |
 | [baoguangsheng/fast-detect-gpt](https://github.com/baoguangsheng/fast-detect-gpt) | 414 | 2026-02 | AI-text detector — same boundary; stylometry ≠ integrity. |
 
