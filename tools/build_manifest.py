@@ -32,7 +32,7 @@ def detect(d):
     def has(pat):
         return sorted(glob.glob(os.path.join(d, pat)))
     tex = has("*.tex") + has("**/*.tex")
-    pdf = has("*.pdf")
+    pdf = has("*.pdf") + has("**/*.pdf")
     bib = has("*.bib") + has("**/*.bib")
     # a repo = a code dir or loose source files
     repo_dirs = [p for p in ("code", "src", "repo") if os.path.isdir(os.path.join(d, p))]
