@@ -6,10 +6,12 @@ One ranking, consumed everywhere a pipeline needs THE paper PDF (evidence-ledger
 Step 0 text extraction; build_manifest primary-first artifact ordering). Scan scope
 is root + one subdirectory level, matching build_manifest.detect(). Pure stdlib.
 
-Rule (issue #11): a PDF that lives in an asset directory (figures/, images/, ...)
-AND has no paper-like basename is never selected — on a figures-only directory the
+Rule (issue #11): a PDF that looks like an asset — it lives in an asset directory
+(figures/, images/, ...) OR carries a figure-like basename (fig1.pdf, supplement.pdf)
+— and has no paper-like basename is never selected; on a figures-only directory the
 honest answer is "no primary PDF", not "extract text from a figure". Silent-wrong
-is worse than no-signal in an integrity tool.
+is worse than no-signal in an integrity tool. Among non-assets, a paper-like
+basename anywhere beats an unnamed root PDF; root beats subdirs on ties.
 
 CLI: python3 tools/select_primary_pdf.py DIR
      prints the primary PDF path (absolute) and exits 0; exits 1 with no output
@@ -25,10 +27,9 @@ ASSET_DIRS = {"figures", "figs", "fig", "assets", "images", "img", "plots",
 POSITIVE_NAME = re.compile(
     r"(?i)^(paper|main|manuscript|submission|article|camera[-_]?ready|preprint|final)"
     r"([-_.].*)?$")
-
-
-def _is_asset(relpath):
-    return any(seg.lower() in ASSET_DIRS for seg in relpath.split(os.sep)[:-1])
+FIGURE_NAME = re.compile(
+    r"(?i)^(fig(ure)?s?\d*|plot\d*|supp(lement(ary)?)?|appendix|poster|slides?)"
+    r"([-_.].*)?$")
 
 
 def _is_positive(relpath):
@@ -36,25 +37,33 @@ def _is_positive(relpath):
     return bool(POSITIVE_NAME.match(stem))
 
 
+def _is_assetlike(relpath):
+    if any(seg.lower() in ASSET_DIRS for seg in relpath.split(os.sep)[:-1]):
+        return True
+    stem = os.path.splitext(os.path.basename(relpath))[0]
+    return bool(FIGURE_NAME.match(stem))
+
+
 def rank_pdfs(paths, base):
     """Deterministic primary-first ordering of PDF paths (relative or absolute).
-    Root level first, asset dirs demoted, paper-like basenames promoted."""
+    Asset-looking PDFs (asset dir or figure-like basename) demoted; paper-like
+    basenames promoted even from a subdir; root beats subdirs on ties."""
     def key(p):
         rel = os.path.relpath(p, base)
-        return (rel.count(os.sep) > 0,          # root level beats any subdir
-                _is_asset(rel),                 # non-asset dir beats asset dir
+        return (_is_assetlike(rel),             # non-asset beats asset (dir or name)
                 not _is_positive(rel),          # paper-like name beats other names
+                rel.count(os.sep) > 0,          # root beats subdirs on ties
                 rel.count(os.sep), rel)         # shallower, then lexicographic
     return sorted(paths, key=key)
 
 
 def select_primary(paths, base):
-    """Best candidate, or None when no candidate is confident (every PDF sits in
-    an asset dir without a paper-like name)."""
+    """Best candidate, or None when no candidate is confident (every PDF is
+    asset-looking without a paper-like name)."""
     ranked = rank_pdfs(paths, base)
     for p in ranked:
         rel = os.path.relpath(p, base)
-        if not _is_asset(rel) or _is_positive(rel):
+        if not _is_assetlike(rel) or _is_positive(rel):
             return p
     return None
 

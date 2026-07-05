@@ -50,11 +50,28 @@ def test_figures_only_yields_none():
         assert S.select_primary(paths, d) is None
 
 
-def test_any_root_pdf_is_confident():
-    # a lone root PDF is the paper regardless of its name (pre-fix behavior kept)
+def test_unnamed_root_pdf_is_confident():
+    # a lone root PDF with a non-figure name is the paper (pre-fix behavior kept)
     with tempfile.TemporaryDirectory() as d:
         paths = _mk(d, "response-letter.pdf")
         assert S.select_primary(paths, d) == os.path.join(d, "response-letter.pdf")
+
+
+def test_figure_named_root_pdf_is_not_confident():
+    # root location does not launder a figure-like basename (codex review finding):
+    # fig1.pdf at root loses to a positive-name subdir PDF, and alone it is no pick
+    with tempfile.TemporaryDirectory() as d:
+        paths = _mk(d, "fig1.pdf", os.path.join("sections", "main.pdf"))
+        assert S.select_primary(paths, d) == os.path.join(d, "sections", "main.pdf")
+    with tempfile.TemporaryDirectory() as d:
+        paths = _mk(d, "fig1.pdf")
+        assert S.select_primary(paths, d) is None
+
+
+def test_positive_subdir_name_beats_unnamed_root():
+    with tempfile.TemporaryDirectory() as d:
+        paths = _mk(d, "zz.pdf", os.path.join("sections", "main.pdf"))
+        assert S.select_primary(paths, d) == os.path.join(d, "sections", "main.pdf")
 
 
 def test_rank_is_input_order_independent():
@@ -64,9 +81,9 @@ def test_rank_is_input_order_independent():
         fwd = S.rank_pdfs(paths, d)
         rev = S.rank_pdfs(list(reversed(paths)), d)
         assert fwd == rev
-        # root beats non-asset subdir beats asset subdir
+        # paper-like name beats unnamed root beats asset PDF
         rels = [os.path.relpath(p, d) for p in fwd]
-        assert rels == ["zz.pdf", os.path.join("sections", "main.pdf"),
+        assert rels == [os.path.join("sections", "main.pdf"), "zz.pdf",
                         os.path.join("figures", "fig.pdf")]
 
 

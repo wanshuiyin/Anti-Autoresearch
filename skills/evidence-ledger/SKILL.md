@@ -126,11 +126,14 @@ fi
 
 # No LaTeX? Extract PDF text now (best spans available at L0). -layout preserves table columns.
 if ! find "$PAPER_DIR" -name '*.tex' -not -path '*/.aris/*' | grep -q .; then
-    # Deterministic primary-PDF pick (issue #11): root-first, asset dirs (figures/,
-    # images/, supplement*/ …) demoted, paper-like basenames promoted. A dir holding
-    # ONLY figure/supplement PDFs yields NO pick — the run then stops honestly at
-    # "no source text" instead of building the whole ledger from a figure PDF.
-    PDF=$(python3 "$ROOT/tools/select_primary_pdf.py" "$PAPER_DIR" || true)
+    # Deterministic primary-PDF pick (issue #11): asset-looking PDFs (figures/,
+    # images/, supplement*/ dirs or fig-like basenames) demoted, paper-like basenames
+    # promoted. A dir holding ONLY figure/supplement PDFs yields NO pick (exit 1) —
+    # the run then stops honestly at "no source text" instead of building the whole
+    # ledger from a figure PDF. Only exit 1 is tolerated; a selector CRASH must not
+    # silently degrade the run to the stale-.txt fallback.
+    PDF=$(python3 "$ROOT/tools/select_primary_pdf.py" "$PAPER_DIR"); rc=$?
+    [ "$rc" -le 1 ] || { echo "ERROR: select_primary_pdf.py failed (rc=$rc)"; exit 1; }
     [ -n "$PDF" ] && { pdftotext -layout "$PDF" "$PAPER_DIR/paper.txt" 2>/dev/null \
       || mutool draw -F txt -o "$PAPER_DIR/paper.txt" "$PDF" 2>/dev/null \
       || python3 -c 'import sys,fitz;open(sys.argv[2],"w").write("\n".join(p.get_text() for p in fitz.open(sys.argv[1])))' "$PDF" "$PAPER_DIR/paper.txt" 2>/dev/null; }
