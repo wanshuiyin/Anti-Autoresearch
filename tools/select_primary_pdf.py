@@ -27,9 +27,11 @@ ASSET_DIRS = {"figures", "figs", "fig", "assets", "images", "img", "plots",
 POSITIVE_NAME = re.compile(
     r"(?i)^(paper|main|manuscript|submission|article|camera[-_]?ready|preprint|final)"
     r"([-_.].*)?$")
+# \d*[a-z]?\d* covers panel-letter forms (fig1a, figure2b, FigureA) while a single
+# trailing letter keeps real words safe (figaro, plotter do NOT match)
 FIGURE_NAME = re.compile(
-    r"(?i)^(fig(ure)?s?\d*|plot\d*|supp(lement(ary)?)?|appendix|poster|slides?)"
-    r"([-_.].*)?$")
+    r"(?i)^(fig(ure)?s?\d*[a-z]?\d*|plot\d*[a-z]?\d*|supp(lement(ary)?)?|appendix"
+    r"|poster|slides?)([-_.].*)?$")
 
 
 def _is_positive(relpath):
