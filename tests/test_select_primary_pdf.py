@@ -71,7 +71,8 @@ def test_figure_named_root_pdf_is_not_confident():
 def test_panel_letter_figure_names_not_confident():
     # fig1a.pdf / FigureA.pdf are figure panels, not the paper (codex re-verify)
     for name in ("fig1a.pdf", "figure2b.pdf", "FigureA.pdf", "fig1ab.pdf",
-                 "Figure 1A.pdf", "Fig 1A.pdf", "Supplementary Material.pdf"):
+                 "Figure 1A.pdf", "Fig 1A.pdf", "Supplementary Material.pdf",
+                 "supplemental.pdf"):
         with tempfile.TemporaryDirectory() as d:
             assert S.select_primary(_mk(d, name), d) is None, name
     with tempfile.TemporaryDirectory() as d:

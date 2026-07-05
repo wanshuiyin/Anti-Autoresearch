@@ -23,7 +23,8 @@ import re
 import sys
 
 ASSET_DIRS = {"figures", "figs", "fig", "assets", "images", "img", "plots",
-              "graphics", "media", "supplement", "supplementary", "supp", "appendix"}
+              "graphics", "media", "supplement", "supplementary", "supplemental", "supp",
+              "appendix"}
 POSITIVE_NAME = re.compile(
     r"(?i)^(paper|main|manuscript|submission|article|camera[-_]?ready|preprint|final)"
     r"([-_.].*)?$")
@@ -32,7 +33,7 @@ POSITIVE_NAME = re.compile(
 # Material). Anything further must be a real word — figaro, plotter(-manual) do NOT
 # match because their leftover letters fit neither the panel group nor the suffix.
 FIGURE_NAME = re.compile(
-    r"(?i)^(fig(ure)?s?\d*[a-z]{0,2}\d*|plot\d*[a-z]{0,2}\d*|supp(lement(ary)?)?"
+    r"(?i)^(fig(ure)?s?\d*[a-z]{0,2}\d*|plot\d*[a-z]{0,2}\d*|supp(lement(ary|al)?)?"
     r"|appendix|poster|slides?)([-_.\s].*)?$")
 
 
