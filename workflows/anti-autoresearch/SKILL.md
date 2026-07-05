@@ -240,9 +240,13 @@ ARG="$ARGUMENTS"
 
 if [ -d "$ARG" ]; then                       # ---- DIRECTORY ----
   PAPER_DIR="$(cd "$ARG" && pwd)"
-  # if only a PDF is present, extract text so the ledger has an L0 source
+  # if only a PDF is present, extract text so the ledger has an L0 source.
+  # Deterministic primary-PDF pick (issue #11) — never lexicographic-first: a dir
+  # holding only figure/supplement PDFs yields NO pick (exit 1, honest) instead of
+  # extracting a figure as the paper. Only exit 1 is tolerated.
   if ! ls "$PAPER_DIR"/*.tex >/dev/null 2>&1 && ! ls "$PAPER_DIR"/*.txt >/dev/null 2>&1; then
-    P=$(ls "$PAPER_DIR"/*.pdf 2>/dev/null | head -1)
+    P=$(python3 "$ROOT/tools/select_primary_pdf.py" "$PAPER_DIR"); rc=$?
+    [ "$rc" -le 1 ] || { echo "FATAL: select_primary_pdf.py failed (rc=$rc)"; exit 1; }
     [ -n "$P" ] && pdftotext -layout "$P" "$PAPER_DIR/paper.txt"
   fi
 

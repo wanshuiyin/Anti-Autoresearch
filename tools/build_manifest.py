@@ -19,6 +19,9 @@ import json
 import os
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from select_primary_pdf import rank_pdfs, select_primary  # noqa: E402
+
 
 def sha256_file(path):
     h = hashlib.sha256()
@@ -32,7 +35,8 @@ def detect(d):
     def has(pat):
         return sorted(glob.glob(os.path.join(d, pat)))
     tex = has("*.tex") + has("**/*.tex")
-    pdf = has("*.pdf") + has("**/*.pdf")
+    # primary-first: the confident "paper PDF" candidate sorts to [0] (issue #11)
+    pdf = rank_pdfs(has("*.pdf") + has("**/*.pdf"), d)
     bib = has("*.bib") + has("**/*.bib")
     # a repo = a code dir or loose source files
     repo_dirs = [p for p in ("code", "src", "repo") if os.path.isdir(os.path.join(d, p))]
@@ -72,9 +76,14 @@ def main(argv=None):
     level = derive_level(det, bool(args.pdf_text))
 
     artifacts = []
+    # asset-only dirs (figures/*.pdf with no paper-like name) get NO primary — honest
+    primary_pdf = select_primary(det["pdf"], d)
     for kind, paths in (("latex", det["tex"]), ("pdf", det["pdf"]), ("bib", det["bib"])):
         for p in paths:
-            artifacts.append({"kind": kind, "path": p, "sha256": sha256_file(p), "present": True})
+            art = {"kind": kind, "path": p, "sha256": sha256_file(p), "present": True}
+            if kind == "pdf" and primary_pdf is not None and p == primary_pdf:
+                art["primary"] = True
+            artifacts.append(art)
     # path is schema-typed string + optional: omit it rather than emit null
     for kind, present, path in (("repo", det["repo"], ",".join(det["repo_dirs"])),
                                ("results", det["results"], "")):

@@ -17,7 +17,8 @@
           "kind": {"type": "string", "enum": ["pdf", "latex", "bib", "repo", "results", "config", "logs"]},
           "path": {"type": "string"},
           "sha256": {"type": "string"},
-          "present": {"type": "boolean"}
+          "present": {"type": "boolean"},
+          "primary": {"type": "boolean", "description": "Set (true) on at most one pdf artifact: the deterministic 'this is the paper' pick from tools/select_primary_pdf.py. Absent when no candidate is confident (e.g. only figure/supplement PDFs)."}
         }
       }
     },
