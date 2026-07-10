@@ -506,7 +506,8 @@ for f in proposed:
     if isinstance(olr, bool) or not isinstance(olr, int) or not (0 <= olr <= 3):
         f["observability_level_required"] = OBS.get(pid, 2)  # unknown pattern -> fail-closed L2 (auto-demotes at L0/L1)
     # cross-model provenance (reviewer-independence: this is a proposal, not a verdict)
-    f["reviewer"] = {"model": "gpt-5.6-sol", "reasoning": "xhigh", "deterministic": False}  # ← the pair that ACTUALLY ran (capability fallback may have stepped down — never stamp the target default)
+    RESOLVED_MODEL, RESOLVED_REASONING = "gpt-5.6-sol", "xhigh"  # <- what ACTUALLY ran (from the call trace; capability fallback may have stepped down to gpt-5.5)
+    f["reviewer"] = {"model": RESOLVED_MODEL, "reasoning": RESOLVED_REASONING, "deterministic": False}
     kept.append(f)
 
 json.dump(kept, open(out_path, "w", encoding="utf-8"), indent=2, ensure_ascii=False)

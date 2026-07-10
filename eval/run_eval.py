@@ -112,9 +112,12 @@ def evaluate(name, report):
 
     verdict = report["overall_verdict"]
     verr = None
-    if "expected_verdict" in exp and verdict != exp["expected_verdict"]:
+    if verdict == "REVIEW_UNAVAILABLE":
+        # coverage-incomplete is never a legitimate eval outcome — fixtures always complete
+        verr = "verdict REVIEW_UNAVAILABLE — coverage incomplete; eval sweeps must complete"
+    elif "expected_verdict" in exp and verdict != exp["expected_verdict"]:
         verr = f"verdict {verdict} != expected {exp['expected_verdict']}"
-    if "min_verdict" in exp and VRANK[verdict] < VRANK[exp["min_verdict"]]:
+    elif "min_verdict" in exp and VRANK[verdict] < VRANK[exp["min_verdict"]]:
         verr = f"verdict {verdict} < min {exp['min_verdict']}"
 
     # every above-info INTEGRITY finding must be span-anchored (the core invariant)

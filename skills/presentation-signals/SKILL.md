@@ -447,7 +447,8 @@ for f in proposed:
         sev = "info"; demoted += 1           # unanchored surface signal -> info note, NEVER a flag
     f["severity"] = sev
     # cross-model provenance (reviewer-independence: this is a proposal, not a verdict)
-    f["reviewer"] = {"model": "gpt-5.6-sol", "reasoning": "xhigh", "deterministic": False}
+    RESOLVED_MODEL, RESOLVED_REASONING = "gpt-5.6-sol", "xhigh"  # <- what ACTUALLY ran (from the call trace; capability fallback may have stepped down to gpt-5.5)
+    f["reviewer"] = {"model": RESOLVED_MODEL, "reasoning": RESOLVED_REASONING, "deterministic": False}
     kept.append(f)
 
 json.dump(kept, open(out_path, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
@@ -509,7 +510,7 @@ authorship detection a dedicated tool.
 
 **Failure handling.** A `KeyError` / `JSONDecodeError` means the reviewer output was
 malformed → re-run Step 2 once with the strict-JSON reminder. If it is **still**
-unparseable, fail closed: write an empty array to `presentation-signals.findings.json`
+unparseable, fail closed: write an empty array to `presentation-signals.findings.json`, record `"presentation-signals": "review_unavailable"` in the run's `coverage.json` (when orchestrated)
 (`printf '[]' > "$OUT"`) so the output contract's file exists — never hand-author
 findings on the reviewer's behalf. If a finding loses all evidence, it is *kept as
 `info`* (never silently dropped — the forensic record stays).

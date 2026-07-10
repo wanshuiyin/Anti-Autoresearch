@@ -659,7 +659,7 @@ or none was proposed, `experiment-forensics.findings.json` may be `[]`.
      "artifact_hash": "<sha256 of main.tex from the ledger's evidence_anchor>"}
   ],
   "verdict_local": "fail",
-  "reviewer": {"model": "gpt-5.6-sol", "reasoning": "xhigh", "thread_id": "<codex thread>", "deterministic": false},
+  "reviewer": {"model": "<resolved — what ACTUALLY ran (target: gpt-5.6-sol)>", "reasoning": "<resolved (target: xhigh)>", "thread_id": "<codex thread>", "deterministic": false},
   "false_positive_risk": "low",
   "requires_external_check": false,
   "recommended_reviewer_action": "Ask the authors for the raw (un-normalized) score and the exact normalization denominator; confirm the same normalization is applied identically to all baselines. If the divisor is the model's own output statistics, the 0.98 headline is not a valid cross-method comparison."

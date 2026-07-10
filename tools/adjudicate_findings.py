@@ -357,10 +357,20 @@ def _taxonomy_matches(findings):
     return [{"pattern_id": k, "finding_ids": v} for k, v in sorted(by_pat.items())]
 
 
+def _coverage_md(report):
+    cov = report.get("coverage") or {}
+    if not cov:
+        return []
+    icon = {"completed": "✅", "not_applicable": "➖", "review_unavailable": "⛔"}
+    rows = [f"| `{k}` | {icon.get(v, '?')} {v} |" for k, v in sorted(cov.items())]
+    return ["", "## Coverage", "", "| Skill | Status |", "|---|---|"] + rows
+
+
 def render_md(report):
     v = report["overall_verdict"]
     badge = {"HARD_FLAGS": "🔴 HARD_FLAGS", "SOFT_FLAGS": "🟡 SOFT_FLAGS",
-             "CLEAN_GIVEN_EVIDENCE": "🟢 CLEAN_GIVEN_EVIDENCE"}[v]
+             "CLEAN_GIVEN_EVIDENCE": "🟢 CLEAN_GIVEN_EVIDENCE",
+             "REVIEW_UNAVAILABLE": "⚪ REVIEW_UNAVAILABLE (incomplete sweep — not an acquittal)"}[v]
     lines = [
         f"# Integrity Forensics Report — {report['paper_id']}",
         "",
@@ -450,7 +460,9 @@ def render_md(report):
                   report["adversarial_memo"], ""]
 
     c = report["counts"]
+    lines += _coverage_md(report)
     lines += [
+        "",
         "## Counts",
         "",
         f"- critical: {c['critical']}  ·  major: {c['major']}  ·  minor: {c['minor']}  "
@@ -501,6 +513,11 @@ def main(argv=None):
         if bad:
             ap.error(f"invalid coverage status(es): {bad} — allowed: "
                      "completed | not_applicable | review_unavailable")
+        known = set(SKILL_TO_DIMENSION) | set(ZERO_WEIGHT_SKILLS)
+        unknown = sorted(k for k in coverage if k not in known)
+        if unknown:
+            ap.error(f"unknown coverage skill key(s): {unknown} — a typo here would "
+                     f"silently bypass the acquittal gate. Known keys: {sorted(known)}")
 
     with open(args.ledger, "r", encoding="utf-8") as fh:
         ledger = json.load(fh)
@@ -515,10 +532,11 @@ def main(argv=None):
     report = build_report(findings, args, stats, anchoring_verified=anchoring_verified,
                           coverage=coverage)
 
-    with open(args.out, "w", encoding="utf-8") as fh:
+    md = render_md(report)          # render FIRST — a render crash must not leave
+    with open(args.out, "w", encoding="utf-8") as fh:   # a report.json without its REPORT.md
         json.dump(report, fh, indent=2, ensure_ascii=False)
     with open(args.md, "w", encoding="utf-8") as fh:
-        fh.write(render_md(report))
+        fh.write(md)
 
     print(f"verdict={report['overall_verdict']} "
           f"crit={report['counts']['critical']} maj={report['counts']['major']} "

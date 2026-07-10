@@ -901,7 +901,8 @@ for k, p in enumerate(items, 1):
         "verdict_local": "needs_external_check", "requires_external_check": True,
         "false_positive_risk": "high",
         "recommended_reviewer_action": p["reviewer_action"] or ("Weigh the contribution against: " + cdesc),
-        "reviewer": {"model": "gpt-5.6-sol", "reasoning": "xhigh", "deterministic": False},
+        RESOLVED_MODEL, RESOLVED_REASONING = "gpt-5.6-sol", "xhigh"  # <- what ACTUALLY ran (from the call trace; capability fallback may have stepped down to gpt-5.5)
+        "reviewer": {"model": RESOLVED_MODEL, "reasoning": RESOLVED_REASONING, "deterministic": False},
     })
 find_path = os.path.join(paper_dir, "novelty-duplication-advisory.findings.json")
 json.dump(mir, open(find_path, "w", encoding="utf-8"), indent=2, ensure_ascii=False)

@@ -640,7 +640,8 @@ for f in proposed:
     # adjudicator's cap); the executor never guesses it. Missing/invalid demotes to info.
     if f.get("severity") in ABOVE and f.get("false_positive_risk") not in ("low", "medium", "high"):
         f["severity"] = "info"; f.setdefault("_demotions", []).append("undeclared-fp-risk"); demoted += 1
-    f["reviewer"] = {"model": "gpt-5.6-sol", "reasoning": "xhigh", "deterministic": False}  # ← the pair that ACTUALLY ran (capability fallback may have stepped down — never stamp the target default)
+    RESOLVED_MODEL, RESOLVED_REASONING = "gpt-5.6-sol", "xhigh"  # <- what ACTUALLY ran (from the call trace; capability fallback may have stepped down to gpt-5.5)
+    f["reviewer"] = {"model": RESOLVED_MODEL, "reasoning": RESOLVED_REASONING, "deterministic": False}
     # honest hand-off: needs_external_check carries no severity weight (the 3 leakage external
     # subtypes land here) — pin it to info, never drop it. Mirrors the adjudicator's gate 6.
     if f.get("verdict_local") == "needs_external_check" or f.get("requires_external_check") is True:

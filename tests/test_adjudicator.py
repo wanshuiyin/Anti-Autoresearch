@@ -280,6 +280,46 @@ def test_completed_and_not_applicable_do_not_gate():
     assert r["coverage"]["baseline-comparison-audit"] == "not_applicable"
 
 
+def test_cli_unknown_coverage_key_rejected():
+    # a typo'd skill key must never silently bypass the acquittal gate
+    import json, tempfile, os
+    with tempfile.TemporaryDirectory() as d:
+        led = os.path.join(d, "claims.json")
+        json.dump({"claims": [{"claim_id": "C001", "text_span": "x"}]}, open(led, "w"))
+        cov = os.path.join(d, "cov.json")
+        json.dump({"consistency_audit": "review_unavailable"}, open(cov, "w"))  # typo: underscore
+        fnd = os.path.join(d, "f.json")
+        json.dump([], open(fnd, "w"))
+        try:
+            A.main(["--findings", fnd, "--ledger", led, "--paper-id", "t",
+                    "--observability-level", "2", "--coverage", cov,
+                    "--out", os.path.join(d, "r.json"), "--md", os.path.join(d, "r.md")])
+            assert False, "unknown coverage key must be rejected"
+        except SystemExit as e:
+            assert e.code != 0
+
+
+def test_cli_review_unavailable_renders_md_and_json():
+    import json, tempfile, os
+    with tempfile.TemporaryDirectory() as d:
+        led = os.path.join(d, "claims.json")
+        json.dump({"claims": [{"claim_id": "C001", "text_span": "x"}]}, open(led, "w"))
+        cov = os.path.join(d, "cov.json")
+        json.dump({"consistency-audit": "review_unavailable"}, open(cov, "w"))
+        fnd = os.path.join(d, "f.json")
+        json.dump([], open(fnd, "w"))
+        out, md = os.path.join(d, "r.json"), os.path.join(d, "r.md")
+        rc = A.main(["--findings", fnd, "--ledger", led, "--paper-id", "t",
+                     "--observability-level", "2", "--coverage", cov,
+                     "--out", out, "--md", md])
+        assert rc == 0
+        r = json.load(open(out))
+        assert r["overall_verdict"] == "REVIEW_UNAVAILABLE"
+        assert r["coverage"]["consistency-audit"] == "review_unavailable"
+        m = open(md).read()
+        assert "REVIEW_UNAVAILABLE" in m and "## Coverage" in m   # badge + coverage table render
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

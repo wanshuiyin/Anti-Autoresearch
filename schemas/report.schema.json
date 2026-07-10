@@ -132,15 +132,90 @@
     },
     "coverage": {
       "type": "object",
-      "description": "Per-skill run status from the orchestrating workflow: completed | not_applicable | review_unavailable. A verdict-bearing dimension marked review_unavailable blocks the acquittal (overall_verdict becomes REVIEW_UNAVAILABLE instead of CLEAN_GIVEN_EVIDENCE); found flags still stand. Absent/empty = legacy single-skill run.",
-      "additionalProperties": {
-        "type": "string",
-        "enum": [
-          "completed",
-          "not_applicable",
-          "review_unavailable"
-        ]
-      }
+      "description": "Per-skill run status from the orchestrating workflow: completed | not_applicable | review_unavailable. A verdict-bearing dimension marked review_unavailable blocks the acquittal (overall_verdict REVIEW_UNAVAILABLE instead of CLEAN_GIVEN_EVIDENCE); found flags still stand. Keys are whitelisted — an unknown key is rejected by the adjudicator (a typo must not bypass the gate).",
+      "properties": {
+        "consistency-audit": {
+          "type": "string",
+          "enum": [
+            "completed",
+            "not_applicable",
+            "review_unavailable"
+          ]
+        },
+        "experiment-forensics": {
+          "type": "string",
+          "enum": [
+            "completed",
+            "not_applicable",
+            "review_unavailable"
+          ]
+        },
+        "baseline-comparison-audit": {
+          "type": "string",
+          "enum": [
+            "completed",
+            "not_applicable",
+            "review_unavailable"
+          ]
+        },
+        "citation-forensics": {
+          "type": "string",
+          "enum": [
+            "completed",
+            "not_applicable",
+            "review_unavailable"
+          ]
+        },
+        "presentation-signals": {
+          "type": "string",
+          "enum": [
+            "completed",
+            "not_applicable",
+            "review_unavailable"
+          ]
+        },
+        "proof-derivation-forensics": {
+          "type": "string",
+          "enum": [
+            "completed",
+            "not_applicable",
+            "review_unavailable"
+          ]
+        },
+        "eval-design-forensics": {
+          "type": "string",
+          "enum": [
+            "completed",
+            "not_applicable",
+            "review_unavailable"
+          ]
+        },
+        "adversarial-case-builder": {
+          "type": "string",
+          "enum": [
+            "completed",
+            "not_applicable",
+            "review_unavailable"
+          ]
+        },
+        "novelty-duplication-advisory": {
+          "type": "string",
+          "enum": [
+            "completed",
+            "not_applicable",
+            "review_unavailable"
+          ]
+        },
+        "ai-style-impressions": {
+          "type": "string",
+          "enum": [
+            "completed",
+            "not_applicable",
+            "review_unavailable"
+          ]
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

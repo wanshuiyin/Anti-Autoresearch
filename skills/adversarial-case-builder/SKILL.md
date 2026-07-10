@@ -587,7 +587,8 @@ for k, p in enumerate(unresolved, 1):
         "evidence": ev,                            # may be [] (schema permits empty evidence for info)
         "verdict_local": "warn", "requires_external_check": False, "false_positive_risk": "high",
         "recommended_reviewer_action": p["reviewer_action"] or ("Press the authors on: " + p["attack_claim"]),
-        "reviewer": {"model": "gpt-5.6-sol", "reasoning": "xhigh", "deterministic": False, "thread_id": defense_tid},
+        # RESOLVED_MODEL, RESOLVED_REASONING = "gpt-5.6-sol", "xhigh" must be defined above (what ACTUALLY ran; fallback may have stepped down)
+        "reviewer": {"model": RESOLVED_MODEL, "reasoning": RESOLVED_REASONING, "deterministic": False, "thread_id": defense_tid},
     })
 find_path = os.path.join(D, "adversarial-case-builder.findings.json")
 json.dump(acb, open(find_path, "w", encoding="utf-8"), indent=2, ensure_ascii=False)

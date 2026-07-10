@@ -577,7 +577,7 @@ for fp in files:
     raw = open(fp, encoding="utf-8", errors="replace").read()
     m = re.search(r"\[.*\]", raw, re.S)       # tolerate prose / code-fence wrapping
     if not m:
-        print(f"  note: no JSON array in {os.path.basename(fp)} (treated as [])"); continue
+        print(f"  note: no JSON array in {os.path.basename(fp)} (treated as []) -- if this persists after the one retry, record citation-forensics=review_unavailable in the run's coverage.json: a partial key sweep must not read as completed"); continue
     try:
         arr = json.loads(m.group(0))
     except Exception as e:
@@ -619,7 +619,8 @@ for fp in files:
         if isinstance(olr, bool) or not isinstance(olr, int) or not (0 <= olr <= 3):
             f["observability_level_required"] = OBS.get(pid, 0)
         # cross-model provenance (reviewer-independence: a proposal, not a verdict)
-        f["reviewer"] = {"model": "gpt-5.6-sol", "reasoning": "xhigh", "deterministic": False}
+        RESOLVED_MODEL, RESOLVED_REASONING = "gpt-5.6-sol", "xhigh"  # <- what ACTUALLY ran (from the call trace; capability fallback may have stepped down to gpt-5.5)
+        f["reviewer"] = {"model": RESOLVED_MODEL, "reasoning": RESOLVED_REASONING, "deterministic": False}
         kept.append(f)
 
 json.dump(kept, open(out_path, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
