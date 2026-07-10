@@ -175,6 +175,8 @@ def _refutation_counter_anchored(refutation, ledger_map):
     if not ledger_map:
         return False
     for ev in refutation.get("counter_evidence", []) or []:
+        if not isinstance(ev, dict):
+            continue
         cid = ev.get("claim_id")
         span = _norm_ws(ev.get("span"))
         if not cid or not _anchorable(span):
@@ -222,10 +224,12 @@ def apply_critical_scrutiny(findings, ledger_map=None):
         # unknown status, missing/non-bool refuted, wrong-typed fields — is
         # malformed, so a hollow {"attempt_status": "completed"} can never
         # silence the incomplete-pass limitation.
+        ce = ref.get("counter_evidence")
         well_formed = (ref.get("attempt_status") == "completed"
                        and isinstance(ref.get("refuted"), bool)
-                       and isinstance(ref.get("reason", ""), str)
-                       and isinstance(ref.get("counter_evidence", []), list))
+                       and isinstance(ref.get("reason"), str)
+                       and isinstance(ce, list)
+                       and all(isinstance(e, dict) for e in ce))
         if not well_formed:
             cov["malformed"] += 1
             continue
@@ -665,12 +669,16 @@ def main(argv=None):
     if args.list_critical_candidates:
         # refutation-eligible criticals, AFTER every gate — the single source of truth
         # the workflow's Step 3.5 consumes (never re-derive these rules elsewhere)
+        # re-entrant: a finding that already carries ANY refutation attempt
+        # (completed / unavailable / malformed — each had its one retry) is done;
+        # only never-attempted criticals are listed.
         cands = [{"source_file": f.get("_source_file", "?"),
                   "finding_id": f.get("finding_id", "?"),
                   "skill": f.get("skill", "?"),
                   "pattern_id": f.get("pattern_id", ""),
                   "title": f.get("title", "")}
-                 for f in findings if _is_llm_critical(f)]
+                 for f in findings
+                 if _is_llm_critical(f) and not isinstance(f.get("refutation"), dict)]
         print(json.dumps(cands, indent=2, ensure_ascii=False))
         return 0
 

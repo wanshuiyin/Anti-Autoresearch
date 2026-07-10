@@ -520,6 +520,34 @@ def test_attach_refutation_tool_roundtrip():
         assert r3.returncode != 0 and "ARIS_RESOLVED" in r3.stderr
 
 
+def test_nondict_counter_evidence_is_malformed_not_crash():
+    f = _crit(refutation={"attempt_status": "completed", "refuted": True,
+                          "reason": "r", "counter_evidence": [1]})
+    _scrutinize([f], {"malformed": 1, "completed": 0})
+    f2 = _crit(refutation={"attempt_status": "completed", "refuted": True})  # missing reason/ce
+    _scrutinize([f2], {"malformed": 1, "completed": 0})
+
+
+def test_candidates_exclude_already_attempted():
+    import json, tempfile, os, io, contextlib
+    with tempfile.TemporaryDirectory() as d:
+        led = os.path.join(d, "claims.json")
+        json.dump({"claims": [{"claim_id": "C001",
+                               "text_span": "FooNet reaches 78.0% accuracy on BarBench, a strong result."}]},
+                  open(led, "w"))
+        done = _crit(refutation={"attempt_status": "unavailable"})
+        fresh = _crit(); fresh["finding_id"] = "F2"
+        fnd = os.path.join(d, "f.json")
+        json.dump([done, fresh], open(fnd, "w"))
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = A.main(["--findings", fnd, "--ledger", led, "--paper-id", "t",
+                         "--observability-level", "2", "--list-critical-candidates"])
+        assert rc == 0
+        ids = [c["finding_id"] for c in json.loads(buf.getvalue())]
+        assert ids == ["F2"]
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

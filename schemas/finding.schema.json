@@ -193,7 +193,9 @@
       },
       "then": {
         "required": [
-          "refuted"
+          "refuted",
+          "reason",
+          "counter_evidence"
         ]
       }
     }
