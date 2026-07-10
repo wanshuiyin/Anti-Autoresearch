@@ -236,6 +236,50 @@ def test_json_boolean_observability_rejected():
     assert "undeclared-observability" in f["_adjudication"]
 
 
+# ---- coverage gate (review_unavailable must never masquerade as CLEAN) ----
+
+class _Args:
+    def __init__(self):
+        self.limitation = []
+        self.observability_level = 2
+        self.taxonomy_version = "0.5"
+        self.paper_id = "t"
+        self.generated_at = "2026-01-01T00:00:00Z"
+        self.memo = ""
+
+
+def _report(findings, coverage):
+    A.adjudicate(findings, 2, LEDGER)
+    return A.build_report(findings, _Args(), {"downgraded_obs": 0, "unanchored": 0},
+                          anchoring_verified=True, coverage=coverage)
+
+
+def test_unavailable_verdict_bearing_dim_blocks_acquittal():
+    r = _report([], {"consistency-audit": "review_unavailable"})
+    assert r["overall_verdict"] == "REVIEW_UNAVAILABLE"
+    assert any("COVERAGE INCOMPLETE" in l for l in r["limitations"])
+
+
+def test_unavailable_dim_does_not_erase_found_flags():
+    f = _f()  # anchored critical
+    r = _report([f], {"experiment-forensics": "review_unavailable"})
+    assert r["overall_verdict"] == "HARD_FLAGS"          # flags stand
+    assert any("COVERAGE INCOMPLETE" in l for l in r["limitations"])
+
+
+def test_zero_weight_track_unavailable_keeps_clean():
+    r = _report([], {"ai-style-impressions": "review_unavailable"})
+    assert r["overall_verdict"] == "CLEAN_GIVEN_EVIDENCE"
+    assert any("Zero-weight track" in l for l in r["limitations"])
+
+
+def test_completed_and_not_applicable_do_not_gate():
+    r = _report([], {"consistency-audit": "completed",
+                     "baseline-comparison-audit": "not_applicable"})
+    assert r["overall_verdict"] == "CLEAN_GIVEN_EVIDENCE"
+    assert r["coverage"]["baseline-comparison-audit"] == "not_applicable"
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

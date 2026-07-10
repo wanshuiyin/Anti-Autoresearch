@@ -124,7 +124,7 @@ discharged / the symbol's meaning drifted*.
 ## Constants & Reviewer Calling Convention
 
 ```
-REVIEWER_MODEL          = gpt-5.5                  # different family from executor (Claude)
+REVIEWER_MODEL          = gpt-5.6-sol                  # different family from executor (Claude)
 REVIEWER_REASONING      = xhigh                    # always; effort never lowers reviewer quality
 REVIEWER_SANDBOX        = read-only                # detect-only; never mutate the paper
 REVIEWER_CWD            = <paper-dir>              # so it can read claims.json + the proof sources directly
@@ -148,7 +148,7 @@ TRACE_DIR               = .aris/traces/proof-derivation-forensics/<YYYY-MM-DD>_r
   checklist** to the reviewer, validates the reviewer's spans, and writes the findings
   file. It never summarizes the proof, pre-judges soundness, or leaks an opinion into
   the prompt (`reviewer-independence.md`).
-- **Reviewer (codex / gpt-5.5)** reads `claims.json`, the obligation scaffold, and the
+- **Reviewer (codex / gpt-5.6-sol)** reads `claims.json`, the obligation scaffold, and the
   proof sources; proposes findings; self-reports `false_positive_risk`. It is the
   evidence-extractor / candidate-explainer, **not the judge**.
 - **Fresh thread per run.** If you fan out by theorem for breadth, each theorem is a
@@ -332,7 +332,7 @@ absolute `PAPER_DIR`, the `L` value, and the scaffold path from Steps 0–1):
 
 ```
 mcp__codex__codex:
-  model: gpt-5.5
+  model: gpt-5.6-sol
   config: {"model_reasoning_effort": "xhigh"}
   sandbox: read-only
   cwd: <absolute PAPER_DIR from Step 0>
@@ -519,7 +519,7 @@ Step 5 — see Step 5 for the exact set.)
 
 **Failure handling.**
 - *MCP stall / hang* (common in long sessions): re-invoke the **identical** prompt as a
-  **fresh** `mcp__codex__codex` call (gpt-5.5, xhigh) — never `codex-reply`.
+  **fresh** `mcp__codex__codex` call (gpt-5.6-sol, xhigh) — never `codex-reply`.
 - *Reviewer returns prose, not a JSON array*: the Step 3 validator already extracts the
   outermost `[...]`; if there is none, re-ask once with "Output ONLY the JSON array,
   nothing else." Do not hand-author findings on the reviewer's behalf.
@@ -630,7 +630,7 @@ for f in proposed:
         olr = 1
     f["observability_level_required"] = olr
     # cross-model provenance (reviewer-independence: this is a proposal, not a verdict)
-    f["reviewer"] = {"model": "gpt-5.5", "reasoning": "xhigh", "deterministic": False}
+    f["reviewer"] = {"model": "gpt-5.6-sol", "reasoning": "xhigh", "deterministic": False}
     kept.append(f)
 
 json.dump(kept, open(out_path, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
@@ -678,7 +678,7 @@ $TRACE_DIR/
   obligation-ledger.md           # Step 1 — the EXTRACTION-ONLY scaffold (no verdicts)
   001-proof-review.request.json  # the exact prompt sent (paths + scaffold + checklist, no proof summaries)
   001-proof-review.response.md   # the FULL raw reviewer response (input to Step 3)
-  001-proof-review.meta.json     # {model:"gpt-5.5", reasoning:"xhigh", thread_id, sandbox:"read-only"}
+  001-proof-review.meta.json     # {model:"gpt-5.6-sol", reasoning:"xhigh", thread_id, sandbox:"read-only"}
 ```
 
 For a per-theorem fan-out, write `00N-proof-review.{request.json,response.md,meta.json}`
@@ -759,7 +759,7 @@ human-readable rendering is the orchestrator's job, not this skill's.
   Counterexample-first: try to break the step before grading it.
 - **Reviewer ≠ adjudicator.** The model proposes findings; `adjudicate_findings.py`
   decides the verdict. This skill emits findings only.
-- **Cross-model, fresh thread.** Reviewer is a different family (gpt-5.5 xhigh); every
+- **Cross-model, fresh thread.** Reviewer is a different family (gpt-5.6-sol xhigh); every
   run — and every fan-out theorem — is a new `mcp__codex__codex` thread; `codex-reply`
   is never used (the bias guard).
 - **Scaffold extracts, never adjudicates.** The obligation ledger records obligations +
@@ -775,7 +775,7 @@ human-readable rendering is the orchestrator's job, not this skill's.
 - **No `claims.json` yet** → run `/evidence-ledger` first; this skill never invents
   structure from the raw PDF.
 - **The paper has no proofs/theorems/derivations** (`HAS_PROOFS = no`) → nothing for
-  family G to audit; write `[]` and stop (the proof analog of `NOT_APPLICABLE`).
+  family G to audit; write `[]`, record `"proof-derivation-forensics": "not_applicable"` in the run's `coverage.json` (when orchestrated), and stop (the proof analog of `NOT_APPLICABLE`).
 - **You want to FIX a proof, or it's your OWN paper** → use ARIS `/proof-checker`
   (verify-and-fix, re-review rounds, audit report). This skill is detect-only third-party
   forensics: it proposes findings and never edits.
@@ -807,7 +807,7 @@ incremented per run/day — created in Step 1):
 | `obligation-ledger.md` | Step 1 | the extraction-only obligation scaffold (statements, typed symbols, obligations, anchor candidates) — **no validity verdicts** |
 | `00N-proof-review.request.json` | Step 5 | the exact prompt sent to the reviewer (paths + scaffold + checklist, no proof summary / no pre-judgment) — the **independence audit trail** |
 | `00N-proof-review.response.md` | Step 2 | the FULL raw reviewer response (the input Step 3 parsed) |
-| `00N-proof-review.meta.json` | Step 5 | `{model:"gpt-5.5", reasoning:"xhigh", thread_id, sandbox:"read-only"}` |
+| `00N-proof-review.meta.json` | Step 5 | `{model:"gpt-5.6-sol", reasoning:"xhigh", thread_id, sandbox:"read-only"}` |
 
 `N` is `001` for a single review, or one triple per theorem under fan-out. Traces are
 **never silently dropped**: they let a human re-audit that the reviewer saw only

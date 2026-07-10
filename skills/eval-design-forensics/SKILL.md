@@ -1,6 +1,6 @@
 ---
 name: eval-design-forensics
-description: "Audit whether a paper's EVALUATION DESIGN actually measures what it claims and whether its reporting is complete — the validity layer family D (experiment-forensics) cannot reach. Three patterns: train/test leakage means the reported score may not measure generalization (HP-EVAL-LEAKAGE — adopts the Kapoor & Narayanan 8-type / 3-category leakage taxonomy; the illegitimate-proxy / sampling-bias / pretraining-contamination subtypes hand off as needs_external_check, naming but NEVER running Oren-2023 exchangeability / Shi-2023 Min-K% / Golchin-2023 Time-Travel / BIG-bench canary); a load-bearing LLM judge is conflicted (same model/family as a compared system) or unvalidated (no human-agreement, no bias control) (HP-JUDGE-VALIDITY); a declared condition/metric is dropped or switched to favor the method, or 'best' is chosen with no held-out set (HP-SELECTIVE-REPORTING). Verdict-bearing at L0/L1 from the DESCRIBED protocol — NOT repo-gated like experiment-forensics; L2 only CONFIRMS against split/preprocessing/result files. A fresh cross-model reviewer (gpt-5.5 xhigh, read-only, fresh thread per pass) PROPOSES findings, each span-anchored to a ledger claim_id; tools/adjudicate_findings.py DECIDES the verdict. Leakage and under-reporting are usually HONEST methodological errors — every finding describes a discrepancy to CHECK, never an accusation. An LLM generating GROUND-TRUTH labels is HP-FAKE-GT (experiment-forensics) — routed there, not here. Emits eval-design-forensics.findings.json; computes NO verdict. Detect-only. Triggers: \"eval design audit\", \"evaluation validity\", \"train/test leakage\", \"data leakage\", \"is the score measuring generalization\", \"LLM judge bias\", \"is the judge validated\", \"selective reporting\", \"cherry-picked results\", \"评估设计审计\", \"评测有效性\", \"数据泄漏\", \"训练测试集泄漏\", \"裁判模型有没有验证\", \"选择性报告\"."
+description: "Audit whether a paper's EVALUATION DESIGN actually measures what it claims and whether its reporting is complete — the validity layer family D (experiment-forensics) cannot reach. Three patterns: train/test leakage means the reported score may not measure generalization (HP-EVAL-LEAKAGE — adopts the Kapoor & Narayanan 8-type / 3-category leakage taxonomy; the illegitimate-proxy / sampling-bias / pretraining-contamination subtypes hand off as needs_external_check, naming but NEVER running Oren-2023 exchangeability / Shi-2023 Min-K% / Golchin-2023 Time-Travel / BIG-bench canary); a load-bearing LLM judge is conflicted (same model/family as a compared system) or unvalidated (no human-agreement, no bias control) (HP-JUDGE-VALIDITY); a declared condition/metric is dropped or switched to favor the method, or 'best' is chosen with no held-out set (HP-SELECTIVE-REPORTING). Verdict-bearing at L0/L1 from the DESCRIBED protocol — NOT repo-gated like experiment-forensics; L2 only CONFIRMS against split/preprocessing/result files. A fresh cross-model reviewer (gpt-5.6-sol xhigh, read-only, fresh thread per pass) PROPOSES findings, each span-anchored to a ledger claim_id; tools/adjudicate_findings.py DECIDES the verdict. Leakage and under-reporting are usually HONEST methodological errors — every finding describes a discrepancy to CHECK, never an accusation. An LLM generating GROUND-TRUTH labels is HP-FAKE-GT (experiment-forensics) — routed there, not here. Emits eval-design-forensics.findings.json; computes NO verdict. Detect-only. Triggers: \"eval design audit\", \"evaluation validity\", \"train/test leakage\", \"data leakage\", \"is the score measuring generalization\", \"LLM judge bias\", \"is the judge validated\", \"selective reporting\", \"cherry-picked results\", \"评估设计审计\", \"评测有效性\", \"数据泄漏\", \"训练测试集泄漏\", \"裁判模型有没有验证\", \"选择性报告\"."
 argument-hint: [paper-dir | claims.json]
 allowed-tools: Bash(*), Read, Write, Grep, Glob, WebSearch, WebFetch, mcp__codex__codex
 ---
@@ -160,7 +160,7 @@ it in the `description`.
 ## Constants & Reviewer Calling Convention
 
 ```
-REVIEWER_MODEL        = gpt-5.5                  # different family from executor (Claude)
+REVIEWER_MODEL        = gpt-5.6-sol                  # different family from executor (Claude)
 REVIEWER_REASONING    = xhigh                    # always; effort never lowers reviewer quality
 REVIEWER_SANDBOX      = read-only                # detect-only; never mutate the paper
 REVIEWER_CWD          = <paper-dir>              # so it can read claims.json + the protocol/source directly
@@ -187,7 +187,7 @@ TRACE_DIR             = .aris/traces/eval-design-forensics/<YYYY-MM-DD>_run<NN>/
   release date (with its source) is the same allowed division `citation-forensics`
   (canonical metadata) and `baseline-comparison-audit` (leaderboard dates) use —
   reference facts, not hunches.
-- **Reviewer (codex / gpt-5.5)** reads `claims.json` and the source (and, at L2, the
+- **Reviewer (codex / gpt-5.6-sol)** reads `claims.json` and the source (and, at L2, the
   split/preprocessing/judge/result files) directly from its `cwd`, decides which
   evaluations leak / rest on a conflicted-or-unvalidated judge / under-report, applies
   the known false-positive cases, and self-reports `false_positive_risk`. It is the
@@ -361,7 +361,7 @@ every `[ ... ]`):
 
 ```
 mcp__codex__codex:
-  model: gpt-5.5
+  model: gpt-5.6-sol
   config: {"model_reasoning_effort": "xhigh"}
   sandbox: read-only
   cwd: <absolute PAPER_DIR from Step 0>
@@ -465,7 +465,7 @@ A **separate, new** `mcp__codex__codex` thread. Send EXACTLY (fill every `[ ... 
 
 ```
 mcp__codex__codex:
-  model: gpt-5.5
+  model: gpt-5.6-sol
   config: {"model_reasoning_effort": "xhigh"}
   sandbox: read-only
   cwd: <absolute PAPER_DIR from Step 0>
@@ -640,7 +640,7 @@ for f in proposed:
     # adjudicator's cap); the executor never guesses it. Missing/invalid demotes to info.
     if f.get("severity") in ABOVE and f.get("false_positive_risk") not in ("low", "medium", "high"):
         f["severity"] = "info"; f.setdefault("_demotions", []).append("undeclared-fp-risk"); demoted += 1
-    f.setdefault("reviewer", {"model": "gpt-5.5", "reasoning": "xhigh", "deterministic": False})
+    f["reviewer"] = {"model": "gpt-5.6-sol", "reasoning": "xhigh", "deterministic": False}  # ← the pair that ACTUALLY ran (capability fallback may have stepped down — never stamp the target default)
     # honest hand-off: needs_external_check carries no severity weight (the 3 leakage external
     # subtypes land here) — pin it to info, never drop it. Mirrors the adjudicator's gate 6.
     if f.get("verdict_local") == "needs_external_check" or f.get("requires_external_check") is True:
@@ -795,7 +795,7 @@ Populate it:
   contamination_dates.json            # optional public-record date fact (if gathered)
   001-leakage.request.json            # the EXACT Step-3 prompt sent (paths + ledger + facts + taxonomy + checklist)
   001-leakage.response.md             # the FULL raw reviewer response (input to Step 5)
-  001-leakage.meta.json               # {model:"gpt-5.5", reasoning:"xhigh", thread_id, sandbox:"read-only"}
+  001-leakage.meta.json               # {model:"gpt-5.6-sol", reasoning:"xhigh", thread_id, sandbox:"read-only"}
   002-judge-reporting.request.json
   002-judge-reporting.response.md
   002-judge-reporting.meta.json
@@ -885,7 +885,7 @@ second deterministic file** and never edits the audited paper.
   absence of a *reported* validation is not proof none was done (high-FP care).
 - **Reviewer ≠ adjudicator.** The model proposes findings; `adjudicate_findings.py`
   decides the verdict. This skill emits findings only.
-- **Cross-model, fresh thread per pass/track.** Reviewer is a different family (gpt-5.5
+- **Cross-model, fresh thread per pass/track.** Reviewer is a different family (gpt-5.6-sol
   xhigh); leakage and judge/reporting are separate fresh `mcp__codex__codex` threads;
   `codex-reply` is never used (absent from `allowed-tools`).
 - **Detect-only.** Never edit the audited paper (reviewer sandbox is read-only).
@@ -897,7 +897,7 @@ second deterministic file** and never edits the audited paper.
 - **No `claims.json` yet** → run `/evidence-ledger` first; this skill never invents
   structure from the raw PDF.
 - **The paper describes no evaluation protocol / judge / declared conditions**
-  (`APPLICABLE = no` in Step 1) → write `[]` and stop.
+  (`APPLICABLE = no` in Step 1) → write `[]`, record `"eval-design-forensics": "not_applicable"` in the run's `coverage.json` (when orchestrated), and stop.
 - **An LLM generating the ground-truth labels/targets** (not judging outputs) →
   `/experiment-forensics` `HP-FAKE-GT` at **L2**.
 - **best-reported-as-mean / appendix-vs-main / thin in-text scope with no comparison**

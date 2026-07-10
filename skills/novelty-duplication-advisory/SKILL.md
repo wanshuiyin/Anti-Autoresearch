@@ -146,7 +146,7 @@ novelty from an incomplete corpus would be precisely the over-claim this repo re
 ## Constants & Reviewer Calling Convention
 
 ```
-REVIEWER_MODEL       = gpt-5.5                # different family from the executor (Claude)
+REVIEWER_MODEL       = gpt-5.6-sol                # different family from the executor (Claude)
 REVIEWER_REASONING   = xhigh                  # always; effort never lowers reviewer quality
 REVIEWER_SANDBOX     = read-only              # detect-only; never mutate the paper
 REVIEWER_CWD         = <paper-dir>            # so it reads claims.json + candidates.json from cwd
@@ -179,7 +179,7 @@ TRACE_DIR            = .aris/traces/novelty-duplication-advisory/<YYYY-MM-DD>_ru
   validates every anchor the reviewers return, and renders the memo. It never summarizes the
   paper, pre-judges overlap, or leaks an opinion into a prompt
   (`references/reviewer-independence.md`).
-- **Reviewer (codex / gpt-5.5, xhigh, read-only)** reads `claims.json` + `candidates.json`
+- **Reviewer (codex / gpt-5.6-sol, xhigh, read-only)** reads `claims.json` + `candidates.json`
   from its `cwd`, lays each candidate beside the contribution span it overlaps with, and lists
   the open questions. It is the overlap-mapper, **not** the judge — and it is **forbidden** to
   output a "trivial" / "duplicate" / "not novel" verdict. It cites only `candidate_id`s that
@@ -531,7 +531,7 @@ repeatedly — that it must **not** conclude "trivial" or "duplicate."
 
 ```
 mcp__codex__codex:
-  model: gpt-5.5
+  model: gpt-5.6-sol
   config: {"model_reasoning_effort": "xhigh"}
   sandbox: read-only
   cwd: <absolute PAPER_DIR from Step 0>
@@ -605,7 +605,7 @@ mcp__codex__codex:
 
 ```
 mcp__codex__codex:
-  model: gpt-5.5
+  model: gpt-5.6-sol
   config: {"model_reasoning_effort": "xhigh"}
   sandbox: read-only
   cwd: <absolute PAPER_DIR from Step 0>
@@ -671,12 +671,12 @@ mcp__codex__codex:
 reply with **Write** to `"$TRACE/<NNN>-<axis>.response.md"` (`001-duplicate.response.md`,
 `002-combination.response.md`), the exact prompt to `"$TRACE/<NNN>-<axis>.request.json"`, and
 `"$TRACE/<NNN>-<axis>.meta.json"`
-(`{"model":"gpt-5.5","reasoning":"xhigh","sandbox":"read-only","thread_id":"<id>"}`). The
+(`{"model":"gpt-5.6-sol","reasoning":"xhigh","sandbox":"read-only","thread_id":"<id>"}`). The
 `.response.md` files are the immutable input to Step 4. Keep each `thread_id`.
 
 **Failure handling.**
 - *MCP stall / hang* (common in long sessions): re-invoke the **identical** prompt as a
-  **fresh** `mcp__codex__codex` call (gpt-5.5, xhigh) — never `codex-reply`.
+  **fresh** `mcp__codex__codex` call (gpt-5.6-sol, xhigh) — never `codex-reply`.
 - *Returns prose, not a JSON array*: Step 4 extracts the outermost `[...]`; if there is none,
   re-ask that one axis with "Output ONLY the JSON array, nothing else." Never hand-author
   overlap items on the reviewer's behalf.
@@ -828,7 +828,7 @@ def astr(a):
 
 out = []
 out.append(f"**Novelty / Duplication Advisory — {PID}** (retrieval-grounded, MEMO-ONLY — no verdict weight).")
-out.append(f"Reviewer: gpt-5.5 xhigh, two fresh per-axis threads (no codex-reply)  ·  Run level: L{L}  "
+out.append(f"Reviewer: gpt-5.6-sol xhigh, two fresh per-axis threads (no codex-reply)  ·  Run level: L{L}  "
            f"·  Disposition (informational, NOT a verdict): **{disp}**")
 out.append(f"Overlap items surfaced: {n_dup} duplicate · {n_comb} combination  ·  Candidates retrieved: {len(cands)}  "
            f"·  Hallucinated candidate refs dropped: {n_halluc}  ·  Ruling words neutralized: {n_scrubbed}")
@@ -901,7 +901,7 @@ for k, p in enumerate(items, 1):
         "verdict_local": "needs_external_check", "requires_external_check": True,
         "false_positive_risk": "high",
         "recommended_reviewer_action": p["reviewer_action"] or ("Weigh the contribution against: " + cdesc),
-        "reviewer": {"model": "gpt-5.5", "reasoning": "xhigh", "deterministic": False},
+        "reviewer": {"model": "gpt-5.6-sol", "reasoning": "xhigh", "deterministic": False},
     })
 find_path = os.path.join(paper_dir, "novelty-duplication-advisory.findings.json")
 json.dump(mir, open(find_path, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
@@ -950,7 +950,7 @@ inputs (this repo ships no `save_trace.sh`, so write the files directly with **W
   run.meta.json                       # {skill, paper_id, run_level_L, taxonomy_version, retrieval{duplicate,combination}, disposition, generated_at}
   001-duplicate.request.json          # the EXACT prompt + paths sent (ledger + candidates + checklist — the independence audit trail)
   001-duplicate.response.md           # the FULL raw reviewer array (input to Step 4)
-  001-duplicate.meta.json             # {model:"gpt-5.5", reasoning:"xhigh", thread_id, sandbox:"read-only"}
+  001-duplicate.meta.json             # {model:"gpt-5.6-sol", reasoning:"xhigh", thread_id, sandbox:"read-only"}
   002-combination.request.json        # the EXACT prompt sent
   002-combination.response.md         # the FULL raw reviewer array
   002-combination.meta.json
@@ -1049,7 +1049,7 @@ It writes **no verdict and no report** of its own — `report.json` / `REPORT.md
   Step 2; each reviewer lays out overlap over those facts. The executor never pre-judges overlap
   into the prompt — it hands raw retrieved records (structured, not a digest), preserving
   reviewer-independence even though the corpus is external.
-- **Cross-model, two fresh serial per-axis threads.** Reviewer is a different family (gpt-5.5
+- **Cross-model, two fresh serial per-axis threads.** Reviewer is a different family (gpt-5.6-sol
   xhigh, read-only); each axis is a new `mcp__codex__codex` thread, run sequentially;
   `codex-reply` is never used. Reviewer ≠ executor ≠ adjudicator.
 - **Hand off external truth it does not own.** A "SOTA/first/beats prior work" claim →

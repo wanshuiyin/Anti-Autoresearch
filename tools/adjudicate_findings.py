@@ -261,7 +261,7 @@ def dimension_verdicts(findings):
     return {d: verdict_of([s]) for d, s in dims.items()}
 
 
-def build_report(findings, args, stats, anchoring_verified):
+def build_report(findings, args, stats, anchoring_verified, coverage=None):
     # The integrity verdict is computed from verdict-WEIGHT-1 findings ONLY. Zero-weight
     # findings (AIS style impressions + ADV memos) are reported but provably cannot move it.
     weighted = [f for f in findings if f.get("_verdict_weight", 1) == 1]
@@ -305,6 +305,28 @@ def build_report(findings, args, stats, anchoring_verified):
             "with /evidence-ledger and re-audit before trusting this result." % len(weighted_proposed)
         )
 
+    # Coverage gate: "no findings" must never be conflated with "the reviewer never ran".
+    # A verdict-bearing dimension marked review_unavailable blocks the ACQUITTAL only —
+    # findings already on the table still produce HARD/SOFT flags (flags can only add).
+    coverage = coverage or {}
+    unavailable = sorted(k for k, v in coverage.items() if v == "review_unavailable")
+    unavailable_vb = [k for k in unavailable if k in SKILL_TO_DIMENSION]
+    overall = verdict_of(finals)
+    if unavailable_vb:
+        limitations.append(
+            "COVERAGE INCOMPLETE: reviewer unavailable for verdict-bearing dimension(s) "
+            "%s — this run is NOT a full sweep. A clean result here means 'nothing found "
+            "in the dimensions that ran', never 'clean overall'." % ", ".join(unavailable_vb)
+        )
+        if overall == "CLEAN_GIVEN_EVIDENCE":
+            overall = "REVIEW_UNAVAILABLE"
+    for k in unavailable:
+        if k not in SKILL_TO_DIMENSION:
+            limitations.append(
+                "Zero-weight track '%s' reviewer unavailable — its report section is "
+                "missing; the integrity verdict is unaffected (zero verdict weight)." % k
+            )
+
     return {
         "report_version": REPORT_VERSION,
         "taxonomy_version": args.taxonomy_version,
@@ -312,7 +334,8 @@ def build_report(findings, args, stats, anchoring_verified):
         "observability_level": args.observability_level,
         "generated_at": args.generated_at or
         datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None).isoformat() + "Z",
-        "overall_verdict": verdict_of(finals),
+        "overall_verdict": overall,
+        "coverage": coverage,
         "adjudicator": ADJUDICATOR_ID,
         "anchoring_verified": anchoring_verified,
         "dimension_verdicts": dimension_verdicts(findings),
@@ -455,6 +478,11 @@ def main(argv=None):
     ap.add_argument("--paper-id", required=True)
     ap.add_argument("--observability-level", type=int, required=True, choices=[0, 1, 2, 3])
     ap.add_argument("--taxonomy-version", default="0.5")
+    ap.add_argument("--coverage", default="", help="coverage.json — per-skill run status "
+                    "{skill: completed|not_applicable|review_unavailable}. A verdict-bearing "
+                    "dimension marked review_unavailable BLOCKS the acquittal: the overall "
+                    "verdict becomes REVIEW_UNAVAILABLE instead of CLEAN_GIVEN_EVIDENCE "
+                    "(found flags still stand). Absent = legacy behavior.")
     ap.add_argument("--memo", default="", help="adversarial memo text (informational)")
     ap.add_argument("--limitation", action="append", help="extra limitation line (repeatable)")
     ap.add_argument("--generated-at", default="", help="override timestamp (for reproducible eval)")
@@ -463,6 +491,16 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     findings = load_findings(args.findings)
+
+    coverage = {}
+    if args.coverage:
+        with open(args.coverage, "r", encoding="utf-8") as fh:
+            coverage = json.load(fh)
+        bad = {k: v for k, v in coverage.items()
+               if v not in ("completed", "not_applicable", "review_unavailable")}
+        if bad:
+            ap.error(f"invalid coverage status(es): {bad} — allowed: "
+                     "completed | not_applicable | review_unavailable")
 
     with open(args.ledger, "r", encoding="utf-8") as fh:
         ledger = json.load(fh)
@@ -474,7 +512,8 @@ def main(argv=None):
     # stamping a falsely-reassuring "anchoring_verified: true" on a CLEAN verdict.
     anchoring_verified = bool(ledger_map)
     stats = adjudicate(findings, args.observability_level, ledger_map or None)
-    report = build_report(findings, args, stats, anchoring_verified=anchoring_verified)
+    report = build_report(findings, args, stats, anchoring_verified=anchoring_verified,
+                          coverage=coverage)
 
     with open(args.out, "w", encoding="utf-8") as fh:
         json.dump(report, fh, indent=2, ensure_ascii=False)

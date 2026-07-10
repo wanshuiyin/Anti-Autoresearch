@@ -12,7 +12,7 @@ the model that **judges** integrity. The executor:
 - collects file paths and ledger `claim_id`s,
 - passes **paths + the ledger + the checklist** to the reviewer.
 
-The reviewer is a **different model family** (default: codex / gpt-5.5 at xhigh
+The reviewer is a **different model family** (default: codex / gpt-5.6-sol at xhigh
 reasoning, fresh threads). The reviewer reads the artifacts directly and proposes
 findings. The executor does **not** summarize, pre-judge, or leak its own opinion
 into the reviewer prompt — only structured inputs (the same rule as ARIS
@@ -20,6 +20,20 @@ into the reviewer prompt — only structured inputs (the same rule as ARIS
 
 Fresh thread per audit dimension (no `codex-reply` carrying one dimension's
 conclusions into another) — this is the bias guard.
+
+## Capability fallback (capability errors only — the same contract as ARIS)
+
+Pin `model: gpt-5.6-sol` + `config: {"model_reasoning_effort": "xhigh"}` explicitly in
+every fresh reviewer call (do not rely on `~/.codex/config.toml`; the catalog default
+effort for gpt-5.6-sol is `low`). If — and only if — the call fails with an error that
+**explicitly identifies the requested effort as unsupported** (codex-cli < 0.144.1) or
+**`gpt-5.6-sol` as unknown/unavailable to this account**, retry `gpt-5.5` + `xhigh`.
+NEVER step down on timeout, rate-limit, auth, transport, or server errors (a blind
+retry risks double-running a review). Never run an auditor below `xhigh`. If no allowed
+pair succeeds, record the dimension as `review_unavailable` in the run's
+`coverage.json` — the adjudicator then refuses to issue a CLEAN verdict for an
+incomplete sweep. Findings and traces record the pair that **actually ran** (the
+resolved pair), never the target default.
 
 ## Layer 2 — Reviewer ≠ adjudicator (NEW, the anti-slop axis)
 

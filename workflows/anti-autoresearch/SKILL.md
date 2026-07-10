@@ -87,7 +87,7 @@ shout "fraud" from a PDF. Same artifacts → same ledger → same verdict.
 ## Constants & conventions
 
 ```
-REVIEWER_MODEL     = gpt-5.5  (via mcp__codex__codex) — a DIFFERENT model family from the executor (Claude)
+REVIEWER_MODEL     = gpt-5.6-sol  (via mcp__codex__codex) — a DIFFERENT model family from the executor (Claude)
 REVIEWER_REASONING = xhigh    — always; the effort knob never lowers reviewer quality
 REVIEWER_SANDBOX   = read-only — detect-only; the reviewer never mutates the paper
 THREAD_POLICY      = FRESH mcp__codex__codex per dimension / per cited key; NEVER codex-reply across them
@@ -143,7 +143,7 @@ every reviewer call obeys:
 - **Envelope (every auditor instantiates this exact shape):**
   ```text
   mcp__codex__codex:
-    model: gpt-5.5
+    model: gpt-5.6-sol
     config: {"model_reasoning_effort": "xhigh"}
     sandbox: read-only
     cwd: <absolute PAPER_DIR>          # so the reviewer reads claims.json + sources directly
@@ -174,8 +174,13 @@ every reviewer call obeys:
   dimension's conclusions into another (the bias guard). Keep the calls **serial** —
   concurrent codex threads can hang; fan-out buys *breadth of dimensions*, not
   parallelism. On a stall, re-invoke the *identical* prompt in a fresh thread (never
-  `codex-reply`); if it still fails, write `[]` and continue — a dead reviewer must never
-  become a fabricated finding.
+  `codex-reply`); if it still fails, write `[]`, record `"<skill>": "review_unavailable"`
+  in `$PAPER_DIR/coverage.json`, and continue — a dead reviewer must never become a
+  fabricated finding, and an empty file must never masquerade as a completed review
+  (the adjudicator's `--coverage` gate turns a would-be CLEAN into `REVIEW_UNAVAILABLE`
+  when any verdict-bearing dimension never ran; zero-weight tracks only add a
+  limitation). Skills that legitimately find nothing to audit record `not_applicable`;
+  completed dimensions record `completed`.
 
 ## Re-entrancy: resuming a partial / re-run sweep
 
@@ -490,7 +495,7 @@ for f in prop:
     if f["severity"] in ABOVE and not anchored: f["severity"] = "info"; demoted += 1
     # observability_level_required is passed through verbatim — a missing/invalid one is
     # left as-is so the adjudicator's OBSERVABILITY gate fail-closes it to info.
-    f["reviewer"] = {"model": "gpt-5.5", "reasoning": "xhigh", "deterministic": False}
+    f["reviewer"] = {"model": "gpt-5.6-sol", "reasoning": "xhigh", "deterministic": False}  # ← the pair that ACTUALLY ran (capability fallback may have stepped down — never stamp the target default)
     kept.append(f)
 json.dump(kept, open(out_p, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
 print(f"{skill}: validated {len(kept)} ({demoted} ->info unanchored, {capped} surface-capped) -> {out_p}")
@@ -630,6 +635,7 @@ printf '  findings: %s\n' "${FINDINGS[@]##*/}"
 python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "${FINDINGS[@]}" \
     --ledger "$PAPER_DIR/claims.json" \
+    --coverage "$PAPER_DIR/coverage.json" \
     --paper-id "$PAPER_ID" --observability-level "$L" --taxonomy-version 0.5 \
     --memo "$(cat "$PAPER_DIR/adversarial-case-builder.memo.md" 2>/dev/null)" \
     --limitation "Run observability level L$L — see references/observability-levels.md for what this tier can and cannot decide." \
@@ -792,7 +798,7 @@ deterministic adjudicator, and presents.
   **cannot** assert code/result-level fraud — those auto-demote to `info` on a sub-L2
   run. Never present an L0 run as if it could see code; the report's limitations say what
   was unverifiable (`references/observability-levels.md`; `DESIGN.md` §4).
-- **Cross-model, fresh thread per dimension.** Reviewer = gpt-5.5 xhigh (a different
+- **Cross-model, fresh thread per dimension.** Reviewer = gpt-5.6-sol xhigh (a different
   family from Claude); each auditor uses a new `mcp__codex__codex` thread and never
   `codex-reply` (deliberately absent from `allowed-tools` — the bias guard). The executor
   passes only paths + the ledger + the checklist, never a summary or a hunch.

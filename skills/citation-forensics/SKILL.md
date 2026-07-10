@@ -64,7 +64,7 @@ reviewer≠adjudicator, detect-only.**
    canonical record (DBLP / arXiv / DOI). It gathers **facts, never a judgment** —
    whether a mismatch is fabrication, a typo, or a preprint→venue migration is the
    reviewer's call.
-3. A **fresh cross-model reviewer** (gpt-5.5 xhigh, one thread per cited key)
+3. A **fresh cross-model reviewer** (gpt-5.6-sol xhigh, one thread per cited key)
    *proposes* findings, judging existence + metadata + context over those facts.
 4. **Every above-info finding cites a ledger `claim_id` + a verbatim span** of the
    **citing sentence** (`references/integrity-forensics-contract.md` rules 1–2). The
@@ -110,7 +110,7 @@ claim is true.
 ## Constants & Reviewer Calling Convention
 
 ```
-REVIEWER_MODEL       = gpt-5.5                  # different family from executor (Claude)
+REVIEWER_MODEL       = gpt-5.6-sol                  # different family from executor (Claude)
 REVIEWER_REASONING   = xhigh                    # always; effort never lowers reviewer quality
 REVIEWER_SANDBOX     = read-only                # detect-only; never mutate the paper or .bib
 REVIEWER_CWD         = <PAPER_DIR>              # so it can re-open claims.json + the .bib to confirm a span
@@ -132,7 +132,7 @@ TRACE_DIR            = <PAPER_DIR>/.aris/traces/citation-forensics/<YYYY-MM-DD>_
   summarizes the paper, pre-judges "this reference is fake", or leaks an opinion into
   the prompt — only structured inputs (the dossier + the neutral resolution snapshot
   + the checklist). (`reviewer-independence.md` Layer 1.)
-- **Reviewer (codex / gpt-5.5)** judges existence + metadata + context per key over
+- **Reviewer (codex / gpt-5.6-sol)** judges existence + metadata + context per key over
   the executor's facts and self-reports `false_positive_risk`. It is the
   evidence-weigher, not the judge. Like the other auditors it runs
   `config: {"model_reasoning_effort": "xhigh"}`, `sandbox: read-only`; the lookups
@@ -349,7 +349,7 @@ add no commentary of your own about the paper:
 
 ```
 mcp__codex__codex:
-  model: gpt-5.5
+  model: gpt-5.6-sol
   config: {"model_reasoning_effort": "xhigh"}
   sandbox: read-only
   cwd: <absolute PAPER_DIR from Step 0>
@@ -525,7 +525,7 @@ carry one key's conclusion into another.
 
 **Failure handling.**
 - *MCP stall / hang* (common in long sessions): re-invoke the **identical** prompt as
-  a **fresh** `mcp__codex__codex` call (gpt-5.5, xhigh) — never `codex-reply`.
+  a **fresh** `mcp__codex__codex` call (gpt-5.6-sol, xhigh) — never `codex-reply`.
 - *Reviewer returns prose, not a JSON array*: the Step 4 validator extracts the
   outermost `[...]`; if there is none, re-ask that one key with "Output ONLY the JSON
   array, nothing else." Never hand-author findings on the reviewer's behalf.
@@ -619,7 +619,7 @@ for fp in files:
         if isinstance(olr, bool) or not isinstance(olr, int) or not (0 <= olr <= 3):
             f["observability_level_required"] = OBS.get(pid, 0)
         # cross-model provenance (reviewer-independence: a proposal, not a verdict)
-        f["reviewer"] = {"model": "gpt-5.5", "reasoning": "xhigh", "deterministic": False}
+        f["reviewer"] = {"model": "gpt-5.6-sol", "reasoning": "xhigh", "deterministic": False}
         kept.append(f)
 
 json.dump(kept, open(out_path, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
@@ -663,7 +663,7 @@ the forensic record of what the reviewer concluded over the gathered facts):
   resolution.json                     # the executor's Step 2 canonical-facts snapshot (copy)
   001-<key>.request.json              # the EXACT prompt sent for this key (dossier+resolution+checklist; no paper digest)
   001-<key>.response.md               # the FULL raw reviewer reply (input to Step 4)
-  001-<key>.meta.json                 # {model:"gpt-5.5", reasoning:"xhigh", sandbox:"read-only", thread_id}
+  001-<key>.meta.json                 # {model:"gpt-5.6-sol", reasoning:"xhigh", sandbox:"read-only", thread_id}
   002-<key>.request.json ...
 ```
 
@@ -749,7 +749,7 @@ only from `tools/adjudicate_findings.py` (Step 6 / the orchestrator).
   they are decidable from text + canonical sources, no repo or results. This skill
   never asserts code/result-level fraud (that needs L2 → `experiment-forensics`).
 - **Cross-model, one fresh thread per cited key.** Reviewer is a different family
-  (gpt-5.5 xhigh); each key is a new `mcp__codex__codex` thread; `codex-reply` is
+  (gpt-5.6-sol xhigh); each key is a new `mcp__codex__codex` thread; `codex-reply` is
   never used across keys.
 - **Reviewer ≠ adjudicator.** The model proposes findings; `adjudicate_findings.py`
   decides the verdict. This skill emits findings only.

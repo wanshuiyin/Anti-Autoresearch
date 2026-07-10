@@ -115,7 +115,7 @@ substantive accusation.
 ## Constants & Reviewer Calling Convention
 
 ```
-REVIEWER_MODEL          = gpt-5.5                  # different family from executor (Claude)
+REVIEWER_MODEL          = gpt-5.6-sol                  # different family from executor (Claude)
 REVIEWER_REASONING      = xhigh                    # always; effort never lowers reviewer quality
 REVIEWER_SANDBOX        = read-only                # detect-only; never mutate the paper
 REVIEWER_CWD            = <paper-dir>              # so it can read claims.json + pdf-text + the PDF directly
@@ -137,7 +137,7 @@ TRACE_DIR               = .aris/traces/presentation-signals/<YYYY-MM-DD>_run<NN>
   reviewer's spans, caps severity, and writes the findings file. It never summarizes
   the paper, pre-judges "this looks AI-written", or leaks an opinion into the prompt
   (`reviewer-independence.md` Layer 1).
-- **Reviewer (codex / gpt-5.5)** reads `claims.json` + the PDF-text + the PDF itself
+- **Reviewer (codex / gpt-5.6-sol)** reads `claims.json` + the PDF-text + the PDF itself
   (visually only if it can render it; otherwise caption text only — see HP-LLM-FIGURE),
   proposes **gross-only** surface signals, and self-reports `false_positive_risk`. It
   is the evidence-extractor, not the judge.
@@ -283,7 +283,7 @@ input) **before** parsing:
 
 ```
 mcp__codex__codex:
-  model: gpt-5.5
+  model: gpt-5.6-sol
   config: {"model_reasoning_effort": "xhigh"}
   sandbox: read-only
   cwd: <absolute PAPER_DIR from Step 0>
@@ -366,7 +366,7 @@ mcp__codex__codex:
 
 **Failure handling.**
 - *MCP stall / hang* (common in long sessions): re-invoke the **identical** prompt as a
-  **fresh** `mcp__codex__codex` call (gpt-5.5, xhigh) — never `codex-reply`.
+  **fresh** `mcp__codex__codex` call (gpt-5.6-sol, xhigh) — never `codex-reply`.
 - *Reviewer returns prose, not a JSON array*: the Step 3 validator extracts the
   outermost `[...]`; if there is none, re-ask once with "Output ONLY the JSON array,
   nothing else." Do not hand-author findings on the reviewer's behalf.
@@ -447,7 +447,7 @@ for f in proposed:
         sev = "info"; demoted += 1           # unanchored surface signal -> info note, NEVER a flag
     f["severity"] = sev
     # cross-model provenance (reviewer-independence: this is a proposal, not a verdict)
-    f["reviewer"] = {"model": "gpt-5.5", "reasoning": "xhigh", "deterministic": False}
+    f["reviewer"] = {"model": "gpt-5.6-sol", "reasoning": "xhigh", "deterministic": False}
     kept.append(f)
 
 json.dump(kept, open(out_path, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
@@ -538,7 +538,7 @@ Save the raw reviewer call under the `TRACE_DIR` created in Step 2
   run.meta.json                       # {skill, paper_id, run_level_L, ledger_sha?, generated_at}
   001-surface-semantic.request.json   # the EXACT prompt sent (paths + checklist; no paper digest)
   001-surface-semantic.response.md    # the FULL raw reviewer response (input to Step 3)
-  001-surface-semantic.meta.json      # {model:"gpt-5.5", reasoning:"xhigh", thread_id, sandbox:"read-only"}
+  001-surface-semantic.meta.json      # {model:"gpt-5.6-sol", reasoning:"xhigh", thread_id, sandbox:"read-only"}
 ```
 
 The `request.json` is the independence audit trail — it must show the executor sent
@@ -611,7 +611,7 @@ only from `tools/adjudicate_findings.py` (Step 6 / the orchestrator).
   substantive auditors, never encoded as a capped surface note.
 - **Two files, no merge.** Deterministic (`PRES###`) and semantic (`F###`) findings
   stay in separate files to avoid double-counting under the orchestrator's glob.
-- **Cross-model, fresh thread.** Reviewer is a different family (gpt-5.5 xhigh); every
+- **Cross-model, fresh thread.** Reviewer is a different family (gpt-5.6-sol xhigh); every
   run is a new `mcp__codex__codex` thread; `codex-reply` is never used.
 - **Detect-only.** Never edit the audited paper (no `Edit` in `allowed-tools`; reviewer
   sandbox is `read-only`).

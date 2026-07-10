@@ -87,7 +87,7 @@ this skill.
 - **EMITS_FINDINGS = `false` · EMITS_VERDICT = `false`** — load-bearing. This skill produces a ledger, not judgments.
 - **DETECT_ONLY = `true`** — never edits the audited paper; only reads sources and writes its own outputs (this is why `Edit` is absent from `allowed-tools`).
 - **ENRICH = `true`** (default) — run the additive semantic pass (Step 3), which surfaces the *semantic, proof/derivation, and structure* spans the regex backbone misses (theorem statements, assumptions, definitions, proof steps, equations, conclusions, the motivation span, reproducibility-artifact references). Set `false` (or pass `— enrich: false`) to ship the deterministic backbone alone. Enrichment is **non-blocking**: if the Codex MCP is unavailable it is skipped and the deterministic ledger is the canonical output.
-- **REVIEWER (enrichment only)** — model `gpt-5.5`, `model_reasoning_effort: xhigh`, `sandbox: read-only`, **different model family** from the executor (`references/reviewer-independence.md` Layer 1). **CONTEXT_POLICY = fresh**: a new `mcp__codex__codex` thread per run, **never** `mcp__codex__codex-reply`. Told only source paths + the existing ledger, never the executor's opinions or any prior finding.
+- **REVIEWER (enrichment only)** — model `gpt-5.6-sol`, `model_reasoning_effort: xhigh`, `sandbox: read-only`, **different model family** from the executor (`references/reviewer-independence.md` Layer 1). **CONTEXT_POLICY = fresh**: a new `mcp__codex__codex` thread per run, **never** `mcp__codex__codex-reply`. Told only source paths + the existing ledger, never the executor's opinions or any prior finding.
 - **OUTPUTS** — `artifact_manifest.json`, `claims.json` (+ enrichment trace under `.aris/traces/evidence-ledger/<date>_run<NN>/` when Step 3 runs), all written into the paper directory.
 
 > Resolve the repo root once and reuse it for every tool call:
@@ -381,7 +381,7 @@ Call the reviewer with a **fresh `mcp__codex__codex` thread** (never `codex-repl
 
 ```text
 mcp__codex__codex:
-  model: gpt-5.5
+  model: gpt-5.6-sol
   config: {"model_reasoning_effort": "xhigh"}
   sandbox: read-only
   cwd: <PAPER_DIR>
@@ -614,7 +614,7 @@ not run any of these** — stop at a validated ledger.
 - **Enrichment adds, never invents.** Only the seven semantic types — even the broadened v0.4 proof/derivation + structure content (theorem statements, assumptions, definitions, proof steps, equations, conclusions, the motivation span, reproducibility-artifact references) rides on those same `type`s, never a new one; never a number, never an altered value, never a removed/edited deterministic claim. The numeric/citation backbone stays 100% deterministic, and the ledger captures these spans as **anchors only** — it never judges a proof, an assumption, a broken chain, or a missing artifact (that is the family-B/D/G auditors' job).
 - **Never over-state the level.** `L` is derived from the artifacts present and caps all downstream severity. A PDF-only run is L0 — full stop. Never set `repo.rerunnable: true` (no L3 in v0).
 - **No judgment here.** The ledger states *what the paper says*, never *whether it is right*. `EMITS_FINDINGS = false`, `EMITS_VERDICT = false`; no `pattern_id` tagging.
-- **Cross-model, fresh thread, no leakage.** The one enrichment call is `gpt-5.5` @ `xhigh`, `read-only`, a *different* family from the executor, a new `mcp__codex__codex` thread (never `codex-reply`), told only source paths + the ledger.
+- **Cross-model, fresh thread, no leakage.** The one enrichment call is `gpt-5.6-sol` @ `xhigh`, `read-only`, a *different* family from the executor, a new `mcp__codex__codex` thread (never `codex-reply`), told only source paths + the ledger.
 - **Detect-only.** Never edit the audited paper; only read sources and write this skill's own outputs (Step 5's hash check proves it).
 
 ## When NOT to use (and limits)
