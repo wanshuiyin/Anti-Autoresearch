@@ -147,6 +147,78 @@ def load_findings(paths):
     return findings
 
 
+def _is_llm_critical(f):
+    """Refutation-eligible: a weight-1 critical proposed by an LLM reviewer.
+    Deterministic findings are computed, not argued — nothing to refute."""
+    return (f.get("_severity_final") == "critical"
+            and f.get("_verdict_weight", 1) == 1
+            and not (f.get("reviewer") or {}).get("deterministic"))
+
+
+def _refutation_counter_anchored(refutation, ledger_map):
+    """A refutation only counts as CHECKABLE when at least one counter-evidence
+    entry quotes a verbatim span of a real ledger claim — same `span in base`
+    rule as findings (an opinion is not a counter-anchor)."""
+    if not ledger_map:
+        return False
+    for ev in refutation.get("counter_evidence", []) or []:
+        cid = ev.get("claim_id")
+        span = _norm_ws(ev.get("span"))
+        if not cid or not _anchorable(span):
+            continue
+        base = ledger_map.get(cid)
+        if base is not None and span in _norm_ws(base):
+            return True
+    return False
+
+
+def apply_critical_scrutiny(findings, ledger_map=None):
+    """Post-gate passes for LLM-proposed criticals (order matters; both are FIXED
+    rules — no model output ever changes a verdict here):
+
+    1. ALTERNATIVE-EXPLANATION gate (fail-closed): anchoring proves the quoted text
+       exists, not that the reviewer's interpretation of it is right. A critical
+       whose reviewer did not record what alternatives it ruled out
+       (`alternative_explanation_checked`) demotes to major.
+    2. CONTESTED marking (never severity-moving): a completed refutation attempt
+       that claims refuted=true AND cites a checkable counter-anchor marks the
+       finding `_contested` — the severity and the verdict stay untouched
+       (the refuter is same-family adversarial REDUNDANCY, not a judge; the marker
+       is for the human). All other refutation outcomes only leave audit notes.
+
+    Returns the critical_refutation_coverage counters for the report."""
+    cov = {"eligible": 0, "completed": 0, "unavailable": 0, "malformed": 0,
+           "contested": 0}
+    for f in findings:
+        reasons = f.setdefault("_adjudication", [])
+        # -- gate 1: alternative_explanation_checked required on LLM criticals --
+        if _is_llm_critical(f) and not str(f.get("alternative_explanation_checked") or "").strip():
+            f["_severity_final"] = "major"
+            reasons.append("alternative-explanation-not-declared")
+        # -- pass 2: contested marking on the criticals that remain --
+        if not _is_llm_critical(f):
+            continue
+        cov["eligible"] += 1
+        ref = f.get("refutation")
+        if not isinstance(ref, dict) or ref.get("attempt_status") in (None, "", "unavailable"):
+            cov["unavailable"] += 1
+            continue
+        if ref.get("attempt_status") == "malformed":
+            cov["malformed"] += 1
+            continue
+        cov["completed"] += 1
+        if ref.get("refuted") is True:
+            if _refutation_counter_anchored(ref, ledger_map or {}):
+                f["_contested"] = True
+                reasons.append("contested-by-anchored-adversarial-pass")
+                cov["contested"] += 1
+            else:
+                reasons.append("unanchored-refutation-claim")
+        else:
+            reasons.append("adversarial-refutation-not-found")
+    return cov
+
+
 def adjudicate(findings, run_level, ledger_map=None):
     """Demote each finding by the gates, in order. Every gate is fail-closed:
     anything not provably safe drops to info, so a finding can only raise the
@@ -261,7 +333,8 @@ def dimension_verdicts(findings):
     return {d: verdict_of([s]) for d, s in dims.items()}
 
 
-def build_report(findings, args, stats, anchoring_verified, coverage=None):
+def build_report(findings, args, stats, anchoring_verified, coverage=None,
+                 refutation_cov=None):
     # The integrity verdict is computed from verdict-WEIGHT-1 findings ONLY. Zero-weight
     # findings (AIS style impressions + ADV memos) are reported but provably cannot move it.
     weighted = [f for f in findings if f.get("_verdict_weight", 1) == 1]
@@ -333,6 +406,16 @@ def build_report(findings, args, stats, anchoring_verified, coverage=None):
                 "missing; the integrity verdict is unaffected (zero verdict weight)." % k
             )
 
+    refutation_cov = refutation_cov or {"eligible": 0, "completed": 0,
+                                        "unavailable": 0, "malformed": 0, "contested": 0}
+    if refutation_cov["eligible"] > refutation_cov["completed"]:
+        limitations.append(
+            "Critical-refutation pass incomplete: %d of %d eligible critical(s) never "
+            "received a completed refutation attempt — the flags stand (flags fail toward "
+            "caution), but the CONTESTED screen is missing for those findings."
+            % (refutation_cov["eligible"] - refutation_cov["completed"],
+               refutation_cov["eligible"]))
+
     return {
         "report_version": REPORT_VERSION,
         "taxonomy_version": args.taxonomy_version,
@@ -342,6 +425,7 @@ def build_report(findings, args, stats, anchoring_verified, coverage=None):
         datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None).isoformat() + "Z",
         "overall_verdict": overall,
         "coverage": coverage,
+        "critical_refutation_coverage": refutation_cov,
         "adjudicator": ADJUDICATOR_ID,
         "anchoring_verified": anchoring_verified,
         "dimension_verdicts": dimension_verdicts(findings),
@@ -389,8 +473,8 @@ def render_md(report):
         "",
         "## Findings (evidence first)",
         "",
-        "| ID | Dimension | Severity | Pattern | Where | FP-risk |",
-        "|----|-----------|----------|---------|-------|---------|",
+        "| ID | Dimension | Severity | Pattern | Where | FP-risk | Contest |",
+        "|----|-----------|----------|---------|-------|---------|---------|",
     ]
     shown = [f for f in report["findings"]
              if f["_severity_final"] != "info" and f.get("_verdict_weight", 1) == 1]
@@ -404,10 +488,18 @@ def render_md(report):
         lines.append(
             f"| {f.get('finding_id','?')} | {SKILL_TO_DIMENSION.get(f.get('skill'),'—')} "
             f"| {f['_severity_final']} | {f.get('pattern_id','—')} | {loc or '—'} "
-            f"| {f.get('false_positive_risk','—')} |"
+            f"| {f.get('false_positive_risk','—')} "
+            f"| {'⚠️ CONTESTED' if f.get('_contested') else '—'} |"
         )
     if not shown:
-        lines.append("| — | — | none above info | — | — | — |")
+        lines.append("| — | — | none above info | — | — | — | — |")
+    if any(f.get("_contested") for f in shown):
+        lines += ["",
+                  "> ⚠️ **CONTESTED** = a fresh adversarial refutation pass produced a "
+                  "ledger-anchored counter-reading of this finding. Severity and verdict are "
+                  "UNCHANGED — the refuter is same-family adversarial redundancy, not "
+                  "independent verification, and no model output moves the verdict here. "
+                  "Read both spans and decide."]
 
     lines += ["", "### Detail", ""]
     for f in sorted(shown, key=lambda x: -SEV_ORDER[x["_severity_final"]]):
@@ -415,6 +507,13 @@ def render_md(report):
                      f"({f['_severity_final']})")
         lines.append("")
         lines.append(f"- {f.get('description','')}")
+        if f.get("_contested"):
+            ref = f.get("refutation") or {}
+            lines.append(f"  - ⚠️ contested — refuter's reading: {ref.get('reason', '(no reason recorded)')}")
+            for cev in (ref.get("counter_evidence") or [])[:2]:
+                if (cev.get("span") or "").strip():
+                    span_txt = (cev.get("span") or "")[:160]
+                    lines.append(f"    - counter-anchor `{cev.get('claim_id','?')}`: {span_txt}")
         for ev in f.get("evidence", []) or []:
             if (ev.get("span") or "").strip():
                 lines.append(f"  - evidence `{ev.get('claim_id','?')}`: "
@@ -501,6 +600,9 @@ def main(argv=None):
                     "dimension marked review_unavailable BLOCKS the acquittal: the overall "
                     "verdict becomes REVIEW_UNAVAILABLE instead of CLEAN_GIVEN_EVIDENCE "
                     "(found flags still stand). Absent = legacy behavior.")
+    ap.add_argument("--list-critical-candidates", action="store_true",
+                    help="print the refutation-eligible criticals (post-gates) as JSON and exit "
+                         "— the workflow's Step 3.5 uses this instead of re-deriving the rules")
     ap.add_argument("--memo", default="", help="adversarial memo text (informational)")
     ap.add_argument("--limitation", action="append", help="extra limitation line (repeatable)")
     ap.add_argument("--generated-at", default="", help="override timestamp (for reproducible eval)")
@@ -535,8 +637,22 @@ def main(argv=None):
     # stamping a falsely-reassuring "anchoring_verified: true" on a CLEAN verdict.
     anchoring_verified = bool(ledger_map)
     stats = adjudicate(findings, args.observability_level, ledger_map or None)
+    refutation_cov = apply_critical_scrutiny(findings, ledger_map or None)
+
+    if args.list_critical_candidates:
+        # refutation-eligible criticals, AFTER every gate — the single source of truth
+        # the workflow's Step 3.5 consumes (never re-derive these rules elsewhere)
+        cands = [{"source_file": f.get("_source_file", "?"),
+                  "finding_id": f.get("finding_id", "?"),
+                  "skill": f.get("skill", "?"),
+                  "pattern_id": f.get("pattern_id", ""),
+                  "title": f.get("title", "")}
+                 for f in findings if _is_llm_critical(f)]
+        print(json.dumps(cands, indent=2, ensure_ascii=False))
+        return 0
+
     report = build_report(findings, args, stats, anchoring_verified=anchoring_verified,
-                          coverage=coverage)
+                          coverage=coverage, refutation_cov=refutation_cov)
 
     md = render_md(report)          # render FIRST — a render crash must not leave
     with open(args.out, "w", encoding="utf-8") as fh:   # a report.json without its REPORT.md

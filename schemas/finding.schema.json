@@ -4,49 +4,183 @@
   "title": "Auditor Finding",
   "description": "One integrity flag emitted by an auditor skill. CRITICAL invariant: a finding with severity 'critical' or 'major' MUST carry at least one evidence entry with a non-empty span (enforced by tools/adjudicate_findings.py). A finding is NEVER a final verdict — the deterministic adjudicator computes the report verdict from the full finding set. The LLM reviewer proposes findings; it does not grade the paper.",
   "type": "object",
-  "required": ["finding_id", "skill", "title", "severity", "evidence", "verdict_local"],
+  "required": [
+    "finding_id",
+    "skill",
+    "title",
+    "severity",
+    "evidence",
+    "verdict_local"
+  ],
   "properties": {
-    "finding_id": {"type": "string", "description": "e.g. \"F001\"."},
+    "finding_id": {
+      "type": "string",
+      "description": "e.g. \"F001\"."
+    },
     "skill": {
       "type": "string",
-      "enum": ["consistency-audit", "experiment-forensics", "baseline-comparison-audit", "citation-forensics", "presentation-signals", "proof-derivation-forensics", "adversarial-case-builder", "novelty-duplication-advisory", "evidence-ledger", "eval-design-forensics", "ai-style-impressions"]
+      "enum": [
+        "consistency-audit",
+        "experiment-forensics",
+        "baseline-comparison-audit",
+        "citation-forensics",
+        "presentation-signals",
+        "proof-derivation-forensics",
+        "adversarial-case-builder",
+        "novelty-duplication-advisory",
+        "evidence-ledger",
+        "eval-design-forensics",
+        "ai-style-impressions"
+      ]
     },
-    "pattern_id": {"type": "string", "description": "Optional ref into references/hack-pattern-taxonomy.md (e.g. \"HP-NUM-INFLATE\"). The taxonomy is a post-hoc MAPPING layer, never the detector itself."},
-    "title": {"type": "string"},
-    "description": {"type": "string", "description": "What was found, in reviewer-facing language. Describes a discrepancy/risk, NOT an accusation of misconduct."},
-    "severity": {"type": "string", "enum": ["critical", "major", "minor", "info"]},
-    "observability_level_required": {"type": "integer", "minimum": 0, "maximum": 3, "description": "Lowest evidence tier at which this finding is decidable. The adjudicator downgrades severity if the run's observability level is below this (you cannot assert code-level fraud from a PDF)."},
+    "pattern_id": {
+      "type": "string",
+      "description": "Optional ref into references/hack-pattern-taxonomy.md (e.g. \"HP-NUM-INFLATE\"). The taxonomy is a post-hoc MAPPING layer, never the detector itself."
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string",
+      "description": "What was found, in reviewer-facing language. Describes a discrepancy/risk, NOT an accusation of misconduct."
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "critical",
+        "major",
+        "minor",
+        "info"
+      ]
+    },
+    "observability_level_required": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3,
+      "description": "Lowest evidence tier at which this finding is decidable. The adjudicator downgrades severity if the run's observability level is below this (you cannot assert code-level fraud from a PDF)."
+    },
     "evidence": {
       "type": "array",
       "description": "Span-anchored evidence. Empty array is only permitted for severity 'info'.",
       "items": {
         "type": "object",
-        "required": ["claim_id", "span"],
+        "required": [
+          "claim_id",
+          "span"
+        ],
         "properties": {
-          "claim_id": {"type": "string", "description": "claim_id from the evidence ledger this finding is anchored to."},
-          "span": {"type": "string", "description": "Verbatim quoted text the finding rests on."},
-          "location": {"type": "object", "description": "Mirror of the ledger claim's location for human navigation."},
-          "artifact_hash": {"type": "string", "description": "sha256 of the source artifact (from the ledger's evidence_anchor) — makes the finding reproducible."}
+          "claim_id": {
+            "type": "string",
+            "description": "claim_id from the evidence ledger this finding is anchored to."
+          },
+          "span": {
+            "type": "string",
+            "description": "Verbatim quoted text the finding rests on."
+          },
+          "location": {
+            "type": "object",
+            "description": "Mirror of the ledger claim's location for human navigation."
+          },
+          "artifact_hash": {
+            "type": "string",
+            "description": "sha256 of the source artifact (from the ledger's evidence_anchor) — makes the finding reproducible."
+          }
         }
       }
     },
     "verdict_local": {
       "type": "string",
-      "enum": ["fail", "warn", "clean", "needs_external_check"],
+      "enum": [
+        "fail",
+        "warn",
+        "clean",
+        "needs_external_check"
+      ],
       "description": "This skill's LOCAL read. NOT the repo verdict. 'needs_external_check' = the claim (e.g. 'SOTA', 'first') cannot be settled inside this skill and is handed to baseline/citation forensics."
     },
     "reviewer": {
       "type": "object",
       "description": "Provenance of the cross-model judgment (reviewer-independence). Absent for purely deterministic findings produced by tools/.",
       "properties": {
-        "model": {"type": "string"},
-        "reasoning": {"type": "string"},
-        "thread_id": {"type": "string"},
-        "deterministic": {"type": "boolean", "description": "true when the finding came from a code rule (arithmetic, hash, regex), not an LLM."}
+        "model": {
+          "type": "string"
+        },
+        "reasoning": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "deterministic": {
+          "type": "boolean",
+          "description": "true when the finding came from a code rule (arithmetic, hash, regex), not an LLM."
+        }
       }
     },
-    "requires_external_check": {"type": "boolean", "default": false},
-    "false_positive_risk": {"type": "string", "enum": ["low", "medium", "high"], "description": "Honest self-assessment — drives whether the finding is shown as a flag vs a note. Legit round numbers / single-seed pilots are common FPs."},
-    "recommended_reviewer_action": {"type": "string", "description": "What a human reviewer should ASK or CHECK — never 'reject', always an investigative next step."}
+    "requires_external_check": {
+      "type": "boolean",
+      "default": false
+    },
+    "false_positive_risk": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "description": "Honest self-assessment — drives whether the finding is shown as a flag vs a note. Legit round numbers / single-seed pilots are common FPs."
+    },
+    "recommended_reviewer_action": {
+      "type": "string",
+      "description": "What a human reviewer should ASK or CHECK — never 'reject', always an investigative next step."
+    },
+    "alternative_explanation_checked": {
+      "type": "string",
+      "description": "REQUIRED (by adjudicator gate, not schema) on every LLM-proposed critical: what benign alternatives the reviewer explicitly ruled out (rounding/display precision, unit or metric convention, statistical reporting convention, table-vs-text scope). Anchoring proves the quoted text exists — this field is the reviewer's proof it checked whether its INTERPRETATION is the only reasonable one. A critical without it demotes to major (alternative-explanation-not-declared)."
+    },
+    "refutation": {
+      "type": "object",
+      "description": "Result of the critical-refutation pass (workflow Step 3.5): ONE fresh same-family thread tasked only to refute this critical. NEVER severity-moving — refuted=true with a ledger-anchored counter-span only marks the finding CONTESTED for the human. 'refuted' records what the refuter CLAIMED, not an adjudicated fact.",
+      "properties": {
+        "attempt_status": {
+          "type": "string",
+          "enum": [
+            "completed",
+            "unavailable",
+            "malformed"
+          ]
+        },
+        "refuted": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "counter_evidence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "claim_id": {
+                "type": "string"
+              },
+              "span": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "claim_id",
+              "span"
+            ]
+          }
+        },
+        "reviewer": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "attempt_status"
+      ]
+    }
   }
 }

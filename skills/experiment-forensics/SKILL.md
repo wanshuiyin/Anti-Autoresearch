@@ -450,6 +450,7 @@ For each finding:
                   "location": {...} } ],
   "verdict_local": "fail|warn|clean|needs_external_check",
   "false_positive_risk": "low|medium|high",
+  "alternative_explanation_checked": "<criticals ONLY — the benign readings you explicitly ruled out: rounding/display precision, unit or metric convention, statistical reporting convention, scope difference. Anchoring proves the text exists, NOT that your interpretation is right; a critical without this field demotes to major>",
   "recommended_reviewer_action": <what a human should ASK/CHECK> }
 
 ANCHOR RULE: every finding above "info" MUST cite a ledger claim_id and quote a
