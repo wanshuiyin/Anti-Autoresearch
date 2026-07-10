@@ -29,73 +29,105 @@ def test_decimals_of():
 
 
 def test_display_interval_open():
+    from fractions import Fraction
     lo, hi = C.display_interval("78.0")
-    assert str(lo) == "77.95" and str(hi) == "78.05"
+    assert lo == Fraction("77.95") and hi == Fraction("78.05")   # exact rationals
 
 
 # ---- rounding_interval (HP-DELTA-ERROR) ----
 
 def test_relative_delta_rounding_rescues_true_positive_case():
-    # (78.0−73.1)/73.1·100 = 6.70…% — a stated "6.7% relative" is display-compatible
-    st, ev = C.rounding_interval_delta("73.1", "78.0", "6.7", "relative", "%", "%")
+    # (78.0−73.1)/73.1·100 = 6.70…% — a stated "6.7% relative" is display-compatible;
+    # NOTE: certified is False — this resolver reports, it never demotes
+    st, ev = C.rounding_interval_delta("73.1", "78.0", "6.7", "relative", "%", "%", stated_unit="%")
     assert st == C.PROVED_COMPATIBLE, ev
+    assert ev["certified"] is False
 
 
 def test_relative_delta_real_error_persists():
     # true relative delta ≈ 6.7% — a stated "16.7% relative" cannot be rounding
-    st, ev = C.rounding_interval_delta("73.1", "78.0", "16.7", "relative", "%", "%")
+    st, ev = C.rounding_interval_delta("73.1", "78.0", "16.7", "relative", "%", "%", stated_unit="%")
     assert st == C.DISCREPANCY_PERSISTS, ev
 
 
 def test_points_delta_rounding():
     # 78.0 − 73.1 = 4.9 points; stated "5 points" (0 decimals) is display-compatible
-    st, _ = C.rounding_interval_delta("73.1", "78.0", "5", "points", "%", "%")
+    st, _ = C.rounding_interval_delta("73.1", "78.0", "5", "points", "%", "%", stated_unit="point")
     assert st == C.PROVED_COMPATIBLE
     # stated "6 points" is not
-    st, _ = C.rounding_interval_delta("73.1", "78.0", "6", "points", "%", "%")
+    st, _ = C.rounding_interval_delta("73.1", "78.0", "6", "points", "%", "%", stated_unit="point")
+    assert st == C.DISCREPANCY_PERSISTS
+
+
+def test_points_convention_requires_point_unit():
+    # a % number cannot be a points delta, whatever the prose says
+    st, ev = C.rounding_interval_delta("73.1", "78.0", "5", "points", "%", "%", stated_unit="%")
+    assert st == C.UNRESOLVABLE and "points delta" in ev["why"]
+
+
+def test_exact_arithmetic_no_precision_smuggling():
+    # 50-digit operands: exact Fractions must keep a real discrepancy real
+    old = "9" * 48 + "00"          # ...9800-ish magnitude, 0 decimals
+    new = "9" * 48 + "05"
+    st, _ = C.rounding_interval_delta(old, new, "0." + "0" * 47 + "1",
+                                      "relative", None, None, stated_unit="%")
+    # whatever the verdict, it must be decided exactly — and this one is NOT
+    # compatible: achievable ≈ (4e-48, 6e-48)·100, stated interval is elsewhere
+    assert st in (C.DISCREPANCY_PERSISTS, C.UNRESOLVABLE)
     assert st == C.DISCREPANCY_PERSISTS
 
 
 def test_no_explicit_convention_is_unresolvable():
-    st, ev = C.rounding_interval_delta("73.1", "78.0", "6.7", None, "%", "%")
+    st, ev = C.rounding_interval_delta("73.1", "78.0", "6.7", None, "%", "%", stated_unit="%")
     assert st == C.UNRESOLVABLE and "convention" in ev["why"]
 
 
 def test_unit_mismatch_unresolvable():
-    st, _ = C.rounding_interval_delta("73.1", "78.0", "6.7", "relative", "%", "point")
+    st, _ = C.rounding_interval_delta("73.1", "78.0", "6.7", "relative", "%", "point", stated_unit="%")
     assert st == C.UNRESOLVABLE
 
 
 def test_zero_crossing_denominator_unresolvable():
-    st, ev = C.rounding_interval_delta("0.0", "78.0", "6.7", "relative", "%", "%")
+    st, ev = C.rounding_interval_delta("0.0", "78.0", "6.7", "relative", "%", "%", stated_unit="%")
     assert st == C.UNRESOLVABLE and "zero" in ev["why"]
 
 
-def test_convention_grammar():
-    assert C.delta_convention_from_span("improves by 4.9 points over the baseline") == "points"
-    assert C.delta_convention_from_span("a 6.7% relative improvement") == "relative"
-    assert C.delta_convention_from_span("improves by 6.7%") is None          # ambiguous
-    assert C.delta_convention_from_span("relative gain of 5 points") is None  # both markers
+def test_negative_operands_exact():
+    # loss improves from -3.2 to -2.4: points delta 0.8, stated "0.8 points"
+    st, _ = C.rounding_interval_delta("-3.2", "-2.4", "0.8", "points", None, None, stated_unit="point")
+    assert st == C.PROVED_COMPATIBLE
+
+
+def test_convention_unit_driven_and_local():
+    # unit drives: a 'point'-unit number is points, whatever the prose
+    assert C.delta_convention("point", "improves by 4.9 points", "4.9") == "points"
+    # a % number is relative ONLY with a LOCAL 'relative' marker
+    assert C.delta_convention("%", "a 6.7% relative improvement", "6.7") == "relative"
+    assert C.delta_convention("%", "improves by 6.7%", "6.7") is None
+    # the misbinding attack: 'points' elsewhere in the sentence can't re-type a % number
+    assert C.delta_convention("%", "improves by 4.9% over five data points", "4.9") is None
+    # 'relative' beyond the clause boundary does not bind
+    assert C.delta_convention("%", "6.7% better. In relative terms, this is large", "6.7") is None
 
 
 # ---- display_precision (HP-NUM-INFLATE / HP-APPENDIX-CONTRA) ----
 
 def test_display_precision_compatible():
     # table 78.03 vs headline 78.0 — same quantity, coarser display
-    st, _ = C.display_precision("78.03", "78.0", "%", "%")
+    st, _ = C.display_precision("78.03", "78.0", a_unit="%", b_unit="%")
     assert st == C.PROVED_COMPATIBLE
 
 
 def test_display_precision_real_inflation_persists():
     # table 78.03 vs headline 79 — no rounding explains it
-    st, _ = C.display_precision("78.03", "79", "%", "%")
+    st, _ = C.display_precision("78.03", "79", a_unit="%", b_unit="%")
     assert st == C.DISCREPANCY_PERSISTS
 
 
 def test_display_precision_finer_midpoint_is_compatible():
     # 78.05 (2dp) genuinely CAN display as 78.1 at 1dp (e.g. true value 78.052):
     # the open intervals (78.045,78.055) and (78.05,78.15) strictly intersect
-    st, _ = C.display_precision("78.05", "78.1", "%", "%")
+    st, _ = C.display_precision("78.05", "78.1", a_unit="%", b_unit="%")
     assert st == C.PROVED_COMPATIBLE
 
 
@@ -103,13 +135,18 @@ def test_display_precision_endpoint_contact_unresolvable():
     # 78.0 vs 78.1 at the same precision: their open intervals touch exactly at
     # 78.05 — whether that midpoint displays as 78.0 or 78.1 depends on the
     # rounding mode, so contact proves nothing and must NOT demote
-    st, ev = C.display_precision("78.0", "78.1", "%", "%")
+    st, ev = C.display_precision("78.0", "78.1", a_unit="%", b_unit="%")
+    assert C.display_precision("78.1", "78.0", a_unit="%", b_unit="%")[0] == st  # symmetric
     assert st == C.UNRESOLVABLE and "endpoint" in ev["why"]
 
 
-def test_allowlist_shape():
+def test_allowlist_shape_and_demotion_capability():
     assert set(C.ALLOWLIST) == {"HP-DELTA-ERROR", "HP-NUM-INFLATE", "HP-APPENDIX-CONTRA"}
-    assert C.ALLOWLIST["HP-DELTA-ERROR"][1] == frozenset({"old", "new", "stated"})
+    assert C.ALLOWLIST["HP-DELTA-ERROR"] == ("rounding_interval",
+                                             frozenset({"old", "new", "stated"}), False)
+    # only the binding-invariant (symmetric) resolver may demote
+    assert C.ALLOWLIST["HP-NUM-INFLATE"][2] is True
+    assert C.ALLOWLIST["HP-APPENDIX-CONTRA"][2] is True
 
 
 if __name__ == "__main__":

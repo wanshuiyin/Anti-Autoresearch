@@ -400,11 +400,19 @@ mcp__codex__codex:
         "requires_external_check": false,
         "false_positive_risk": "low|medium|high",
         "alternative_explanation_checked": "<criticals ONLY — the benign readings you explicitly ruled out: rounding/display precision, unit or metric convention, statistical reporting convention, scope difference. Anchoring proves the text exists, NOT that your interpretation is right; a critical without this field demotes to major>",
-        "numeric_basis": [{"claim_id": "NUM###", "role": "old|new|stated (HP-DELTA-ERROR) or fine|coarse (HP-NUM-INFLATE, HP-APPENDIX-CONTRA)"}],  // criticals of these three patterns ONLY — freeze the exact numeric claims your accusation computes over (must be precisely the numeric claims in your evidence, one role each); the adjudicator re-derives their values from the ledger and runs a deterministic counter-check; missing/invalid → your critical demotes to major
+        "numeric_basis": [{"claim_id": "C012", "role": "old"}, {"claim_id": "C013", "role": "new"}, {"claim_id": "C014", "role": "stated"}],
         "recommended_reviewer_action": "what to CHECK or ASK — never 'reject'"
       }
     If you find no discrepancy for an item, simply emit nothing for it. An empty
     array [] is a valid, honest result.
+
+    NUMERIC BASIS (criticals of HP-DELTA-ERROR / HP-NUM-INFLATE / HP-APPENDIX-CONTRA
+    ONLY — omit the field everywhere else): freeze the exact numeric claims your
+    accusation computes over, one role each — old/new/stated for HP-DELTA-ERROR,
+    fine/coarse for the other two. The set must be precisely the numeric claims in
+    your evidence (no extras, no omissions); the adjudicator re-derives every value
+    from the ledger and runs a deterministic counter-check. Missing or invalid basis
+    on such a critical demotes it to major.
 ```
 
 Immediately persist the reviewer's raw response with the **Write** tool to

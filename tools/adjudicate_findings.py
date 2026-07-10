@@ -38,7 +38,7 @@ import os as _os
 import sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 from countercheck import (ALLOWLIST as CC_ALLOWLIST, PROVED_COMPATIBLE,  # noqa: E402
-                          delta_convention_from_span, display_precision,
+                          delta_convention, display_precision,
                           rounding_interval_delta)
 
 SEV_ORDER = {"info": 0, "minor": 1, "major": 2, "critical": 3}
@@ -202,12 +202,15 @@ def _valid_numeric_basis(f, ledger_values):
     COMPLETE — every numeric claim in the evidence appears in the basis (a basis
     that cherry-picks a compatible subset is invalid). Returns {role: claim_id}
     or None."""
-    _resolver, roles_needed = CC_ALLOWLIST[f.get("pattern_id")]
+    _resolver, roles_needed, _demotable = CC_ALLOWLIST[f.get("pattern_id")]
     basis = f.get("numeric_basis")
     if not isinstance(basis, list) or not all(isinstance(b, dict) for b in basis):
         return None
     roles = [b.get("role") for b in basis]
     ids = [b.get("claim_id") for b in basis]
+    # dirty inputs fail CLOSED to basis-invalid, never crash (e.g. role: ["old"])
+    if not all(isinstance(x, str) for x in roles + ids):
+        return None
     if len(set(roles)) != len(roles) or len(set(ids)) != len(ids):
         return None
     if set(roles) != set(roles_needed):
@@ -215,7 +218,11 @@ def _valid_numeric_basis(f, ledger_values):
     ev_ids = {e.get("claim_id") for e in (f.get("evidence") or []) if isinstance(e, dict)}
     if not set(ids) <= ev_ids:
         return None
-    if any(cid not in (ledger_values or {}) for cid in ids):
+    lv = ledger_values or {}
+    # defense-in-depth (main() already filters, but direct callers must not crash):
+    # every basis claim needs a plain-string raw display value to compute over
+    if any(cid not in lv or not isinstance(lv[cid], dict)
+           or not isinstance(lv[cid].get("raw"), str) for cid in ids):
         return None
     numeric_ev = {cid for cid in ev_ids if cid in (ledger_values or {})}
     if set(ids) != numeric_ev:
@@ -226,17 +233,19 @@ def _valid_numeric_basis(f, ledger_values):
 def _run_countercheck(f, role_map, ledger_values, ledger_map):
     """Execute the pattern's resolver on LEDGER-DERIVED values only. Returns
     (status, evidence) — the caller applies the fixed demotion rule."""
-    resolver, _roles = CC_ALLOWLIST[f.get("pattern_id")]
+    resolver, _roles, _demotable = CC_ALLOWLIST[f.get("pattern_id")]
     vals = {r: ledger_values[cid] for r, cid in role_map.items()}
     if resolver == "rounding_interval":
+        stated = vals["stated"]
         stated_span = (ledger_map or {}).get(role_map["stated"], "")
-        convention = delta_convention_from_span(stated_span)
+        convention = delta_convention(stated.get("unit"), stated_span, stated.get("raw"))
         return rounding_interval_delta(
-            vals["old"]["raw"], vals["new"]["raw"], vals["stated"]["raw"],
-            convention, old_unit=vals["old"].get("unit"), new_unit=vals["new"].get("unit"))
+            vals["old"]["raw"], vals["new"]["raw"], stated["raw"], convention,
+            old_unit=vals["old"].get("unit"), new_unit=vals["new"].get("unit"),
+            stated_unit=stated.get("unit"))
     return display_precision(
         vals["fine"]["raw"], vals["coarse"]["raw"],
-        fine_unit=vals["fine"].get("unit"), coarse_unit=vals["coarse"].get("unit"))
+        a_unit=vals["fine"].get("unit"), b_unit=vals["coarse"].get("unit"))
 
 
 def apply_critical_scrutiny(findings, ledger_map=None, ledger_values=None):
@@ -256,8 +265,8 @@ def apply_critical_scrutiny(findings, ledger_map=None, ledger_values=None):
     Returns the critical_refutation_coverage counters for the report."""
     cov = {"eligible": 0, "completed": 0, "unavailable": 0, "malformed": 0,
            "contested": 0}
-    cc = {"eligible": 0, "proved_compatible": 0, "discrepancy_persists": 0,
-          "unresolvable": 0, "basis_invalid": 0}
+    cc = {"eligible": 0, "proved_compatible": 0, "informational": 0,
+          "discrepancy_persists": 0, "unresolvable": 0, "basis_invalid": 0}
     for f in findings:
         reasons = f.setdefault("_adjudication", [])
         # -- derive markers fresh every round: never trust input --
@@ -281,13 +290,20 @@ def apply_critical_scrutiny(findings, ledger_map=None, ledger_values=None):
                 f["_severity_final"] = "major"
                 reasons.append("numeric-basis-not-declared-or-invalid")
             else:
+                _res, _rr, demotable = CC_ALLOWLIST[f.get("pattern_id")]
                 status, cc_ev = _run_countercheck(f, role_map, ledger_values or {},
                                                   ledger_map or {})
                 f["_deterministic_countercheck"] = {"status": status, **cc_ev}
-                if status == PROVED_COMPATIBLE:
+                if status == PROVED_COMPATIBLE and demotable:
                     cc["proved_compatible"] += 1
                     f["_severity_final"] = "info"
                     reasons.append("critical-basis-removed-by-deterministic-countercheck")
+                elif status == PROVED_COMPATIBLE:
+                    # binding-variant resolver (delta): the computation's verdict
+                    # depends on model-assigned roles, so it may INFORM but never
+                    # demote — recorded for the human, severity untouched.
+                    cc["informational"] += 1
+                    reasons.append("countercheck-informational-only (model-bound roles)")
                 elif status == "DISCREPANCY_PERSISTS":
                     cc["discrepancy_persists"] += 1
                     reasons.append("countercheck-discrepancy-persists")
@@ -542,8 +558,8 @@ def build_report(findings, args, stats, anchoring_verified, coverage=None,
         "coverage": coverage,
         "critical_refutation_coverage": refutation_cov,
         "critical_countercheck": countercheck_cov or {
-            "eligible": 0, "proved_compatible": 0, "discrepancy_persists": 0,
-            "unresolvable": 0, "basis_invalid": 0},
+            "eligible": 0, "proved_compatible": 0, "informational": 0,
+            "discrepancy_persists": 0, "unresolvable": 0, "basis_invalid": 0},
         "adjudicator": ADJUDICATOR_ID,
         "anchoring_verified": anchoring_verified,
         "dimension_verdicts": dimension_verdicts(findings),
@@ -684,7 +700,8 @@ def render_md(report):
 
     c = report["counts"]
     resolved = [f for f in report["findings"]
-                if (f.get("_deterministic_countercheck") or {}).get("status") == "PROVED_COMPATIBLE"]
+                if (f.get("_deterministic_countercheck") or {}).get("status") == "PROVED_COMPATIBLE"
+                and f.get("_severity_final") == "info"]
     if resolved:
         lines += ["", "## Deterministically resolved criticals", "",
                   "_The following critical accusations were demoted to info by a "
@@ -767,7 +784,8 @@ def main(argv=None):
     ledger_values = {c.get("claim_id"): c.get("value")
                      for c in ledger.get("claims", [])
                      if c.get("claim_id") and isinstance(c.get("value"), dict)
-                     and c["value"].get("normalized") is not None}
+                     and c["value"].get("normalized") is not None
+                     and isinstance(c["value"].get("raw"), str)}
 
     # An empty ledger (no usable claims) can anchor nothing -> anchoring is NOT verified,
     # and every above-info finding silently fails closed. Report that honestly instead of

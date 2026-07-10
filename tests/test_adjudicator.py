@@ -589,14 +589,71 @@ def test_countercheck_real_error_stands():
     assert "countercheck-discrepancy-persists" in f["_adjudication"]
 
 
-def test_countercheck_proved_compatible_demotes_to_info():
+def test_delta_proved_compatible_is_informational_never_demotes():
+    # rounding_interval is binding-VARIANT (old/new roles are model-assigned) —
+    # even a PROVED_COMPATIBLE outcome may only inform, never demote
     f = _delta_crit(stated_raw="6.7", stated_span="a 6.7% relative improvement")
     rc = _cc_run(f, values={"C012": {"raw": "6.7", "normalized": 6.7, "unit": "%"}},
                  ledger={"C012": "a 6.7% relative improvement"})
+    assert f["_severity_final"] == "critical"          # severity untouched
+    assert rc["countercheck"]["informational"] == 1
+    assert rc["countercheck"]["proved_compatible"] == 0
+    assert f["_deterministic_countercheck"]["status"] == "PROVED_COMPATIBLE"
+    assert f["_deterministic_countercheck"]["certified"] is False
+
+
+def test_delta_role_swap_cannot_demote():
+    # the round-2 attack: real error 100→50 stated "+100% relative"; swapping
+    # old/new makes the computation "prove" compatibility — but the resolver is
+    # not demotion-capable, so the critical stands either way
+    f = _delta_crit(stated_span="a 100% relative improvement")
+    f["numeric_basis"] = [{"claim_id": "C011", "role": "old"},     # swapped
+                          {"claim_id": "C010", "role": "new"},
+                          {"claim_id": "C012", "role": "stated"}]
+    _cc_run(f, values={"C010": {"raw": "100", "normalized": 100.0, "unit": "%"},
+                       "C011": {"raw": "50", "normalized": 50.0, "unit": "%"},
+                       "C012": {"raw": "100", "normalized": 100.0, "unit": "%"}},
+            ledger={"C010": "a baseline of 100% accuracy",
+                    "C011": "reaches 50% accuracy",
+                    "C012": "a 100% relative improvement"})
+    assert f["_severity_final"] == "critical"
+
+
+def test_display_precision_proved_compatible_demotes_to_info():
+    # HP-NUM-INFLATE: table 78.03 vs headline 78.0 — symmetric resolver MAY demote
+    f = _delta_crit(pattern_id="HP-NUM-INFLATE")
+    f["evidence"] = [{"claim_id": "C020", "span": "table cell 78.03"},
+                     {"claim_id": "C021", "span": "headline 78.0% accuracy"}]
+    f["numeric_basis"] = [{"claim_id": "C020", "role": "fine"},
+                          {"claim_id": "C021", "role": "coarse"}]
+    rc = _cc_run(f, values={"C020": {"raw": "78.03", "normalized": 78.03, "unit": "%"},
+                            "C021": {"raw": "78.0", "normalized": 78.0, "unit": "%"}},
+                 ledger={"C020": "table cell 78.03", "C021": "headline 78.0% accuracy"})
     assert f["_severity_final"] == "info"
     assert "critical-basis-removed-by-deterministic-countercheck" in f["_adjudication"]
     assert rc["countercheck"]["proved_compatible"] == 1
-    assert f["_deterministic_countercheck"]["status"] == "PROVED_COMPATIBLE"
+    assert f["_deterministic_countercheck"]["certified"] is True
+
+
+def test_unhashable_role_fails_closed_to_major():
+    f = _delta_crit()
+    f["numeric_basis"][0] = {"claim_id": "C010", "role": ["old"]}   # dirty input
+    _cc_run(f)
+    assert f["_severity_final"] == "major"
+    assert "numeric-basis-not-declared-or-invalid" in f["_adjudication"]
+
+
+def test_missing_raw_in_ledger_value_fails_closed():
+    # a schema-valid claim value without a raw string cannot feed a computation:
+    # both the raw-less-entry path and the missing-entry path fail closed to major
+    f = _delta_crit()
+    _cc_run(f, values={"C011": {"normalized": 78.0, "unit": "%"}})
+    assert f["_severity_final"] == "major"
+    f2 = _delta_crit()
+    vals = dict(CC_VALUES); del vals["C011"]
+    A.adjudicate([f2], 2, CC_LEDGER)
+    A.apply_critical_scrutiny([f2], CC_LEDGER, vals)
+    assert f2["_severity_final"] == "major"
 
 
 def test_countercheck_missing_basis_demotes_to_major():
@@ -653,15 +710,18 @@ def test_cli_end_to_end_countercheck_demotion_and_render():
     with tempfile.TemporaryDirectory() as d:
         led = os.path.join(d, "claims.json")
         json.dump({"claims": [
-            {"claim_id": "C010", "text_span": "a baseline of 73.1% accuracy",
-             "value": {"raw": "73.1", "normalized": 73.1, "unit": "%"}},
-            {"claim_id": "C011", "text_span": "reaches 78.0% accuracy",
-             "value": {"raw": "78.0", "normalized": 78.0, "unit": "%"}},
-            {"claim_id": "C012", "text_span": "a 6.7% relative improvement",
-             "value": {"raw": "6.7", "normalized": 6.7, "unit": "%"}}]},
+            {"claim_id": "C010", "text_span": "table cell 78.03% accuracy",
+             "value": {"raw": "78.03", "normalized": 78.03, "unit": "%"}},
+            {"claim_id": "C011", "text_span": "a headline 78.0% accuracy",
+             "value": {"raw": "78.0", "normalized": 78.0, "unit": "%"}}]},
             open(led, "w"))
         fnd = os.path.join(d, "f.json")
-        json.dump([_delta_crit(stated_span="a 6.7% relative improvement")], open(fnd, "w"))
+        f = _delta_crit(pattern_id="HP-NUM-INFLATE")
+        f["evidence"] = [{"claim_id": "C010", "span": "table cell 78.03% accuracy"},
+                         {"claim_id": "C011", "span": "a headline 78.0% accuracy"}]
+        f["numeric_basis"] = [{"claim_id": "C010", "role": "fine"},
+                              {"claim_id": "C011", "role": "coarse"}]
+        json.dump([f], open(fnd, "w"))
         out, md = os.path.join(d, "r.json"), os.path.join(d, "r.md")
         rc = A.main(["--findings", fnd, "--ledger", led, "--paper-id", "t",
                      "--observability-level", "2", "--out", out, "--md", md])
