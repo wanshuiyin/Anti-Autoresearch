@@ -619,8 +619,10 @@ def test_delta_role_swap_cannot_demote():
     assert f["_severity_final"] == "critical"
 
 
-def test_display_precision_proved_compatible_demotes_to_info():
-    # HP-NUM-INFLATE: table 78.03 vs headline 78.0 — symmetric resolver MAY demote
+def test_display_precision_proved_compatible_is_informational():
+    # HP-NUM-INFLATE: table 78.03 vs headline 78.0 — compatible UNDER THE ROUNDING
+    # PREMISE, which is not computable ("exactly 50%" vs 50.4% would be a real
+    # contradiction) — so even this outcome informs, never demotes
     f = _delta_crit(pattern_id="HP-NUM-INFLATE")
     f["evidence"] = [{"claim_id": "C020", "span": "table cell 78.03"},
                      {"claim_id": "C021", "span": "headline 78.0% accuracy"}]
@@ -629,10 +631,24 @@ def test_display_precision_proved_compatible_demotes_to_info():
     rc = _cc_run(f, values={"C020": {"raw": "78.03", "normalized": 78.03, "unit": "%"},
                             "C021": {"raw": "78.0", "normalized": 78.0, "unit": "%"}},
                  ledger={"C020": "table cell 78.03", "C021": "headline 78.0% accuracy"})
-    assert f["_severity_final"] == "info"
-    assert "critical-basis-removed-by-deterministic-countercheck" in f["_adjudication"]
-    assert rc["countercheck"]["proved_compatible"] == 1
-    assert f["_deterministic_countercheck"]["certified"] is True
+    assert f["_severity_final"] == "critical"                # severity untouched
+    assert rc["countercheck"]["informational"] == 1
+    assert rc["countercheck"]["proved_compatible"] == 0      # demotable set is empty
+    assert f["_deterministic_countercheck"]["status"] == "PROVED_COMPATIBLE"
+
+
+def test_exact_percentage_contradiction_never_demoted():
+    # the round-3 attack: dropout stated "exactly 50%" vs a 50.4% table value —
+    # a REAL contradiction that rounding logic would wrongly excuse
+    f = _delta_crit(pattern_id="HP-APPENDIX-CONTRA")
+    f["evidence"] = [{"claim_id": "C030", "span": "dropout of exactly 50%"},
+                     {"claim_id": "C031", "span": "dropout 50.4%"}]
+    f["numeric_basis"] = [{"claim_id": "C030", "role": "coarse"},
+                          {"claim_id": "C031", "role": "fine"}]
+    _cc_run(f, values={"C030": {"raw": "50", "normalized": 50.0, "unit": "%"},
+                       "C031": {"raw": "50.4", "normalized": 50.4, "unit": "%"}},
+            ledger={"C030": "dropout of exactly 50%", "C031": "dropout 50.4%"})
+    assert f["_severity_final"] == "critical"
 
 
 def test_unhashable_role_fails_closed_to_major():
@@ -727,11 +743,12 @@ def test_cli_end_to_end_countercheck_demotion_and_render():
                      "--observability-level", "2", "--out", out, "--md", md])
         assert rc == 0
         r = json.load(open(out))
-        assert r["overall_verdict"] == "CLEAN_GIVEN_EVIDENCE"     # demoted to info
-        assert r["critical_countercheck"]["proved_compatible"] == 1
+        assert r["overall_verdict"] == "HARD_FLAGS"       # nothing demotes today
+        assert r["critical_countercheck"]["informational"] == 1
+        assert r["critical_countercheck"]["proved_compatible"] == 0
         assert r["adjudicator"] == "deterministic-rules-v2"
         m = open(md).read()
-        assert "Deterministically resolved criticals" in m
+        assert "Deterministically resolved criticals" not in m   # section only on demotion
 
 
 if __name__ == "__main__":

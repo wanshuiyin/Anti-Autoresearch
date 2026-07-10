@@ -91,6 +91,9 @@ def test_exact_quantities_cannot_be_demoted():
     # round-2 attack that wrongly demoted a real HP-APPENDIX-CONTRA critical
     st, ev = C.display_precision("1", "1.4", a_unit=None, b_unit=None)
     assert st == C.UNRESOLVABLE and "rounded measurement" in ev["why"]
+    # and even a %/% PROVED_COMPATIBLE is certified: False (report-only)
+    st, ev = C.display_precision("78.03", "78.0", a_unit="%", b_unit="%")
+    assert st == C.PROVED_COMPATIBLE and ev["certified"] is False
 
 
 def test_malformed_units_cannot_pass_as_equal():
@@ -169,9 +172,10 @@ def test_allowlist_shape_and_demotion_capability():
     assert set(C.ALLOWLIST) == {"HP-DELTA-ERROR", "HP-NUM-INFLATE", "HP-APPENDIX-CONTRA"}
     assert C.ALLOWLIST["HP-DELTA-ERROR"] == ("rounding_interval",
                                              frozenset({"old", "new", "stated"}), False)
-    # only the binding-invariant (symmetric) resolver may demote
-    assert C.ALLOWLIST["HP-NUM-INFLATE"][2] is True
-    assert C.ALLOWLIST["HP-APPENDIX-CONTRA"][2] is True
+    # NOTHING currently demotes: rounding_interval fails binding-invariance,
+    # display_precision fails rounding-provability ("exactly 50%" vs 50.4% is a
+    # real contradiction interval logic would wrongly excuse)
+    assert not any(v[2] for v in C.ALLOWLIST.values())
 
 
 if __name__ == "__main__":

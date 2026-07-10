@@ -7,19 +7,28 @@ markers; only computations change severity). A resolver PROVES, by exact interva
 arithmetic over the DISPLAYED precision of the very numbers the accusation cites,
 that the accused discrepancy cannot be established from the evidence.
 
-Demotion-authorization rule (the load-bearing line, from the cross-model review):
-**a resolver may demote only when its verdict is invariant under every
-model-controlled degree of freedom.**
+Demotion-authorization rule (hardened across three cross-model review rounds):
+**a resolver may demote only when its verdict is (a) invariant under every
+model-controlled degree of freedom AND (b) built on premises a computation can
+actually establish.** No shipped resolver satisfies both — so, today,
+**every resolver is REPORT-ONLY** and the demotable set is empty:
 
-- `display_precision` (HP-NUM-INFLATE, HP-APPENDIX-CONTRA): "do the two open
-  display intervals strictly intersect" is SYMMETRIC — swapping the model-assigned
-  fine/coarse roles cannot change the answer, and the completeness rule pins the
-  claim set. Verdict is binding-invariant → MAY demote.
-- `rounding_interval` (HP-DELTA-ERROR): (new−old)/old·100 is NOT symmetric in
-  old/new, and no deterministic parser can certify which operand is the baseline —
-  a role swap can flip the verdict. So this resolver is REPORT-ONLY: its result is
-  recorded on the finding (certified: false) for the human, and it can NEVER
-  demote, whatever it concludes.
+- `rounding_interval` (HP-DELTA-ERROR) fails (a): (new−old)/old·100 is not
+  symmetric in old/new and no parser can certify which operand is the baseline —
+  a role swap can flip the verdict.
+- `display_precision` (HP-NUM-INFLATE, HP-APPENDIX-CONTRA) satisfies (a) — the
+  intersection test is symmetric — but fails (b): its premise is that both
+  numbers are ROUNDED DISPLAYS of one measured quantity, and that is not
+  computable ("dropout is exactly 50%" vs "50.4%" is a REAL contradiction that
+  interval logic would wrongly excuse). Deterministic computation can prove a
+  discrepancy EXISTS (the GRIM family does); proving one CANNOT exist requires
+  the quantity's semantics, which no parser has.
+
+Resolver outputs are recorded on the finding and in the report as decision
+support for the human; the fixed rules never let them touch severity. The
+`may_demote` flag in ALLOWLIST exists so a future resolver that meets BOTH
+conditions can be enabled explicitly — turning it on requires demonstrating (a)
+and (b) in review, not editing one boolean.
 
 Numeric rules:
 - Pure stdlib, `fractions.Fraction` — EXACT rational arithmetic. No floating
@@ -147,22 +156,23 @@ def rounding_interval_delta(old_raw, new_raw, stated_raw, convention,
 
 
 def display_precision(a_raw, b_raw, a_unit=None, b_unit=None):
-    """HP-NUM-INFLATE / HP-APPENDIX-CONTRA resolver — DEMOTION-CAPABLE: are two
-    displays of the same quantity mutually consistent? True iff their open display
-    intervals strictly intersect. The check is SYMMETRIC in its two arguments —
-    the model-assigned fine/coarse roles cannot change the verdict, which is
-    exactly why this resolver may demote. Returns (status, evidence_dict)."""
+    """HP-NUM-INFLATE / HP-APPENDIX-CONTRA resolver — REPORT-ONLY (see module
+    doctrine): IF both numbers were rounded displays of one measured quantity,
+    would they be mutually consistent? The check is symmetric in its arguments
+    (binding-invariant), but its premise — "these are rounded displays" — is not
+    computable, so PROVED_COMPATIBLE here means "compatible under the rounding
+    premise", recorded for the human, never a demotion."""
     ev = {"resolver": "display_precision", "version": COUNTERCHECK_VERSION,
-          "certified": True,   # binding-invariant: symmetric in the two inputs
+          "certified": False,  # symmetric (binding-invariant) but the rounding
+                               # premise is not computable — report-only
           "inputs": {"a": a_raw, "b": b_raw}}
-    # Display-rounding compatibility is only meaningful for a quantity that IS a
-    # rounded display of a measurement. That is deterministically establishable
-    # only for %-metrics here; an exact quantity (a hyperparameter λ=1, a seed
-    # count, a layer number — typically unitless) admits NO rounding interval,
-    # and treating it as one would wrongly demote a real contradiction.
+    # Relevance filter: only %-metric pairs are worth a rounding-premise note at
+    # all (a unitless exact quantity — λ=1, a seed count — makes the premise
+    # obviously wrong). This filter does NOT make the premise provable; see the
+    # module doctrine for why this resolver reports and never demotes.
     if not (a_unit == "%" and b_unit == "%"):
-        return UNRESOLVABLE, dict(ev, why="not provably a rounded measurement "
-                                          f"(units {a_unit!r} vs {b_unit!r}; demotion requires %/%)")
+        return UNRESOLVABLE, dict(ev, why="not plausibly a rounded measurement "
+                                          f"(units {a_unit!r} vs {b_unit!r})")
     ia, ib = display_interval(a_raw), display_interval(b_raw)
     if not (ia and ib):
         return UNRESOLVABLE, dict(ev, why="a value is not a plain decimal numeral")
@@ -176,10 +186,11 @@ def display_precision(a_raw, b_raw, a_unit=None, b_unit=None):
 
 
 # pattern_id -> (resolver, required numeric_basis roles, may_demote)
-# may_demote is the binding-invariance verdict: display_precision is symmetric in
-# its inputs (role swap cannot change the answer); the delta formula is not.
+# may_demote is currently False EVERYWHERE (see module doctrine): rounding_interval
+# fails binding-invariance; display_precision fails rounding-provability. The flag
+# stays so a future provably-sound resolver can be enabled explicitly, in review.
 ALLOWLIST = {
     "HP-DELTA-ERROR": ("rounding_interval", frozenset({"old", "new", "stated"}), False),
-    "HP-NUM-INFLATE": ("display_precision", frozenset({"fine", "coarse"}), True),
-    "HP-APPENDIX-CONTRA": ("display_precision", frozenset({"fine", "coarse"}), True),
+    "HP-NUM-INFLATE": ("display_precision", frozenset({"fine", "coarse"}), False),
+    "HP-APPENDIX-CONTRA": ("display_precision", frozenset({"fine", "coarse"}), False),
 }

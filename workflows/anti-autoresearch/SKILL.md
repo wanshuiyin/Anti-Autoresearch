@@ -726,17 +726,17 @@ dead after the one fresh re-invoke → `--status unavailable` (no payload).
 Cost note: criticals are rare; a clean paper skips this step entirely (`[]`).
 
 > **Deterministic counter-check (automatic — nothing to run here).** Independently of
-> this refutation pass, Step 4's adjudicator AUTO-runs interval-arithmetic resolvers on
-> every allow-listed numeric critical using the accusation's frozen `numeric_basis` and
-> ledger-derived values only. Only a **binding-invariant** computation may demote:
-> `HP-NUM-INFLATE` / `HP-APPENDIX-CONTRA` (symmetric display-interval check on
-> `%`-measurements — the model-assigned roles provably cannot change the verdict, and
-> exact unitless quantities are never treated as rounded) demote to info on proof;
-> `HP-DELTA-ERROR`'s asymmetric formula is REPORT-ONLY — its result is recorded for
-> the human and never moves severity. An eligible critical whose `numeric_basis` is
-> missing or invalid demotes to major (an unauditable numeric accusation may not be a
-> HARD flag). Residual: the auditor picks the `pattern_id`; mislabeling can only KEEP
-> a flag, never remove one.
+> this refutation pass, Step 4's adjudicator AUTO-runs exact interval-arithmetic
+> resolvers on every allow-listed numeric critical using the accusation's frozen
+> `numeric_basis` and ledger-derived values only, and records the computation on the
+> finding and in the report — **as decision support; nothing demotes today**. A
+> resolver could demote only if its verdict were both binding-invariant AND built on
+> computable premises; no shipped resolver meets both (the delta formula's old/new
+> binding is model-assigned, and "these numbers are rounded displays" is not
+> computable — an exact `dropout of 50%` vs `50.4%` is a real contradiction rounding
+> logic would wrongly excuse). The gate that does act: an eligible critical whose
+> `numeric_basis` is missing or invalid demotes to major (an unauditable numeric
+> accusation may not be a HARD flag).
 
 ## Step 4 — Adjudicate (deterministic — this is the verdict)
 
