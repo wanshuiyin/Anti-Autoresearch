@@ -180,7 +180,22 @@
       },
       "required": [
         "attempt_status"
-      ]
+      ],
+      "if": {
+        "properties": {
+          "attempt_status": {
+            "const": "completed"
+          }
+        },
+        "required": [
+          "attempt_status"
+        ]
+      },
+      "then": {
+        "required": [
+          "refuted"
+        ]
+      }
     }
   }
 }

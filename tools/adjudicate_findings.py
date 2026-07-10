@@ -31,8 +31,8 @@ import json
 import os
 import sys
 
-REPORT_VERSION = "0.1"
-ADJUDICATOR_ID = "deterministic-rules-v0"
+REPORT_VERSION = "0.2"
+ADJUDICATOR_ID = "deterministic-rules-v1"  # v1: critical scrutiny (alternative-explanation gate + CONTESTED layer)
 
 SEV_ORDER = {"info": 0, "minor": 1, "major": 2, "critical": 3}
 SEV_NAME = {v: k for k, v in SEV_ORDER.items()}
@@ -149,10 +149,23 @@ def load_findings(paths):
 
 def _is_llm_critical(f):
     """Refutation-eligible: a weight-1 critical proposed by an LLM reviewer.
-    Deterministic findings are computed, not argued — nothing to refute."""
+    Deterministic findings are computed, not argued — nothing to refute.
+    STRICT `is True`: reviewer provenance is model-influenced text, so anything
+    other than the executor-written boolean (e.g. "false", 1, {}) is treated as
+    NOT deterministic — fail-closed toward the gate applying."""
+    rev = f.get("reviewer")
+    is_det = isinstance(rev, dict) and rev.get("deterministic") is True
     return (f.get("_severity_final") == "critical"
             and f.get("_verdict_weight", 1) == 1
-            and not (f.get("reviewer") or {}).get("deterministic"))
+            and not is_det)
+
+
+def _alt_explanation_ok(f):
+    """The alternative_explanation_checked field must be a real string with
+    substance (whitespace-normalized ≥ 20 chars) — `true`, `1`, "x", or an
+    object is a gamed placeholder, not a ruled-out-alternatives record."""
+    v = f.get("alternative_explanation_checked")
+    return isinstance(v, str) and len(_norm_ws(v)) >= 20
 
 
 def _refutation_counter_anchored(refutation, ledger_map):
@@ -191,8 +204,10 @@ def apply_critical_scrutiny(findings, ledger_map=None):
            "contested": 0}
     for f in findings:
         reasons = f.setdefault("_adjudication", [])
+        # -- derive _contested fresh every round (finding 2): never trust input --
+        f.pop("_contested", None)
         # -- gate 1: alternative_explanation_checked required on LLM criticals --
-        if _is_llm_critical(f) and not str(f.get("alternative_explanation_checked") or "").strip():
+        if _is_llm_critical(f) and not _alt_explanation_ok(f):
             f["_severity_final"] = "major"
             reasons.append("alternative-explanation-not-declared")
         # -- pass 2: contested marking on the criticals that remain --
@@ -203,7 +218,15 @@ def apply_critical_scrutiny(findings, ledger_map=None):
         if not isinstance(ref, dict) or ref.get("attempt_status") in (None, "", "unavailable"):
             cov["unavailable"] += 1
             continue
-        if ref.get("attempt_status") == "malformed":
+        # STRICT completed: exact status + well-typed payload; anything else —
+        # unknown status, missing/non-bool refuted, wrong-typed fields — is
+        # malformed, so a hollow {"attempt_status": "completed"} can never
+        # silence the incomplete-pass limitation.
+        well_formed = (ref.get("attempt_status") == "completed"
+                       and isinstance(ref.get("refuted"), bool)
+                       and isinstance(ref.get("reason", ""), str)
+                       and isinstance(ref.get("counter_evidence", []), list))
+        if not well_formed:
             cov["malformed"] += 1
             continue
         cov["completed"] += 1
