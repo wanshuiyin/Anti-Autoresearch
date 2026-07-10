@@ -130,7 +130,7 @@ This is an **auditor** skill in the integrity-forensics pipeline
 
 ## Constants & Reviewer Calling Convention
 
-- **REVIEWER = `mcp__codex__codex`** — model `gpt-5.5`, `config:
+- **REVIEWER = `mcp__codex__codex`** — model `gpt-5.6-sol`, `config:
   {"model_reasoning_effort": "xhigh"}`, `sandbox: read-only`, `cwd` = `TARGET` (the
   repo/paper dir, where the code + results live). A **different model family** from
   the executor (Claude). One **fresh thread per audit pass**; **never
@@ -160,7 +160,7 @@ Division of labor (`references/reviewer-independence.md`):
   facts* (file listings, literal-string greps, hashes), passes **paths + the ledger +
   the checklist** to the reviewer, validates the reviewer's spans, and writes the
   findings file. It never summarizes file contents, pre-judges, or leaks an opinion.
-- **Reviewer (codex / gpt-5.5)** reads `./claims.json` and the code/result files
+- **Reviewer (codex / gpt-5.6-sol)** reads `./claims.json` and the code/result files
   directly from its `cwd`, proposes findings, and self-reports `false_positive_risk`.
   **Told:** the artifact paths, the ledger, the per-pass checklist, the level.
   **Not told:** any other auditor's findings, the executor's hunches, or "this looks
@@ -394,7 +394,7 @@ paths, raw greps/hashes, and the claim subset.
 
 Send paths + the ledger subset + the checklist to a **fresh** `mcp__codex__codex`.
 The reviewer reads the eval code line-by-line and **proposes** findings; it does not
-grade the paper. Call with: `model: "gpt-5.5"`, `config:
+grade the paper. Call with: `model: "gpt-5.6-sol"`, `config:
 {"model_reasoning_effort": "xhigh"}`, `sandbox: "read-only"`, `cwd: "<TARGET>"` (so
 it can read `./claims.json`, `./src/...`, `./results/...` directly), `prompt:` the
 block below. Assemble that `prompt:` by inlining the Step 3 `.aris/` files at the
@@ -515,7 +515,7 @@ across batches: `Write` them to
 `".../response_<NN>.txt"` (NN = 01, 02, … one per fresh thread; Step 6 moves `pending/`
 into the dated run dir). If the codex call stalls or errors (long sessions can hang),
 re-invoke the **same** prompt in a **fresh** thread (never `codex-reply`); if it still
-fails, write `[]` to `experiment-forensics.findings.json` and proceed — never fabricate
+fails, write `[]` to `experiment-forensics.findings.json`, record `"experiment-forensics": "review_unavailable"` in the run's `coverage.json` (when orchestrated by `/anti-autoresearch`), and proceed — never fabricate
 findings. If the repo is too large for one thread, split the result files into batches,
 run one **fresh** thread per batch (same prompt, different file lists), overwrite
 `last_reviewer_response.txt` with that batch's reply, and run Step 5 once per batch (the
@@ -634,7 +634,7 @@ re-judges:
   lower severity / `needs_external_check`).
 
 The only executor-side edits to `experiment-forensics.findings.json` are **mechanical,
-non-semantic** provenance stamps: set `reviewer: {"model":"gpt-5.5","reasoning":"xhigh",
+non-semantic** provenance stamps: set `reviewer: {"model":"gpt-5.6-sol","reasoning":"xhigh",
 "thread_id":<id>,"deterministic":false}` and, where useful, `evidence[].artifact_hash`
 = the ledger claim's `evidence_anchor` (the code-file sha goes in the description).
 Severity is never hand-edited up or down.
@@ -659,7 +659,7 @@ or none was proposed, `experiment-forensics.findings.json` may be `[]`.
      "artifact_hash": "<sha256 of main.tex from the ledger's evidence_anchor>"}
   ],
   "verdict_local": "fail",
-  "reviewer": {"model": "gpt-5.5", "reasoning": "xhigh", "thread_id": "<codex thread>", "deterministic": false},
+  "reviewer": {"model": "<resolved — what ACTUALLY ran (target: gpt-5.6-sol)>", "reasoning": "<resolved (target: xhigh)>", "thread_id": "<codex thread>", "deterministic": false},
   "false_positive_risk": "low",
   "requires_external_check": false,
   "recommended_reviewer_action": "Ask the authors for the raw (un-normalized) score and the exact normalization denominator; confirm the same normalization is applied identically to all baselines. If the divisor is the model's own output statistics, the 0.98 headline is not a valid cross-method comparison."

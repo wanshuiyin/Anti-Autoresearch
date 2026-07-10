@@ -87,7 +87,7 @@ shout "fraud" from a PDF. Same artifacts → same ledger → same verdict.
 ## Constants & conventions
 
 ```
-REVIEWER_MODEL     = gpt-5.5  (via mcp__codex__codex) — a DIFFERENT model family from the executor (Claude)
+REVIEWER_MODEL     = gpt-5.6-sol  (via mcp__codex__codex) — a DIFFERENT model family from the executor (Claude)
 REVIEWER_REASONING = xhigh    — always; the effort knob never lowers reviewer quality
 REVIEWER_SANDBOX   = read-only — detect-only; the reviewer never mutates the paper
 THREAD_POLICY      = FRESH mcp__codex__codex per dimension / per cited key; NEVER codex-reply across them
@@ -143,7 +143,7 @@ every reviewer call obeys:
 - **Envelope (every auditor instantiates this exact shape):**
   ```text
   mcp__codex__codex:
-    model: gpt-5.5
+    model: gpt-5.6-sol
     config: {"model_reasoning_effort": "xhigh"}
     sandbox: read-only
     cwd: <absolute PAPER_DIR>          # so the reviewer reads claims.json + sources directly
@@ -174,8 +174,13 @@ every reviewer call obeys:
   dimension's conclusions into another (the bias guard). Keep the calls **serial** —
   concurrent codex threads can hang; fan-out buys *breadth of dimensions*, not
   parallelism. On a stall, re-invoke the *identical* prompt in a fresh thread (never
-  `codex-reply`); if it still fails, write `[]` and continue — a dead reviewer must never
-  become a fabricated finding.
+  `codex-reply`); if it still fails, write `[]`, record `"<skill>": "review_unavailable"`
+  in `$PAPER_DIR/coverage.json`, and continue — a dead reviewer must never become a
+  fabricated finding, and an empty file must never masquerade as a completed review
+  (the adjudicator's `--coverage` gate turns a would-be CLEAN into `REVIEW_UNAVAILABLE`
+  when any verdict-bearing dimension never ran; zero-weight tracks only add a
+  limitation). Skills that legitimately find nothing to audit record `not_applicable`;
+  completed dimensions record `completed`.
 
 ## Re-entrancy: resuming a partial / re-run sweep
 
@@ -205,13 +210,21 @@ def newest_source(d):
 led = os.path.join(D, "claims.json"); have = is_ledger(led)
 stale = have and os.path.getmtime(led) < newest_source(D)
 print(f"STEP1 ledger      : {'present' if have else 'MISSING'}{'  ⚠ STALE → rebuild (sources changed)' if stale else ''}")
+covp = os.path.join(D, "coverage.json")
+try: cov = json.load(open(covp, encoding="utf-8"))
+except Exception: cov = {}
 for f in ("consistency-audit.deterministic", "consistency-audit", "citation-forensics",
           "baseline-comparison-audit", "experiment-forensics",
           "presentation-signals.deterministic", "presentation-signals",
           "proof-derivation-forensics", "eval-design-forensics",
           "ai-style-impressions.deterministic", "ai-style-impressions"):
     p = os.path.join(D, f + ".findings.json")
-    print(f"STEP2 {f:<32}: {'ok' if (os.path.isfile(p) and is_array(p)) else 'todo'}")
+    skill = f.replace(".deterministic", "")
+    # a findings file alone is NOT completion — the coverage entry decides.
+    # (deterministic sub-files ride on their skill's coverage key)
+    done = (os.path.isfile(p) and is_array(p)
+            and cov.get(skill) in ("completed", "not_applicable"))
+    print(f"STEP2 {f:<32}: {'ok' if done else 'todo'}")
 print(f"STEP3 adversarial memo            : {'present' if os.path.isfile(os.path.join(D,'adversarial-case-builder.memo.md')) else 'todo'}")
 print(f"STEP3 novelty advisory memo       : {'present' if os.path.isfile(os.path.join(D,'novelty-duplication-advisory.memo.md')) else 'todo'}")
 print(f"STEP4 report.json : {'present' if os.path.isfile(os.path.join(D,'report.json')) else 'todo'}")
@@ -219,7 +232,9 @@ PY
 ```
 
 Rule: a **stale ledger forces a full rebuild** (Step 1 → re-fan Step 2 → re-adjudicate)
-— stale findings anchored to an old ledger are worse than none. If the ledger is fresh,
+— stale findings anchored to an old ledger are worse than none. **A full rebuild also
+deletes `coverage.json`** (the Step-2 init re-creates it all-`review_unavailable`;
+stale `completed` entries must not survive a rebuild). If the ledger is fresh,
 skip Step 1 and only re-run the auditors marked `todo`. Always re-run Step 4 (cheap,
 deterministic, the only verdict source). Re-running from scratch is always safe — same
 inputs → same outputs.
@@ -357,6 +372,48 @@ own spans, and writes `<skill>.findings.json` (the deterministic auditors also w
 `<skill>.deterministic.findings.json`). The orchestrator only *sequences* these calls and
 enforces the Reviewer Calling Convention above — it authors no finding.
 
+**Resolved-pair provenance.** Right after each dimension's reviewer call succeeds,
+export the pair that actually ran (`export ARIS_RESOLVED_MODEL=... ARIS_RESOLVED_REASONING=...`
+— the fallback pair if one fired); the validator blocks read these and crash if unset
+(`references/reviewer-independence.md`).
+
+**Coverage state machine (init FIRST, before any auditor runs).** Initialize
+`$PAPER_DIR/coverage.json` with EVERY expected skill pre-marked `review_unavailable`,
+then let each skill's terminal branch overwrite its own key (`completed` on a finished
+sweep — including a genuinely empty `[]`; `not_applicable` when its Step-1 gate says
+there is nothing to audit; leave `review_unavailable` when the reviewer died). A key
+that is never overwritten therefore reads as *never ran* — the fail-closed default. On
+re-entry, treat a missing key or `review_unavailable` as TODO (an existing `[]` findings
+file alone does NOT mean the dimension completed). A skill whose per-item sub-calls
+partially failed for good (e.g. one citation key still unparseable after the retry) also
+stays `review_unavailable` — a partial sweep must not read as a completed one.
+
+**Mark completion after EVERY auditor** (the one-liner the orchestrator runs as soon as
+that skill's findings file is validated — `completed`, or `not_applicable` when its
+Step-1 gate said nothing applies):
+
+```bash
+python3 -c 'import json,sys; p,k,v=sys.argv[1:4]; c=json.load(open(p)); c[k]=v; json.dump(c,open(p,"w"),indent=2)' \
+    "$PAPER_DIR/coverage.json" consistency-audit completed
+```
+
+```bash
+PAPER_DIR="<from Step 0>"
+python3 - "$PAPER_DIR" <<'PY'
+import json, sys, os
+skills = ["consistency-audit", "experiment-forensics", "baseline-comparison-audit",
+          "citation-forensics", "presentation-signals", "proof-derivation-forensics",
+          "eval-design-forensics", "adversarial-case-builder",
+          "novelty-duplication-advisory", "ai-style-impressions"]
+path = os.path.join(sys.argv[1], "coverage.json")
+cov = json.load(open(path)) if os.path.exists(path) else {}
+for k in skills:
+    cov.setdefault(k, "review_unavailable")   # fail-closed default: never-ran reads as unavailable
+json.dump(cov, open(path, "w"), indent=2)
+print("coverage initialized:", path)
+PY
+```
+
 ```bash
 PAPER_DIR="<from Step 0>"
 python3 - "$PAPER_DIR/claims.json" <<'PY'
@@ -490,7 +547,10 @@ for f in prop:
     if f["severity"] in ABOVE and not anchored: f["severity"] = "info"; demoted += 1
     # observability_level_required is passed through verbatim — a missing/invalid one is
     # left as-is so the adjudicator's OBSERVABILITY gate fail-closes it to info.
-    f["reviewer"] = {"model": "gpt-5.5", "reasoning": "xhigh", "deterministic": False}
+    import os as _aris_os
+    RESOLVED_MODEL = _aris_os.environ["ARIS_RESOLVED_MODEL"]          # exported by the executor from the call that ACTUALLY ran
+    RESOLVED_REASONING = _aris_os.environ["ARIS_RESOLVED_REASONING"]  # (fail LOUD if unset — never stamp a target default)
+    f["reviewer"] = {"model": RESOLVED_MODEL, "reasoning": RESOLVED_REASONING, "deterministic": False}
     kept.append(f)
 json.dump(kept, open(out_p, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
 print(f"{skill}: validated {len(kept)} ({demoted} ->info unanchored, {capped} surface-capped) -> {out_p}")
@@ -630,6 +690,7 @@ printf '  findings: %s\n' "${FINDINGS[@]##*/}"
 python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "${FINDINGS[@]}" \
     --ledger "$PAPER_DIR/claims.json" \
+    --coverage "$PAPER_DIR/coverage.json" \
     --paper-id "$PAPER_ID" --observability-level "$L" --taxonomy-version 0.5 \
     --memo "$(cat "$PAPER_DIR/adversarial-case-builder.memo.md" 2>/dev/null)" \
     --limitation "Run observability level L$L — see references/observability-levels.md for what this tier can and cannot decide." \
@@ -669,7 +730,7 @@ PAPER_DIR="<from Step 0>"
 python3 - "$PAPER_DIR/report.json" <<'PY'
 import json, sys
 r = json.load(open(sys.argv[1], encoding="utf-8"))
-assert r["overall_verdict"] in {"CLEAN_GIVEN_EVIDENCE", "SOFT_FLAGS", "HARD_FLAGS"}, r["overall_verdict"]
+assert r["overall_verdict"] in {"CLEAN_GIVEN_EVIDENCE", "SOFT_FLAGS", "HARD_FLAGS", "REVIEW_UNAVAILABLE"}, r["overall_verdict"]
 assert r["adjudicator"] == "deterministic-rules-v0" and r["human_review_required"] is True
 assert r["anchoring_verified"] is True, "ledger anchoring did not run — --ledger missing?"
 assert r["limitations"], "limitations must always be populated (the honesty contract)"
@@ -739,12 +800,25 @@ python3 "$ROOT/tools/check_numeric_consistency.py" --ledger "$PAPER_DIR/claims.j
     --out "$PAPER_DIR/consistency-audit.deterministic.findings.json"
 python3 "$ROOT/tools/check_presentation.py"        --ledger "$PAPER_DIR/claims.json" \
     --out "$PAPER_DIR/presentation-signals.deterministic.findings.json"
+python3 - "$PAPER_DIR" <<'PY'
+import json, os, sys
+# deterministic-only mode: every semantic reviewer dimension is, by construction, unavailable
+cov = {k: "review_unavailable" for k in
+       ["consistency-audit", "experiment-forensics", "baseline-comparison-audit",
+        "citation-forensics", "presentation-signals", "proof-derivation-forensics",
+        "eval-design-forensics", "adversarial-case-builder",
+        "novelty-duplication-advisory", "ai-style-impressions"]}
+json.dump(cov, open(os.path.join(sys.argv[1], "coverage.json"), "w"), indent=2)
+PY
 python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "$PAPER_DIR"/*.deterministic.findings.json \
     --ledger "$PAPER_DIR/claims.json" --paper-id mypaper --observability-level "$L" \
     --taxonomy-version 0.5 \
+    --coverage "$PAPER_DIR/coverage.json" \
     --limitation "Deterministic-only run (no cross-model reviewer): semantic + code-level dimensions were NOT run." \
     --out "$PAPER_DIR/report.json" --md "$PAPER_DIR/REPORT.md"
+# NOTE: without the semantic reviewers this can never say CLEAN — deterministic flags
+# still stand (HARD/SOFT), a flag-free run reads REVIEW_UNAVAILABLE, honestly scoped."
 ```
 
 The verdict reflects only the deterministic patterns; the report's limitations must say
@@ -792,7 +866,7 @@ deterministic adjudicator, and presents.
   **cannot** assert code/result-level fraud — those auto-demote to `info` on a sub-L2
   run. Never present an L0 run as if it could see code; the report's limitations say what
   was unverifiable (`references/observability-levels.md`; `DESIGN.md` §4).
-- **Cross-model, fresh thread per dimension.** Reviewer = gpt-5.5 xhigh (a different
+- **Cross-model, fresh thread per dimension.** Reviewer = gpt-5.6-sol xhigh (a different
   family from Claude); each auditor uses a new `mcp__codex__codex` thread and never
   `codex-reply` (deliberately absent from `allowed-tools` — the bias guard). The executor
   passes only paths + the ledger + the checklist, never a summary or a hunch.

@@ -104,7 +104,7 @@ commitment, the latter encourages hedging.
 ## Constants & Reviewer Calling Convention
 
 ```
-REVIEWER_MODEL      = gpt-5.5            # different family from executor (Claude)
+REVIEWER_MODEL      = gpt-5.6-sol            # different family from executor (Claude)
 REVIEWER_REASONING  = xhigh             # always; effort never lowers reviewer quality
 REVIEWER_SANDBOX    = read-only         # detect-only; never mutate the paper
 REVIEWER_CWD        = <paper-dir>       # so it reads claims.json + *.findings.json directly
@@ -128,7 +128,7 @@ TRACE_DIR           = .aris/traces/adversarial-case-builder/<YYYY-MM-DD>_run<NN>
   to each reviewer, validates every anchor the reviewers return, and renders the memo.
   It never summarizes the paper, pre-judges, or leaks an opinion into a prompt
   (`references/reviewer-independence.md`).
-- **Reviewer (codex / gpt-5.5, xhigh, read-only)** reads `claims.json` + the
+- **Reviewer (codex / gpt-5.6-sol, xhigh, read-only)** reads `claims.json` + the
   `*.findings.json` from its `cwd`, writes the attack (Thread 1) and the defense
   (Thread 2), and self-reports honestly. It is the case-builder, **not** the judge.
 - **Two fresh threads, no `codex-reply`.** Attack and Defense are independent
@@ -206,7 +206,7 @@ strongest rejection paragraph — every accusation anchored inline. Substitute t
 
 ```
 mcp__codex__codex:
-  model: gpt-5.5
+  model: gpt-5.6-sol
   config: {"model_reasoning_effort": "xhigh"}
   sandbox: read-only
   cwd: <absolute PAPER_DIR from Step 0>
@@ -263,12 +263,12 @@ mcp__codex__codex:
 **Persist immediately, then carry forward.** Save the raw response verbatim to
 `"$TRACE/001-attack.response.md"` (**Write**); also write `"$TRACE/001-attack.request.json"`
 (the exact prompt + paths sent — the independence audit trail) and
-`"$TRACE/001-attack.meta.json"` (`{"model":"gpt-5.5","reasoning":"xhigh","thread_id":"<id>","sandbox":"read-only"}`).
+`"$TRACE/001-attack.meta.json"` (`{"model":"gpt-5.6-sol","reasoning":"xhigh","thread_id":"<id>","sandbox":"read-only"}`).
 Keep `threadId` as `attack_thread_id`; do **NOT** pass it to Thread 2.
 
 **Failure handling.**
 - *MCP stall / hang* (common in long sessions): re-invoke the **identical** prompt as
-  a **fresh** `mcp__codex__codex` call (gpt-5.5, xhigh) — never `codex-reply`.
+  a **fresh** `mcp__codex__codex` call (gpt-5.6-sol, xhigh) — never `codex-reply`.
 - *Empty response*: re-ask once. If still empty, record `status: ERROR` in the memo
   header and stop — do not hand-author an attack.
 
@@ -297,7 +297,7 @@ EXACTLY:
 
 ```
 mcp__codex__codex:
-  model: gpt-5.5
+  model: gpt-5.6-sol
   config: {"model_reasoning_effort": "xhigh"}
   sandbox: read-only
   cwd: <absolute PAPER_DIR from Step 0>
@@ -518,7 +518,7 @@ BADGE = {"already_addressed": "✅ already_addressed",
          "unresolved": "\U0001f534 unresolved"}
 out = []
 out.append("**Adversarial Case — %s** (evidence-bound, MEMO-ONLY — no verdict weight)." % PID)
-out.append("Reviewer: gpt-5.5 xhigh, two fresh threads (no codex-reply)  ·  Run level: L%d  "
+out.append("Reviewer: gpt-5.6-sol xhigh, two fresh threads (no codex-reply)  ·  Run level: L%d  "
            "·  Attack thread: %s  ·  Defense thread: %s" % (L, attack_tid or "—", defense_tid or "—"))
 out.append("Disposition (informational, NOT the report verdict): **%s**  ·  Evidence universe: "
            "%d ledger claims · %d confirmed findings" % (disp, len(claims), n_findings))
@@ -572,6 +572,9 @@ memo_path = os.path.join(D, "adversarial-case-builder.memo.md")
 open(memo_path, "w", encoding="utf-8").write("\n".join(out) + "\n")
 
 # ---- info-only findings mirror: one per unresolved point; MEMO gate caps at info anyway ----
+import os as _aris_os
+RESOLVED_MODEL = _aris_os.environ["ARIS_RESOLVED_MODEL"]          # exported by the executor from the call that ACTUALLY ran
+RESOLVED_REASONING = _aris_os.environ["ARIS_RESOLVED_REASONING"]  # (fail LOUD if unset — never stamp a target default)
 acb = []
 for k, p in enumerate(unresolved, 1):
     ev = [{"claim_id": a["ref"], "span": a["span"],
@@ -587,7 +590,7 @@ for k, p in enumerate(unresolved, 1):
         "evidence": ev,                            # may be [] (schema permits empty evidence for info)
         "verdict_local": "warn", "requires_external_check": False, "false_positive_risk": "high",
         "recommended_reviewer_action": p["reviewer_action"] or ("Press the authors on: " + p["attack_claim"]),
-        "reviewer": {"model": "gpt-5.5", "reasoning": "xhigh", "deterministic": False, "thread_id": defense_tid},
+        "reviewer": {"model": RESOLVED_MODEL, "reasoning": RESOLVED_REASONING, "deterministic": False, "thread_id": defense_tid},
     })
 find_path = os.path.join(D, "adversarial-case-builder.findings.json")
 json.dump(acb, open(find_path, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
@@ -704,7 +707,7 @@ only from `tools/adjudicate_findings.py` (Step 5 / the orchestrator).
 - **Honest null.** If the anchored evidence is weak, the memo says the paper
   **survives** — it does not manufacture a kill. Expected output, not a failure.
 - **Two fresh threads, serial, cross-model.** Attack and Defense are separate
-  `mcp__codex__codex` calls (gpt-5.5 xhigh, read-only), never `codex-reply`, never
+  `mcp__codex__codex` calls (gpt-5.6-sol xhigh, read-only), never `codex-reply`, never
   concurrent. Reviewer ≠ executor ≠ adjudicator.
 - **Observability honesty.** The memo cannot assert code/result-level fraud above the
   run level `L`; findings demoted by observability cannot be resurrected as a "kill"

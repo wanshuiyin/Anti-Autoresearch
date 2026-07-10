@@ -236,6 +236,115 @@ def test_json_boolean_observability_rejected():
     assert "undeclared-observability" in f["_adjudication"]
 
 
+# ---- coverage gate (review_unavailable must never masquerade as CLEAN) ----
+
+class _Args:
+    def __init__(self):
+        self.limitation = []
+        self.observability_level = 2
+        self.taxonomy_version = "0.5"
+        self.paper_id = "t"
+        self.generated_at = "2026-01-01T00:00:00Z"
+        self.memo = ""
+
+
+def _report(findings, coverage):
+    A.adjudicate(findings, 2, LEDGER)
+    return A.build_report(findings, _Args(), {"downgraded_obs": 0, "unanchored": 0},
+                          anchoring_verified=True, coverage=coverage)
+
+
+def test_unavailable_verdict_bearing_dim_blocks_acquittal():
+    r = _report([], {"consistency-audit": "review_unavailable"})
+    assert r["overall_verdict"] == "REVIEW_UNAVAILABLE"
+    assert any("COVERAGE INCOMPLETE" in l for l in r["limitations"])
+
+
+def test_unavailable_dim_does_not_erase_found_flags():
+    f = _f()  # anchored critical
+    r = _report([f], {"experiment-forensics": "review_unavailable"})
+    assert r["overall_verdict"] == "HARD_FLAGS"          # flags stand
+    assert any("COVERAGE INCOMPLETE" in l for l in r["limitations"])
+
+
+def test_zero_weight_track_unavailable_keeps_clean():
+    cov = {k: "completed" for k in A.SKILL_TO_DIMENSION}
+    cov["ai-style-impressions"] = "review_unavailable"
+    r = _report([], cov)
+    assert r["overall_verdict"] == "CLEAN_GIVEN_EVIDENCE"
+    assert any("Zero-weight track" in l for l in r["limitations"])
+
+
+def test_completed_and_not_applicable_do_not_gate():
+    # a FULL map (fail-closed fills missing verdict-bearing keys as unavailable,
+    # so a clean acquittal needs every dimension accounted for)
+    cov = {"consistency-audit": "completed", "experiment-forensics": "completed",
+           "baseline-comparison-audit": "not_applicable", "citation-forensics": "completed",
+           "presentation-signals": "completed", "proof-derivation-forensics": "completed",
+           "eval-design-forensics": "completed"}
+    r = _report([], cov)
+    assert r["overall_verdict"] == "CLEAN_GIVEN_EVIDENCE"
+    assert r["coverage"]["baseline-comparison-audit"] == "not_applicable"
+
+
+def test_cli_unknown_coverage_key_rejected():
+    # a typo'd skill key must never silently bypass the acquittal gate
+    import json, tempfile, os
+    with tempfile.TemporaryDirectory() as d:
+        led = os.path.join(d, "claims.json")
+        json.dump({"claims": [{"claim_id": "C001", "text_span": "x"}]}, open(led, "w"))
+        cov = os.path.join(d, "cov.json")
+        json.dump({"consistency_audit": "review_unavailable"}, open(cov, "w"))  # typo: underscore
+        fnd = os.path.join(d, "f.json")
+        json.dump([], open(fnd, "w"))
+        try:
+            A.main(["--findings", fnd, "--ledger", led, "--paper-id", "t",
+                    "--observability-level", "2", "--coverage", cov,
+                    "--out", os.path.join(d, "r.json"), "--md", os.path.join(d, "r.md")])
+            assert False, "unknown coverage key must be rejected"
+        except SystemExit as e:
+            assert e.code != 0
+
+
+def test_cli_review_unavailable_renders_md_and_json():
+    import json, tempfile, os
+    with tempfile.TemporaryDirectory() as d:
+        led = os.path.join(d, "claims.json")
+        json.dump({"claims": [{"claim_id": "C001", "text_span": "x"}]}, open(led, "w"))
+        cov = os.path.join(d, "cov.json")
+        json.dump({"consistency-audit": "review_unavailable"}, open(cov, "w"))
+        fnd = os.path.join(d, "f.json")
+        json.dump([], open(fnd, "w"))
+        out, md = os.path.join(d, "r.json"), os.path.join(d, "r.md")
+        rc = A.main(["--findings", fnd, "--ledger", led, "--paper-id", "t",
+                     "--observability-level", "2", "--coverage", cov,
+                     "--out", out, "--md", md])
+        assert rc == 0
+        r = json.load(open(out))
+        assert r["overall_verdict"] == "REVIEW_UNAVAILABLE"
+        assert r["coverage"]["consistency-audit"] == "review_unavailable"
+        m = open(md).read()
+        assert "REVIEW_UNAVAILABLE" in m and "## Coverage" in m   # badge + coverage table render
+
+
+def test_partial_coverage_map_fails_closed():
+    # a provided map missing verdict-bearing keys must read as never-ran, not full sweep
+    r = _report([], {"consistency-audit": "completed"})
+    assert r["overall_verdict"] == "REVIEW_UNAVAILABLE"
+    assert r["coverage"]["experiment-forensics"] == "review_unavailable"
+
+
+def test_empty_provided_coverage_map_fails_closed():
+    r = _report([], {})       # provided-but-empty != absent
+    assert r["overall_verdict"] == "REVIEW_UNAVAILABLE"
+
+
+def test_absent_coverage_stays_legacy():
+    r = _report([], None)
+    assert r["overall_verdict"] == "CLEAN_GIVEN_EVIDENCE"
+    assert r["coverage"] == {}
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

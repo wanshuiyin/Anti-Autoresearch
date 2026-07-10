@@ -84,7 +84,7 @@ never reaches outside the paper.
 ## Constants & Reviewer Calling Convention
 
 ```
-REVIEWER_MODEL          = gpt-5.5                  # different family from executor (Claude)
+REVIEWER_MODEL          = gpt-5.6-sol                  # different family from executor (Claude)
 REVIEWER_REASONING      = xhigh                    # always; effort never lowers reviewer quality
 REVIEWER_SANDBOX        = read-only                # detect-only; never mutate the paper
 REVIEWER_CWD            = <paper-dir>              # so it can read claims.json + sources directly
@@ -100,7 +100,7 @@ TRACE_DIR               = .aris/traces/consistency-audit/<YYYY-MM-DD>_run<NN>/
   passes **paths + the ledger + the checklist** to the reviewer, validates the
   reviewer's spans, and writes the findings file. It never summarizes the paper,
   pre-judges, or leaks an opinion into the prompt (`reviewer-independence.md`).
-- **Reviewer (codex / gpt-5.5)** reads `claims.json` and the sources, proposes
+- **Reviewer (codex / gpt-5.6-sol)** reads `claims.json` and the sources, proposes
   findings, and self-reports `false_positive_risk`. It is the evidence-extractor,
   not the judge.
 - **Fresh thread per run.** If you fan out the checklist into groups for breadth,
@@ -245,7 +245,7 @@ value from Step 0):
 
 ```
 mcp__codex__codex:
-  model: gpt-5.5
+  model: gpt-5.6-sol
   config: {"model_reasoning_effort": "xhigh"}
   sandbox: read-only
   cwd: <absolute PAPER_DIR from Step 0>
@@ -412,7 +412,7 @@ trace files now or in Step 5 — see Step 5 for the exact set.)
 
 **Failure handling.**
 - *MCP stall / hang* (common in long sessions): re-invoke the **identical** prompt
-  as a **fresh** `mcp__codex__codex` call (gpt-5.5, xhigh) — never `codex-reply`.
+  as a **fresh** `mcp__codex__codex` call (gpt-5.6-sol, xhigh) — never `codex-reply`.
 - *Reviewer returns prose, not a JSON array*: the Step 3 validator already extracts
   the outermost `[...]`; if there is none, re-ask once with "Output ONLY the JSON
   array, nothing else." Do not hand-author findings on the reviewer's behalf.
@@ -506,7 +506,10 @@ for f in proposed:
     if isinstance(olr, bool) or not isinstance(olr, int) or not (0 <= olr <= 3):
         f["observability_level_required"] = OBS.get(pid, 2)  # unknown pattern -> fail-closed L2 (auto-demotes at L0/L1)
     # cross-model provenance (reviewer-independence: this is a proposal, not a verdict)
-    f["reviewer"] = {"model": "gpt-5.5", "reasoning": "xhigh", "deterministic": False}
+    import os as _aris_os
+    RESOLVED_MODEL = _aris_os.environ["ARIS_RESOLVED_MODEL"]          # exported by the executor from the call that ACTUALLY ran
+    RESOLVED_REASONING = _aris_os.environ["ARIS_RESOLVED_REASONING"]  # (fail LOUD if unset — never stamp a target default)
+    f["reviewer"] = {"model": RESOLVED_MODEL, "reasoning": RESOLVED_REASONING, "deterministic": False}
     kept.append(f)
 
 json.dump(kept, open(out_path, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
@@ -555,7 +558,7 @@ $TRACE_DIR/
   run.meta.json                          # {skill, paper_id, run_level_L, taxonomy_version, generated_at}
   001-semantic-consistency.request.json  # the exact prompt sent (paths + checklist, no summaries)
   001-semantic-consistency.response.md   # the FULL raw reviewer response (input to Step 3)
-  001-semantic-consistency.meta.json     # {model:"gpt-5.5", reasoning:"xhigh", thread_id, sandbox:"read-only"}
+  001-semantic-consistency.meta.json     # {model:"gpt-5.6-sol", reasoning:"xhigh", thread_id, sandbox:"read-only"}
 ```
 
 The `request.json` is the independence audit trail — it must show the executor sent
@@ -613,7 +616,7 @@ human-readable rendering is the orchestrator's job, not this skill's.
   `\,`) exactly; un-escaping breaks the match.
 - **Reviewer ≠ adjudicator.** The model proposes findings; `adjudicate_findings.py`
   decides the verdict. This skill emits findings only.
-- **Cross-model, fresh thread.** Reviewer is a different family (gpt-5.5 xhigh);
+- **Cross-model, fresh thread.** Reviewer is a different family (gpt-5.6-sol xhigh);
   every run is a new `mcp__codex__codex` thread; `codex-reply` is never used.
 - **Observability honesty.** A discrepancy that needs code/results to confirm gets
   `observability_level_required: 2` so a PDF-only run auto-demotes it.

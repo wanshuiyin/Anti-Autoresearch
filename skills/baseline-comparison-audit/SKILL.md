@@ -1,6 +1,6 @@
 ---
 name: baseline-comparison-audit
-description: "Audit whether a paper's baseline comparisons are COMPLETE, FAIR, and SIGNIFICANT: a required recent SOTA baseline is missing while 'best/SOTA' is claimed (HP-MISSING-BASELINE); a baseline is undertuned / given less compute-tuning-data, run at a mismatched config, or the equal-budget ablation-as-baseline is absent (HP-WEAK-BASELINE); 'outperforms' is asserted over overlapping error bars or with no variance/seeds (HP-SIG-OVERLAP); and a cross-row 'improves over baseline by X%' is arithmetically wrong (HP-DELTA-ERROR, cross-row form only). A versioned per-domain baseline profile + a live leaderboard/recency search are assembled by the EXECUTOR as structured facts; a fresh cross-model reviewer (gpt-5.5 xhigh, read-only, fresh thread per dimension) PROPOSES findings, each span-anchored to a ledger claim_id; tools/adjudicate_findings.py DECIDES the verdict. Works at L0 (stated comparisons) and deepens at L2 (configs/result files). A completeness question it cannot settle internally becomes needs_external_check, never a guessed missing baseline. Emits baseline-comparison-audit.findings.json; computes NO verdict. Detect-only. Triggers: \"baseline audit\", \"missing baselines\", \"is the comparison fair\", \"weak baseline\", \"baseline 误报\", \"SOTA earned?\"."
+description: "Audit whether a paper's baseline comparisons are COMPLETE, FAIR, and SIGNIFICANT: a required recent SOTA baseline is missing while 'best/SOTA' is claimed (HP-MISSING-BASELINE); a baseline is undertuned / given less compute-tuning-data, run at a mismatched config, or the equal-budget ablation-as-baseline is absent (HP-WEAK-BASELINE); 'outperforms' is asserted over overlapping error bars or with no variance/seeds (HP-SIG-OVERLAP); and a cross-row 'improves over baseline by X%' is arithmetically wrong (HP-DELTA-ERROR, cross-row form only). A versioned per-domain baseline profile + a live leaderboard/recency search are assembled by the EXECUTOR as structured facts; a fresh cross-model reviewer (gpt-5.6-sol xhigh, read-only, fresh thread per dimension) PROPOSES findings, each span-anchored to a ledger claim_id; tools/adjudicate_findings.py DECIDES the verdict. Works at L0 (stated comparisons) and deepens at L2 (configs/result files). A completeness question it cannot settle internally becomes needs_external_check, never a guessed missing baseline. Emits baseline-comparison-audit.findings.json; computes NO verdict. Detect-only. Triggers: \"baseline audit\", \"missing baselines\", \"is the comparison fair\", \"weak baseline\", \"baseline 误报\", \"SOTA earned?\"."
 argument-hint: [paper-dir | claims.json]
 allowed-tools: Bash(*), Read, Write, Grep, Glob, WebSearch, WebFetch, mcp__codex__codex
 ---
@@ -146,7 +146,7 @@ seeds a *question*, never a detector.
 ## Constants & Reviewer Calling Convention
 
 ```
-REVIEWER_MODEL        = gpt-5.5                  # different family from executor (Claude)
+REVIEWER_MODEL        = gpt-5.6-sol                  # different family from executor (Claude)
 REVIEWER_REASONING    = xhigh                    # always; effort never lowers reviewer quality
 REVIEWER_SANDBOX      = read-only                # detect-only; never mutate the paper
 REVIEWER_CWD          = <paper-dir>              # so it can read claims.json + sources directly
@@ -175,7 +175,7 @@ TRACE_DIR             = .aris/traces/baseline-comparison-audit/<YYYY-MM-DD>_run<
   leaderboard says (with its date) is the same allowed division `experiment-forensics`
   (grep/hash facts) and `citation-forensics` (canonical metadata) use — reference
   facts, not hunches about the manuscript.
-- **Reviewer (codex / gpt-5.5)** reads `claims.json` and the sources, decides which
+- **Reviewer (codex / gpt-5.6-sol)** reads `claims.json` and the sources, decides which
   comparisons are incomplete / unfair / not significant, applies the known
   false-positive cases, and self-reports `false_positive_risk`. It is the
   evidence-extractor, not the judge.
@@ -343,7 +343,7 @@ against your *external* expected-set facts; every finding anchors to a ledger
 
 ```
 mcp__codex__codex:
-  model: gpt-5.5
+  model: gpt-5.6-sol
   config: {"model_reasoning_effort": "xhigh"}
   sandbox: read-only
   cwd: <absolute PAPER_DIR from Step 0>
@@ -461,7 +461,7 @@ Then send EXACTLY (fill every `[ ... ]`):
 
 ```
 mcp__codex__codex:
-  model: gpt-5.5
+  model: gpt-5.6-sol
   config: {"model_reasoning_effort": "xhigh"}
   sandbox: read-only
   cwd: <absolute PAPER_DIR from Step 0>
@@ -674,7 +674,10 @@ for f in proposed:
     # adjudicator's cap); the executor never guesses it. Missing/invalid demotes to info, never a default.
     if f.get("severity") in ABOVE and f.get("false_positive_risk") not in ("low", "medium", "high"):
         f["severity"] = "info"; f.setdefault("_demotions", []).append("undeclared-fp-risk"); demoted += 1
-    f.setdefault("reviewer", {"model": "gpt-5.5", "reasoning": "xhigh", "deterministic": False})
+    import os as _aris_os
+    RESOLVED_MODEL = _aris_os.environ["ARIS_RESOLVED_MODEL"]          # exported by the executor from the call that ACTUALLY ran
+    RESOLVED_REASONING = _aris_os.environ["ARIS_RESOLVED_REASONING"]  # (fail LOUD if unset — never stamp a target default)
+    f["reviewer"] = {"model": RESOLVED_MODEL, "reasoning": RESOLVED_REASONING, "deterministic": False}
     # honest hand-off: needs_external_check carries no severity weight (adjudicate_findings.py has
     # no such gate, so the validator makes the claim true) — pin it to info, never drop it.
     if f.get("verdict_local") == "needs_external_check":
@@ -770,7 +773,7 @@ silently dropped — the forensic record stays).
      "location": {"file": "main.tex", "section": "table:2"}}
   ],
   "verdict_local": "warn",
-  "reviewer": {"model": "gpt-5.5", "reasoning": "xhigh", "thread_id": "<codex thread>", "deterministic": false},
+  "reviewer": {"model": "gpt-5.6-sol", "reasoning": "xhigh", "thread_id": "<codex thread>", "deterministic": false},
   "requires_external_check": false,
   "false_positive_risk": "low",
   "recommended_reviewer_action": "Ask the authors for the baseline under the same epochs/seeds/backbone budget as the proposed method (the config delta is at configs/{ours,baseline}.yaml), or to document why the budgets differ."
@@ -811,7 +814,7 @@ Populate it:
   expected_baseline_set.json          # Step 2 external facts (leaderboard URL + dates + candidate set)
   001-completeness.request.json       # the EXACT Step-3 prompt sent (paths + ledger + sourced facts + checklist)
   001-completeness.response.md        # the FULL raw reviewer response (input to Step 5)
-  001-completeness.meta.json          # {model:"gpt-5.5", reasoning:"xhigh", thread_id, sandbox:"read-only"}
+  001-completeness.meta.json          # {model:"gpt-5.6-sol", reasoning:"xhigh", thread_id, sandbox:"read-only"}
   002-fairness-significance.request.json
   002-fairness-significance.response.md
   002-fairness-significance.meta.json
@@ -898,7 +901,7 @@ second deterministic file** and never edits the audited paper.
 - **Reviewer ≠ adjudicator.** The model proposes findings; `adjudicate_findings.py`
   decides the verdict. This skill emits findings only.
 - **Cross-model, fresh thread per dimension/entry.** Reviewer is a different family
-  (gpt-5.5 xhigh); completeness and fairness/significance/delta are separate fresh
+  (gpt-5.6-sol xhigh); completeness and fairness/significance/delta are separate fresh
   `mcp__codex__codex` threads; `codex-reply` is never used (absent from `allowed-tools`).
 - **Observability honesty.** Config/budget asymmetry only the repo reveals gets
   `observability_level_required: 2` so a PDF-only run auto-demotes it. You cannot prove
@@ -918,7 +921,7 @@ second deterministic file** and never edits the audited paper.
 - **No `claims.json` yet** → run `/evidence-ledger` first; this skill never invents
   structure from the raw PDF.
 - **The paper makes no comparison / SOTA / baseline claim** (`APPLICABLE = no` in
-  Step 1) → write `[]` and stop; there is nothing to audit.
+  Step 1) → write `[]`, record `"baseline-comparison-audit": "not_applicable"` in the run's `coverage.json` (when orchestrated), and stop; there is nothing to audit.
 - **Generic in-text scope inflation with no comparison** ("a *comprehensive* study")
   → `/consistency-audit` (`HP-SCOPE-INFLATE`).
 - **A single-sentence "from A to B, X%" delta** → already caught deterministically by
