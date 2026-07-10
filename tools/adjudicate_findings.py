@@ -308,10 +308,11 @@ def build_report(findings, args, stats, anchoring_verified, coverage=None):
     # Coverage gate: "no findings" must never be conflated with "the reviewer never ran".
     # A verdict-bearing dimension marked review_unavailable blocks the ACQUITTAL only —
     # findings already on the table still produce HARD/SOFT flags (flags can only add).
+    provided = coverage is not None
     coverage = dict(coverage or {})
-    if coverage:
-        # fail-closed: a PARTIAL map must not read as a full sweep — any verdict-bearing
-        # dimension absent from a provided map is treated as never-ran.
+    if provided:
+        # fail-closed: a PARTIAL (or empty) provided map must not read as a full sweep —
+        # any verdict-bearing dimension absent from a provided map is treated as never-ran.
         for k in SKILL_TO_DIMENSION:
             coverage.setdefault(k, "review_unavailable")
     unavailable = sorted(k for k, v in coverage.items() if v == "review_unavailable")
@@ -509,17 +510,17 @@ def main(argv=None):
 
     findings = load_findings(args.findings)
 
-    coverage = {}
+    coverage = None          # None = flag absent (legacy); {} = provided-but-empty (fail-closed)
     if args.coverage:
         with open(args.coverage, "r", encoding="utf-8") as fh:
             coverage = json.load(fh)
-        bad = {k: v for k, v in coverage.items()
+        bad = {k: v for k, v in (coverage or {}).items()
                if v not in ("completed", "not_applicable", "review_unavailable")}
         if bad:
             ap.error(f"invalid coverage status(es): {bad} — allowed: "
                      "completed | not_applicable | review_unavailable")
         known = set(SKILL_TO_DIMENSION) | set(ZERO_WEIGHT_SKILLS)
-        unknown = sorted(k for k in coverage if k not in known)
+        unknown = sorted(k for k in (coverage or {}) if k not in known)
         if unknown:
             ap.error(f"unknown coverage skill key(s): {unknown} — a typo here would "
                      f"silently bypass the acquittal gate. Known keys: {sorted(known)}")

@@ -334,6 +334,17 @@ def test_partial_coverage_map_fails_closed():
     assert r["coverage"]["experiment-forensics"] == "review_unavailable"
 
 
+def test_empty_provided_coverage_map_fails_closed():
+    r = _report([], {})       # provided-but-empty != absent
+    assert r["overall_verdict"] == "REVIEW_UNAVAILABLE"
+
+
+def test_absent_coverage_stays_legacy():
+    r = _report([], None)
+    assert r["overall_verdict"] == "CLEAN_GIVEN_EVIDENCE"
+    assert r["coverage"] == {}
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0
