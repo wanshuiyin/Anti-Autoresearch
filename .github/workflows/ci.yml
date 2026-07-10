@@ -23,5 +23,7 @@ jobs:
         run: python3 tests/test_ai_style.py
       - name: Primary-PDF selection unit tests (honest-none + determinism, issue #11)
         run: python3 tests/test_select_primary_pdf.py
+      - name: Embedded-python syntax lint (SKILL.md validator blocks parse; stamps define-before-use)
+        run: python3 tests/test_embedded_python.py
       - name: Eval harness (clean + corruption fixtures — 100% recall, 0 clean FP)
         run: python3 eval/run_eval.py

@@ -210,13 +210,21 @@ def newest_source(d):
 led = os.path.join(D, "claims.json"); have = is_ledger(led)
 stale = have and os.path.getmtime(led) < newest_source(D)
 print(f"STEP1 ledger      : {'present' if have else 'MISSING'}{'  ⚠ STALE → rebuild (sources changed)' if stale else ''}")
+covp = os.path.join(D, "coverage.json")
+try: cov = json.load(open(covp, encoding="utf-8"))
+except Exception: cov = {}
 for f in ("consistency-audit.deterministic", "consistency-audit", "citation-forensics",
           "baseline-comparison-audit", "experiment-forensics",
           "presentation-signals.deterministic", "presentation-signals",
           "proof-derivation-forensics", "eval-design-forensics",
           "ai-style-impressions.deterministic", "ai-style-impressions"):
     p = os.path.join(D, f + ".findings.json")
-    print(f"STEP2 {f:<32}: {'ok' if (os.path.isfile(p) and is_array(p)) else 'todo'}")
+    skill = f.replace(".deterministic", "")
+    # a findings file alone is NOT completion — the coverage entry decides.
+    # (deterministic sub-files ride on their skill's coverage key)
+    done = (os.path.isfile(p) and is_array(p)
+            and cov.get(skill) in ("completed", "not_applicable"))
+    print(f"STEP2 {f:<32}: {'ok' if done else 'todo'}")
 print(f"STEP3 adversarial memo            : {'present' if os.path.isfile(os.path.join(D,'adversarial-case-builder.memo.md')) else 'todo'}")
 print(f"STEP3 novelty advisory memo       : {'present' if os.path.isfile(os.path.join(D,'novelty-duplication-advisory.memo.md')) else 'todo'}")
 print(f"STEP4 report.json : {'present' if os.path.isfile(os.path.join(D,'report.json')) else 'todo'}")
@@ -224,7 +232,9 @@ PY
 ```
 
 Rule: a **stale ledger forces a full rebuild** (Step 1 → re-fan Step 2 → re-adjudicate)
-— stale findings anchored to an old ledger are worse than none. If the ledger is fresh,
+— stale findings anchored to an old ledger are worse than none. **A full rebuild also
+deletes `coverage.json`** (the Step-2 init re-creates it all-`review_unavailable`;
+stale `completed` entries must not survive a rebuild). If the ledger is fresh,
 skip Step 1 and only re-run the auditors marked `todo`. Always re-run Step 4 (cheap,
 deterministic, the only verdict source). Re-running from scratch is always safe — same
 inputs → same outputs.
@@ -372,6 +382,15 @@ re-entry, treat a missing key or `review_unavailable` as TODO (an existing `[]` 
 file alone does NOT mean the dimension completed). A skill whose per-item sub-calls
 partially failed for good (e.g. one citation key still unparseable after the retry) also
 stays `review_unavailable` — a partial sweep must not read as a completed one.
+
+**Mark completion after EVERY auditor** (the one-liner the orchestrator runs as soon as
+that skill's findings file is validated — `completed`, or `not_applicable` when its
+Step-1 gate said nothing applies):
+
+```bash
+python3 -c 'import json,sys; p,k,v=sys.argv[1:4]; c=json.load(open(p)); c[k]=v; json.dump(c,open(p,"w"),indent=2)' \
+    "$PAPER_DIR/coverage.json" consistency-audit completed
+```
 
 ```bash
 PAPER_DIR="<from Step 0>"

@@ -572,6 +572,7 @@ memo_path = os.path.join(D, "adversarial-case-builder.memo.md")
 open(memo_path, "w", encoding="utf-8").write("\n".join(out) + "\n")
 
 # ---- info-only findings mirror: one per unresolved point; MEMO gate caps at info anyway ----
+RESOLVED_MODEL, RESOLVED_REASONING = "gpt-5.6-sol", "xhigh"  # <- what ACTUALLY ran (from the call trace; capability fallback may have stepped down to gpt-5.5)
 acb = []
 for k, p in enumerate(unresolved, 1):
     ev = [{"claim_id": a["ref"], "span": a["span"],
@@ -587,7 +588,6 @@ for k, p in enumerate(unresolved, 1):
         "evidence": ev,                            # may be [] (schema permits empty evidence for info)
         "verdict_local": "warn", "requires_external_check": False, "false_positive_risk": "high",
         "recommended_reviewer_action": p["reviewer_action"] or ("Press the authors on: " + p["attack_claim"]),
-        # RESOLVED_MODEL, RESOLVED_REASONING = "gpt-5.6-sol", "xhigh" must be defined above (what ACTUALLY ran; fallback may have stepped down)
         "reviewer": {"model": RESOLVED_MODEL, "reasoning": RESOLVED_REASONING, "deterministic": False, "thread_id": defense_tid},
     })
 find_path = os.path.join(D, "adversarial-case-builder.findings.json")

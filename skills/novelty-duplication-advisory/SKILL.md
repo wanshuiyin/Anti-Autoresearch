@@ -883,6 +883,7 @@ memo_path = os.path.join(paper_dir, "novelty-duplication-advisory.memo.md")
 open(memo_path, "w", encoding="utf-8").write("\n".join(out) + "\n")
 
 # ---------- info-only findings mirror: one per surfaced item; MEMO gate caps at info ----------
+RESOLVED_MODEL, RESOLVED_REASONING = "gpt-5.6-sol", "xhigh"  # <- what ACTUALLY ran (from the call trace; capability fallback may have stepped down to gpt-5.5)
 mir = []
 for k, p in enumerate(items, 1):
     cdesc = "; ".join(cstr(c) for c in p["candidate_ids"])
@@ -901,7 +902,6 @@ for k, p in enumerate(items, 1):
         "verdict_local": "needs_external_check", "requires_external_check": True,
         "false_positive_risk": "high",
         "recommended_reviewer_action": p["reviewer_action"] or ("Weigh the contribution against: " + cdesc),
-        RESOLVED_MODEL, RESOLVED_REASONING = "gpt-5.6-sol", "xhigh"  # <- what ACTUALLY ran (from the call trace; capability fallback may have stepped down to gpt-5.5)
         "reviewer": {"model": RESOLVED_MODEL, "reasoning": RESOLVED_REASONING, "deterministic": False},
     })
 find_path = os.path.join(paper_dir, "novelty-duplication-advisory.findings.json")
