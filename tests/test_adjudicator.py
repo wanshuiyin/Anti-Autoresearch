@@ -268,7 +268,9 @@ def test_unavailable_dim_does_not_erase_found_flags():
 
 
 def test_zero_weight_track_unavailable_keeps_clean():
-    r = _report([], {"ai-style-impressions": "review_unavailable"})
+    cov = {k: "completed" for k in A.SKILL_TO_DIMENSION}
+    cov["ai-style-impressions"] = "review_unavailable"
+    r = _report([], cov)
     assert r["overall_verdict"] == "CLEAN_GIVEN_EVIDENCE"
     assert any("Zero-weight track" in l for l in r["limitations"])
 
