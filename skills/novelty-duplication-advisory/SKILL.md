@@ -883,7 +883,9 @@ memo_path = os.path.join(paper_dir, "novelty-duplication-advisory.memo.md")
 open(memo_path, "w", encoding="utf-8").write("\n".join(out) + "\n")
 
 # ---------- info-only findings mirror: one per surfaced item; MEMO gate caps at info ----------
-RESOLVED_MODEL, RESOLVED_REASONING = "gpt-5.6-sol", "xhigh"  # <- what ACTUALLY ran (from the call trace; capability fallback may have stepped down to gpt-5.5)
+import os as _aris_os
+RESOLVED_MODEL = _aris_os.environ["ARIS_RESOLVED_MODEL"]          # exported by the executor from the call that ACTUALLY ran
+RESOLVED_REASONING = _aris_os.environ["ARIS_RESOLVED_REASONING"]  # (fail LOUD if unset — never stamp a target default)
 mir = []
 for k, p in enumerate(items, 1):
     cdesc = "; ".join(cstr(c) for c in p["candidate_ids"])

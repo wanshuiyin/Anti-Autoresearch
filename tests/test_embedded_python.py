@@ -43,10 +43,20 @@ def check_repo():
             problems.append(f"{rel} [PY block #{i}]: SyntaxError line {e.lineno}: {e.msg}")
             continue
         if "RESOLVED_MODEL" in block:
-            assign = block.find("RESOLVED_MODEL, RESOLVED_REASONING =")
-            use = block.find('"model": RESOLVED_MODEL')
-            if use != -1 and (assign == -1 or assign > use):
-                problems.append(f"{rel} [PY block #{i}]: RESOLVED_MODEL used before assignment")
+            tree = ast.parse(block)
+            assign_line, use_line = None, None
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Assign):
+                    for t in node.targets:
+                        for n in ast.walk(t):
+                            if isinstance(n, ast.Name) and n.id == "RESOLVED_MODEL":
+                                assign_line = min(assign_line or node.lineno, node.lineno)
+                elif isinstance(node, ast.Name) and node.id == "RESOLVED_MODEL" \
+                        and isinstance(node.ctx, ast.Load):
+                    use_line = min(use_line or node.lineno, node.lineno)
+            if use_line is not None and (assign_line is None or assign_line > use_line):
+                problems.append(f"{rel} [PY block #{i}]: RESOLVED_MODEL used (line {use_line}) "
+                                f"before assignment ({assign_line})")
     return problems
 
 

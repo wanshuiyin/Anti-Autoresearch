@@ -274,8 +274,13 @@ def test_zero_weight_track_unavailable_keeps_clean():
 
 
 def test_completed_and_not_applicable_do_not_gate():
-    r = _report([], {"consistency-audit": "completed",
-                     "baseline-comparison-audit": "not_applicable"})
+    # a FULL map (fail-closed fills missing verdict-bearing keys as unavailable,
+    # so a clean acquittal needs every dimension accounted for)
+    cov = {"consistency-audit": "completed", "experiment-forensics": "completed",
+           "baseline-comparison-audit": "not_applicable", "citation-forensics": "completed",
+           "presentation-signals": "completed", "proof-derivation-forensics": "completed",
+           "eval-design-forensics": "completed"}
+    r = _report([], cov)
     assert r["overall_verdict"] == "CLEAN_GIVEN_EVIDENCE"
     assert r["coverage"]["baseline-comparison-audit"] == "not_applicable"
 
@@ -318,6 +323,13 @@ def test_cli_review_unavailable_renders_md_and_json():
         assert r["coverage"]["consistency-audit"] == "review_unavailable"
         m = open(md).read()
         assert "REVIEW_UNAVAILABLE" in m and "## Coverage" in m   # badge + coverage table render
+
+
+def test_partial_coverage_map_fails_closed():
+    # a provided map missing verdict-bearing keys must read as never-ran, not full sweep
+    r = _report([], {"consistency-audit": "completed"})
+    assert r["overall_verdict"] == "REVIEW_UNAVAILABLE"
+    assert r["coverage"]["experiment-forensics"] == "review_unavailable"
 
 
 if __name__ == "__main__":

@@ -619,7 +619,9 @@ for fp in files:
         if isinstance(olr, bool) or not isinstance(olr, int) or not (0 <= olr <= 3):
             f["observability_level_required"] = OBS.get(pid, 0)
         # cross-model provenance (reviewer-independence: a proposal, not a verdict)
-        RESOLVED_MODEL, RESOLVED_REASONING = "gpt-5.6-sol", "xhigh"  # <- what ACTUALLY ran (from the call trace; capability fallback may have stepped down to gpt-5.5)
+        import os as _aris_os
+        RESOLVED_MODEL = _aris_os.environ["ARIS_RESOLVED_MODEL"]          # exported by the executor from the call that ACTUALLY ran
+        RESOLVED_REASONING = _aris_os.environ["ARIS_RESOLVED_REASONING"]  # (fail LOUD if unset — never stamp a target default)
         f["reviewer"] = {"model": RESOLVED_MODEL, "reasoning": RESOLVED_REASONING, "deterministic": False}
         kept.append(f)
 

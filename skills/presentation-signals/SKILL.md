@@ -447,7 +447,9 @@ for f in proposed:
         sev = "info"; demoted += 1           # unanchored surface signal -> info note, NEVER a flag
     f["severity"] = sev
     # cross-model provenance (reviewer-independence: this is a proposal, not a verdict)
-    RESOLVED_MODEL, RESOLVED_REASONING = "gpt-5.6-sol", "xhigh"  # <- what ACTUALLY ran (from the call trace; capability fallback may have stepped down to gpt-5.5)
+    import os as _aris_os
+    RESOLVED_MODEL = _aris_os.environ["ARIS_RESOLVED_MODEL"]          # exported by the executor from the call that ACTUALLY ran
+    RESOLVED_REASONING = _aris_os.environ["ARIS_RESOLVED_REASONING"]  # (fail LOUD if unset — never stamp a target default)
     f["reviewer"] = {"model": RESOLVED_MODEL, "reasoning": RESOLVED_REASONING, "deterministic": False}
     kept.append(f)
 

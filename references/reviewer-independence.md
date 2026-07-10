@@ -33,7 +33,15 @@ retry risks double-running a review). Never run an auditor below `xhigh`. If no 
 pair succeeds, record the dimension as `review_unavailable` in the run's
 `coverage.json` — the adjudicator then refuses to issue a CLEAN verdict for an
 incomplete sweep. Findings and traces record the pair that **actually ran** (the
-resolved pair), never the target default.
+resolved pair), never the target default. Mechanically: immediately after a reviewer
+call succeeds, the executor exports the pair it ACTUALLY used —
+
+```bash
+export ARIS_RESOLVED_MODEL="gpt-5.6-sol" ARIS_RESOLVED_REASONING="xhigh"   # or the fallback pair, if one fired
+```
+
+— and every validator here-doc reads `RESOLVED_MODEL` / `RESOLVED_REASONING` from those
+variables, **crashing (KeyError) when they are unset** rather than stamping a default.
 
 ## Layer 2 — Reviewer ≠ adjudicator (NEW, the anti-slop axis)
 

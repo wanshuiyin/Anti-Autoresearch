@@ -572,7 +572,9 @@ memo_path = os.path.join(D, "adversarial-case-builder.memo.md")
 open(memo_path, "w", encoding="utf-8").write("\n".join(out) + "\n")
 
 # ---- info-only findings mirror: one per unresolved point; MEMO gate caps at info anyway ----
-RESOLVED_MODEL, RESOLVED_REASONING = "gpt-5.6-sol", "xhigh"  # <- what ACTUALLY ran (from the call trace; capability fallback may have stepped down to gpt-5.5)
+import os as _aris_os
+RESOLVED_MODEL = _aris_os.environ["ARIS_RESOLVED_MODEL"]          # exported by the executor from the call that ACTUALLY ran
+RESOLVED_REASONING = _aris_os.environ["ARIS_RESOLVED_REASONING"]  # (fail LOUD if unset — never stamp a target default)
 acb = []
 for k, p in enumerate(unresolved, 1):
     ev = [{"claim_id": a["ref"], "span": a["span"],

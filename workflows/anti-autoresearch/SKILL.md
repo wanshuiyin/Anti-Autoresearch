@@ -372,6 +372,11 @@ own spans, and writes `<skill>.findings.json` (the deterministic auditors also w
 `<skill>.deterministic.findings.json`). The orchestrator only *sequences* these calls and
 enforces the Reviewer Calling Convention above — it authors no finding.
 
+**Resolved-pair provenance.** Right after each dimension's reviewer call succeeds,
+export the pair that actually ran (`export ARIS_RESOLVED_MODEL=... ARIS_RESOLVED_REASONING=...`
+— the fallback pair if one fired); the validator blocks read these and crash if unset
+(`references/reviewer-independence.md`).
+
 **Coverage state machine (init FIRST, before any auditor runs).** Initialize
 `$PAPER_DIR/coverage.json` with EVERY expected skill pre-marked `review_unavailable`,
 then let each skill's terminal branch overwrite its own key (`completed` on a finished
@@ -542,7 +547,9 @@ for f in prop:
     if f["severity"] in ABOVE and not anchored: f["severity"] = "info"; demoted += 1
     # observability_level_required is passed through verbatim — a missing/invalid one is
     # left as-is so the adjudicator's OBSERVABILITY gate fail-closes it to info.
-    RESOLVED_MODEL, RESOLVED_REASONING = "gpt-5.6-sol", "xhigh"  # <- what ACTUALLY ran (from the call trace; capability fallback may have stepped down to gpt-5.5)
+    import os as _aris_os
+    RESOLVED_MODEL = _aris_os.environ["ARIS_RESOLVED_MODEL"]          # exported by the executor from the call that ACTUALLY ran
+    RESOLVED_REASONING = _aris_os.environ["ARIS_RESOLVED_REASONING"]  # (fail LOUD if unset — never stamp a target default)
     f["reviewer"] = {"model": RESOLVED_MODEL, "reasoning": RESOLVED_REASONING, "deterministic": False}
     kept.append(f)
 json.dump(kept, open(out_p, "w", encoding="utf-8"), indent=2, ensure_ascii=False)

@@ -308,7 +308,12 @@ def build_report(findings, args, stats, anchoring_verified, coverage=None):
     # Coverage gate: "no findings" must never be conflated with "the reviewer never ran".
     # A verdict-bearing dimension marked review_unavailable blocks the ACQUITTAL only —
     # findings already on the table still produce HARD/SOFT flags (flags can only add).
-    coverage = coverage or {}
+    coverage = dict(coverage or {})
+    if coverage:
+        # fail-closed: a PARTIAL map must not read as a full sweep — any verdict-bearing
+        # dimension absent from a provided map is treated as never-ran.
+        for k in SKILL_TO_DIMENSION:
+            coverage.setdefault(k, "review_unavailable")
     unavailable = sorted(k for k, v in coverage.items() if v == "review_unavailable")
     unavailable_vb = [k for k in unavailable if k in SKILL_TO_DIMENSION]
     overall = verdict_of(finals)

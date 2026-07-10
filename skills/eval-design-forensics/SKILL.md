@@ -640,7 +640,9 @@ for f in proposed:
     # adjudicator's cap); the executor never guesses it. Missing/invalid demotes to info.
     if f.get("severity") in ABOVE and f.get("false_positive_risk") not in ("low", "medium", "high"):
         f["severity"] = "info"; f.setdefault("_demotions", []).append("undeclared-fp-risk"); demoted += 1
-    RESOLVED_MODEL, RESOLVED_REASONING = "gpt-5.6-sol", "xhigh"  # <- what ACTUALLY ran (from the call trace; capability fallback may have stepped down to gpt-5.5)
+    import os as _aris_os
+    RESOLVED_MODEL = _aris_os.environ["ARIS_RESOLVED_MODEL"]          # exported by the executor from the call that ACTUALLY ran
+    RESOLVED_REASONING = _aris_os.environ["ARIS_RESOLVED_REASONING"]  # (fail LOUD if unset — never stamp a target default)
     f["reviewer"] = {"model": RESOLVED_MODEL, "reasoning": RESOLVED_REASONING, "deterministic": False}
     # honest hand-off: needs_external_check carries no severity weight (the 3 leakage external
     # subtypes land here) — pin it to info, never drop it. Mirrors the adjudicator's gate 6.
