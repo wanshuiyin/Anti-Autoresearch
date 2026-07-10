@@ -50,9 +50,11 @@ _RELATIVE_MARKER = re.compile(r"\brelative\b", re.I)
 
 def decimals_of(raw):
     """Displayed decimal places of a plain numeral string; None when the string is
-    not a simple decimal numeral (scientific notation, separators, '+5', '.5'...)."""
+    not a simple decimal numeral (scientific notation, separators, '+5', '.5'...)
+    or absurdly long (a 5000-digit "numeral" is an attack, not a measurement —
+    and would trip Python's int-conversion limit)."""
     raw = (raw or "").strip() if isinstance(raw, str) else None
-    if not raw or not _SIMPLE_NUM.match(raw):
+    if not raw or len(raw) > 40 or not _SIMPLE_NUM.match(raw):
         return None
     return len(raw.split(".")[1]) if "." in raw else 0
 
@@ -94,9 +96,9 @@ def delta_convention(stated_unit, stated_span, stated_raw):
     if stated_unit != "%":
         return None
     span, raw = stated_span or "", (stated_raw or "").strip()
+    if not raw or span.count(raw) != 1:
+        return None   # absent or duplicated numeral — marker binding would be ambiguous
     i = span.find(raw)
-    if not raw or i < 0:
-        return None
     # clause-bounded local window around the numeral (mirrors the ledger's
     # local-metric binding idea)
     before = re.split(r"[,;:.]", span[max(0, i - 30):i])[-1]
@@ -116,6 +118,8 @@ def rounding_interval_delta(old_raw, new_raw, stated_raw, convention,
           "inputs": {"old": old_raw, "new": new_raw, "stated": stated_raw}}
     if convention not in ("relative", "points"):
         return UNRESOLVABLE, dict(ev, why="convention not locally explicit for the stated value")
+    if not all(u is None or isinstance(u, str) for u in (old_unit, new_unit, stated_unit)):
+        return UNRESOLVABLE, dict(ev, why="malformed unit value")
     if (old_unit or None) != (new_unit or None):
         return UNRESOLVABLE, dict(ev, why=f"operand units differ: {old_unit!r} vs {new_unit!r}")
     if convention == "relative" and stated_unit != "%":
@@ -151,8 +155,14 @@ def display_precision(a_raw, b_raw, a_unit=None, b_unit=None):
     ev = {"resolver": "display_precision", "version": COUNTERCHECK_VERSION,
           "certified": True,   # binding-invariant: symmetric in the two inputs
           "inputs": {"a": a_raw, "b": b_raw}}
-    if (a_unit or None) != (b_unit or None):
-        return UNRESOLVABLE, dict(ev, why=f"units differ: {a_unit!r} vs {b_unit!r}")
+    # Display-rounding compatibility is only meaningful for a quantity that IS a
+    # rounded display of a measurement. That is deterministically establishable
+    # only for %-metrics here; an exact quantity (a hyperparameter λ=1, a seed
+    # count, a layer number — typically unitless) admits NO rounding interval,
+    # and treating it as one would wrongly demote a real contradiction.
+    if not (a_unit == "%" and b_unit == "%"):
+        return UNRESOLVABLE, dict(ev, why="not provably a rounded measurement "
+                                          f"(units {a_unit!r} vs {b_unit!r}; demotion requires %/%)")
     ia, ib = display_interval(a_raw), display_interval(b_raw)
     if not (ia and ib):
         return UNRESOLVABLE, dict(ev, why="a value is not a plain decimal numeral")

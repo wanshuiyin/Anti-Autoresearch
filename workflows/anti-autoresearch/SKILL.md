@@ -727,13 +727,16 @@ Cost note: criticals are rare; a clean paper skips this step entirely (`[]`).
 
 > **Deterministic counter-check (automatic — nothing to run here).** Independently of
 > this refutation pass, Step 4's adjudicator AUTO-runs interval-arithmetic resolvers on
-> every allow-listed numeric critical (`HP-DELTA-ERROR`, `HP-NUM-INFLATE`,
-> `HP-APPENDIX-CONTRA`) using the accusation's frozen `numeric_basis` and
-> ledger-derived values only. That computation is the ONLY thing that may demote a
-> critical (to info, when it PROVES the discrepancy cannot be established from the
-> displayed precision); no model — not the auditor, not the refuter — proposes,
-> triggers, or influences it. An eligible critical whose `numeric_basis` is missing or
-> invalid demotes to major (an unauditable numeric accusation may not be a HARD flag).
+> every allow-listed numeric critical using the accusation's frozen `numeric_basis` and
+> ledger-derived values only. Only a **binding-invariant** computation may demote:
+> `HP-NUM-INFLATE` / `HP-APPENDIX-CONTRA` (symmetric display-interval check on
+> `%`-measurements — the model-assigned roles provably cannot change the verdict, and
+> exact unitless quantities are never treated as rounded) demote to info on proof;
+> `HP-DELTA-ERROR`'s asymmetric formula is REPORT-ONLY — its result is recorded for
+> the human and never moves severity. An eligible critical whose `numeric_basis` is
+> missing or invalid demotes to major (an unauditable numeric accusation may not be a
+> HARD flag). Residual: the auditor picks the `pattern_id`; mislabeling can only KEEP
+> a flag, never remove one.
 
 ## Step 4 — Adjudicate (deterministic — this is the verdict)
 

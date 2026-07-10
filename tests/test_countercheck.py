@@ -66,15 +66,40 @@ def test_points_convention_requires_point_unit():
 
 
 def test_exact_arithmetic_no_precision_smuggling():
-    # 50-digit operands: exact Fractions must keep a real discrepancy real
-    old = "9" * 48 + "00"          # ...9800-ish magnitude, 0 decimals
-    new = "9" * 48 + "05"
-    st, _ = C.rounding_interval_delta(old, new, "0." + "0" * 47 + "1",
+    # 20-digit operands (inside the length cap): exact Fractions must keep a real
+    # discrepancy real — float or fixed-precision arithmetic would blur this to
+    # "compatible"
+    old = "9" * 18 + "00"
+    new = "9" * 18 + "05"
+    st, _ = C.rounding_interval_delta(old, new, "0.000000000000000001",
                                       "relative", None, None, stated_unit="%")
-    # whatever the verdict, it must be decided exactly — and this one is NOT
-    # compatible: achievable ≈ (4e-48, 6e-48)·100, stated interval is elsewhere
-    assert st in (C.DISCREPANCY_PERSISTS, C.UNRESOLVABLE)
     assert st == C.DISCREPANCY_PERSISTS
+
+
+def test_absurdly_long_numerals_unresolvable_not_crash():
+    # a 5000-digit "numeral" must fail closed (UNRESOLVABLE), never demote or
+    # trip Python's int-conversion limit
+    big = "9" * 5000
+    st, _ = C.rounding_interval_delta(big, big, "1", "relative", None, None, stated_unit="%")
+    assert st == C.UNRESOLVABLE
+    st, _ = C.display_precision(big, "78.0", a_unit="%", b_unit="%")
+    assert st == C.UNRESOLVABLE
+
+
+def test_exact_quantities_cannot_be_demoted():
+    # λ=1 vs λ=1.4 (unitless hyperparameters) admit NO rounding interval — the
+    # round-2 attack that wrongly demoted a real HP-APPENDIX-CONTRA critical
+    st, ev = C.display_precision("1", "1.4", a_unit=None, b_unit=None)
+    assert st == C.UNRESOLVABLE and "rounded measurement" in ev["why"]
+
+
+def test_malformed_units_cannot_pass_as_equal():
+    st, _ = C.display_precision("78.03", "78.0", a_unit=[], b_unit=[])
+    assert st == C.UNRESOLVABLE
+
+
+def test_duplicated_numeral_convention_ambiguous():
+    assert C.delta_convention("%", "6.7% now vs 6.7% relative before", "6.7") is None
 
 
 def test_no_explicit_convention_is_unresolvable():

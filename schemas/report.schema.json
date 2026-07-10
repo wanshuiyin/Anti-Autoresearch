@@ -267,6 +267,10 @@
         "basis_invalid": {
           "type": "integer",
           "minimum": 0
+        },
+        "informational": {
+          "type": "integer",
+          "minimum": 0
         }
       },
       "additionalProperties": false
