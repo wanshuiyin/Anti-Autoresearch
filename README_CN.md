@@ -26,13 +26,38 @@
 
 ---
 
+## 🧭 这里有什么
+
+**46 个 integrity pattern,横跨 8 个 family**——每条 finding 都要引用的覆盖词表——外加 **13 个零判决权重的 AI 文风印象(AIS)**和 **2 个 advisory**:
+
+| | Family | 抓什么 |
+|---|--------|--------|
+| **A** | 数值自洽 | 表内、表文、增量算术对不上 |
+| **B** | 方法与范围 | 说的方法/范围 ≠ 实际做的 |
+| **C** | Baseline 诚信 | 对比基线缺失、偏弱、配置不公平 |
+| **D** | 实验诚信 | 假 GT、幽灵结果、代码 ≠ 数字(需代码) |
+| **E** | 引用诚信 | 伪造、张冠李戴、已撤稿 |
+| **F** | 表面信号 | 排版、文风、配图——封顶 `minor` |
+| **G** | 证明诚信 | 漏证、循环论证、无效推导 |
+| **H** | 评测设计有效性 | 数据泄漏、LLM 裁判可信度、选择性报告 |
+
+以 **11 个 skill + 1 个编排 workflow** 交付,骨架完全确定性:逐字锚定、带 hash 的证据**账本** → LLM auditor 只**提出** finding → 纯规则的 **adjudicator** 独占判决——其中 8 个 pattern 有端到端 eval 门(GRIM · GRIMMER · statcheck · 增量算术 · hedge 密度 · …),整条门在 CI 里。
+
+---
+
 ## 📰 动态
 
-- **v0.5 (2026-06)** — 新增 **AIS 轨道**(AI 文风印象):13 个透明、逐条的写作风格信号(防御性写作、LLM 口头禅、公式墙、bullet/加粗滥用、自创代号、单一风格配图……),在**独立的零裁决权重小节**里报告 —— 一篇论文可以 integrity-`CLEAN_GIVEN_EVIDENCE` 同时挂一长串。原 family F 里 5 个纯文风模式迁入 AIS。分类法重构为 **46 个 integrity 模式(A–H)+ 13 个 AIS + 2 个 advisory**;新增 `/ai-style-impressions` skill;裁决器现在**可证明地**把零权重 finding 排除在 verdict 之外(回归测试已覆盖)。这些是透明印象,绝不是作者判定 —— 我们不是**不透明的** AI 文本分类器。
-- **我们请数学来推翻误报——数学婉拒了(2026-07)** —— 一条 critical 可以逐字引自论文原文,但解读本身是错的,比如把舍入差异当成矛盾。于是我们写了精确的计算器,重新核算数值型 critical 背后的算术,希望计算能自动洗掉误报。三轮对抗审把每一版方案都打穿了;致命反例是论文写 "dropout 恰为 50%"、表格写 50.4%——计算器无法知道一个数是精确值还是舍入值,"洗掉"这个 flag 就可能开脱一个真矛盾。计算器留下了,但自己降了级:它们现在自动运行,把完整的演算过程附在报告里给人看,而**没有任何东西会被自动洗白**。我们学到并写进代码的一课:计算能证明数字问题存在,永远不能证明它不可能存在。
-- **Critical 现在要先活过自己的辩护(2026-07)** —— LLM reviewer 提交 critical 时必须写明已经排除了哪些无辜解释(舍入、单位、统计口径)——留空就降为 major。活下来的每条 critical 还要面对一个全新的对抗线程,它唯一的任务是反驳;若反驳锚定在论文原文上,该条会被标为 ⚠️ CONTESTED,让人类同时读两面——但严重度绝不因模型的一句话而变。数值型 critical 还必须声明自己到底基于哪几个数在算,否则降为 major。报告标记 `adjudicator: deterministic-rules-v2`。⚠️ 这些字段出现之前的旧 findings 文件若直接重裁,critical 会被降级——请重跑 auditor。
-- **v0.4 (2026-06)** — Taxonomy v0.4:**51 个 hack-pattern、8 个家族** —— A. Numeric self-consistency(数值自洽:表内·表文·增量算术对得上)· B. Method & scope(方法与范围:说的方法/范围≠实际做的)· C. Baseline integrity(baseline 诚信:对比基线缺失·偏弱·不公平)· D. Experiment integrity(实验诚信:假 GT·幽灵结果·代码≠数字,需代码)· E. Citation integrity(引用诚信:伪造·张冠李戴·撤稿)· F. Presentation & surface signals(表面信号:排版·文风·配图)· G. Proof & derivation integrity(证明诚信:漏证·循环论证·无效推导)· H. Evaluation design & validity(评测设计有效性:数据泄漏·LLM 裁判可信度·选择性报告,新增)。确定性 eval 门控由 3→8 个(含 GRIM / GRIMMER / statcheck,以及一个保守的防御性写作密度筛);新增 CI、`eval-design-forensics` skill、`HP-INVENTED-CODENAME` 表面模式、先行工作致谢。又从一篇"vibe paper 特征"帖蒸馏出两个可核查的自洽模式 —— `HP-ACRONYM-DRIFT`(family B)与 `HP-UNDEFINED-NOTATION`(family G),同时拒绝其中纯 stylometry 的项(我们不做 vibe 分类器)。
-- **v0.1 (2026-06)** — 首次发布:面向 autoresearch / AI-Scientist 论文的审稿侧诚信取证。证据账本 + 确定性裁决器 + 可观测性分层。不是 AI 文本检测器。
+- **2026-07-10** — 🧮 **我们请数学来推翻误报——数学婉拒了。** 我们写了精确的计算器复核数值型 critical 背后的算术,希望能自动洗掉舍入差异这类误报。对抗审把每一版都打穿了——致命反例是论文写 "dropout 恰为 50%"、表格写 50.4%:计算器无法知道一个数是精确值还是舍入值。计算器留了下来,但自己降级:把完整演算附在报告里给人看,**没有任何东西会被自动洗白**。
+- **2026-07-10** — 🛡️ **Critical 现在要先活过自己的辩护。** 提交 critical 必须写明排除了哪些无辜解释(留空 → 降为 major),面对一个只有 ⚠️ CONTESTED 标记权的全新反驳线程;数值型 critical 还必须声明算的是哪几个数。报告标记 `adjudicator: deterministic-rules-v2`。⚠️ 旧 findings 文件请重跑 auditor,不要直接重裁。
+- **2026-06-28** — ✍️ **v0.5——AIS 轨道。** 13 个逐项列出的 AI 文风印象放进独立的**零判决权重**报告区——一篇论文可以一边 integrity-`CLEAN` 一边列着一长串 AIS。透明的印象,永远不是作者身份判决;5 个纯文风 pattern 移出 family F。
+
+<details>
+<summary><b>更早的更新</b>(2026-06)</summary>
+
+- **2026-06-27** — 🧬 **v0.4——taxonomy 长到 8 个 family**(新增:证明诚信 G、评测设计 H——完整地图见上方"这里有什么")。确定性 eval 门 3→8 个 pattern(GRIM / GRIMMER / statcheck + 保守的 hedge 密度筛),CI 落地,补了 prior-art 致谢。
+- **2026-06-26** — 🚀 **v0.1——首次发布。** 面向审稿人的 autoresearch 论文诚信取证:证据账本、确定性 adjudicator、可观测性分层。不是 AI 文本检测器。
+
+</details>
 
 ## 🚀 快速开始
 

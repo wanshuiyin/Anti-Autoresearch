@@ -29,14 +29,38 @@ its own paper. Reviewers, area chairs, and honest authors increasingly need to
 
 ---
 
+## 🧭 What's inside
+
+**46 integrity patterns across 8 families** — the coverage vocabulary every finding cites — plus **13 zero-weight AI writing-style impressions** and **2 advisories**:
+
+| | Family | Catches |
+|---|--------|---------|
+| **A** | Numeric self-consistency | 数值自洽:table vs text vs delta arithmetic that doesn't add up |
+| **B** | Method & scope | 方法与范围:the described method/scope ≠ what was actually done |
+| **C** | Baseline integrity | baseline 诚信:missing, weak, or unfairly configured comparisons |
+| **D** | Experiment integrity | 实验诚信:fake ground truth, phantom results, code ≠ numbers (needs code) |
+| **E** | Citation integrity | 引用诚信:fabricated, misattributed, or retracted references |
+| **F** | Presentation & surface | 表面信号:layout / prose / figure signals — capped at `minor` |
+| **G** | Proof & derivation | 证明诚信:skipped obligations, circular or invalid derivations |
+| **H** | Evaluation design & validity | 评测设计:data leakage, LLM-judge validity, selective reporting |
+
+Delivered as **11 skills + 1 orchestrating workflow** on a deterministic spine: a span-anchored, hashed evidence **ledger** → LLM auditors that only **propose** findings → a rules-only **adjudicator** that owns the verdict — with 8 patterns eval-gated end-to-end (GRIM · GRIMMER · statcheck · delta arithmetic · hedge-density · …) and the whole gate in CI.
+
+---
+
 ## 📰 News
 
-- **v0.5 (2026-06)** — Added the **AIS track** (AI Writing-Style Impressions): 13 transparent, itemized writing-style signals (defensive hedging, LLM phrasing tics, clause-then-formula walls, bullet/bold spam, invented codenames, single-style figures, …) reported in a **separate, zero-verdict-weight section** — a paper can be integrity-`CLEAN_GIVEN_EVIDENCE` while listing many. The 5 pure-style patterns moved out of family F into AIS. Taxonomy restructured to **46 integrity patterns (A–H) + 13 AIS + 2 advisory**; new `/ai-style-impressions` skill; the adjudicator now *provably* excludes zero-weight findings from the verdict (regression-tested). These are transparent impressions, never an authorship verdict — we are not an *opaque* AI-text classifier.
+- **2026-07-10** — 🧮 **Math was invited to overturn false alarms — and honestly declined.** We built exact calculators to re-check the arithmetic behind numeric criticals, hoping to auto-clear false alarms like rounding differences. Adversarial review broke every version — the killer was "dropout of exactly 50%" vs a table's 50.4%: a calculator can't know whether a number is exact or rounded. The calculators stayed, demoted: they attach their full working to the report for the human, and **nothing gets auto-cleared**.
+- **2026-07-10** — 🛡️ **Criticals must now survive their own defense.** A critical has to state which innocent explanations it ruled out (blank → drops to major), face one fresh refutation thread whose only power is a ⚠️ CONTESTED marker for the human, and — if numeric — declare exactly which numbers it computes over. Reports stamp `adjudicator: deterministic-rules-v2`. ⚠️ Re-run the auditors on old findings files instead of re-adjudicating them.
+- **2026-06-28** — ✍️ **v0.5 — the AIS track.** 13 itemized AI writing-style impressions now live in a separate, **zero-verdict-weight** report section — a paper can be integrity-`CLEAN` while listing many. Transparent impressions, never an authorship verdict; the 5 pure-style patterns moved out of family F.
 
-- **Math was invited to overturn false alarms — and honestly declined (2026-07)** — A critical can be perfectly quoted from the paper and still be a wrong reading, like calling a rounding difference a contradiction. So we built exact calculators that re-check the arithmetic behind numeric criticals, hoping a computation could clear false alarms automatically. Three rounds of adversarial review broke every version of that idea; the killing example was a paper saying "dropout of exactly 50%" against a table saying 50.4% — a calculator cannot know whether a number is exact or rounded, so "clearing" the flag could excuse a real contradiction. The calculators stayed, but demoted themselves: they now run automatically and attach their full working to the report for the human to read, and nothing gets auto-cleared. What we learned and wrote down: a computation can prove a number problem exists; it can never prove one couldn't.
-- **Criticals must now survive their own defense (2026-07)** — An LLM reviewer filing a critical has to state which innocent explanations it already ruled out (rounding, units, statistical conventions) — leave that blank and the accusation drops to major. Each surviving critical then faces one fresh adversarial thread whose only job is to refute it; a refutation anchored in the paper's own text marks the finding ⚠️ CONTESTED so the human reads both sides, but severity never moves on a model's say-so. Numeric criticals must also declare exactly which numbers they compute over, or they drop to major. Reports are stamped `adjudicator: deterministic-rules-v2`. ⚠️ Findings files from before these fields existed will see their criticals demoted if re-adjudicated — re-run the auditors instead.
-- **v0.4 (2026-06)** — Taxonomy v0.4: **51 hack-patterns across 8 families** — A. Numeric self-consistency (数值自洽:表内·表文·增量算术对得上) · B. Method & scope (方法与范围:说的方法/范围≠实际做的) · C. Baseline integrity (baseline 诚信:对比基线缺失·偏弱·不公平) · D. Experiment integrity (实验诚信:假 GT·幽灵结果·代码≠数字,需代码) · E. Citation integrity (引用诚信:伪造·张冠李戴·撤稿) · F. Presentation & surface signals (表面信号:排版·文风·配图) · G. Proof & derivation integrity (证明诚信:漏证·循环论证·无效推导) · H. Evaluation design & validity (评测设计有效性:数据泄漏·LLM 裁判可信度·选择性报告, new). The deterministic eval gate grew 3→8 patterns (GRIM / GRIMMER / statcheck, plus a conservative defensive-hedge density screen); added CI, the `eval-design-forensics` skill, the `HP-INVENTED-CODENAME` surface pattern, and a prior-art acknowledgments section. Two more checkable self-consistency patterns — `HP-ACRONYM-DRIFT` (family B) and `HP-UNDEFINED-NOTATION` (family G) — were distilled from a "vibe-paper tells" thread while refusing its pure-stylometry items (we are not a vibe classifier).
-- **v0.1 (2026-06)** — Initial release: reviewer-side integrity forensics for autoresearch / AI-Scientist papers. Ships the evidence ledger, deterministic adjudicator, and observability tiers. Not an AI-text detector.
+<details>
+<summary><b>Earlier updates</b> (2026-06)</summary>
+
+- **2026-06-27** — 🧬 **v0.4 — the taxonomy grows to 8 families** (new: proof & derivation G, evaluation design H — the full map is in *What's inside* above). The deterministic eval gate grew 3→8 patterns (GRIM / GRIMMER / statcheck + a conservative hedge-density screen), CI landed, and prior-art acknowledgments were added.
+- **2026-06-26** — 🚀 **v0.1 — initial release.** Reviewer-side integrity forensics for autoresearch / AI-Scientist papers: evidence ledger, deterministic adjudicator, observability tiers. Not an AI-text detector.
+
+</details>
 
 ## 🚀 Quickstart
 
