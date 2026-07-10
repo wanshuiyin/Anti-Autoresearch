@@ -96,7 +96,7 @@ RUN_THREADS        = serial   — one codex thread at a time; concurrent codex M
 LEDGER_VERSION     = 0.1       (stamped by tools/build_claim_ledger.py)
 TAXONOMY_VERSION   = 0.5       (references/hack-pattern-taxonomy.md; 46 integrity patterns A–H + 13 AIS impressions + 2 ADV advisory; stamped into every report)
 OBSERVABILITY      = derived   L0 (pdf/text) · L1 (latex, no results) · L2 (repo + results); L3 NEVER (no reproduction)
-ADJUDICATOR        = deterministic-rules-v1   (tools/adjudicate_findings.py — the ONLY verdict source)
+ADJUDICATOR        = deterministic-rules-v2   (tools/adjudicate_findings.py — the ONLY verdict source)
 DETECT_ONLY        = true · EMITS_VERDICT = true (computed by code, not by a model)
 REAL TOOLS (resolve ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)):
    tools/build_manifest.py · tools/build_claim_ledger.py · tools/check_numeric_consistency.py
@@ -725,6 +725,19 @@ dead after the one fresh re-invoke → `--status unavailable` (no payload).
 
 Cost note: criticals are rare; a clean paper skips this step entirely (`[]`).
 
+> **Deterministic counter-check (automatic — nothing to run here).** Independently of
+> this refutation pass, Step 4's adjudicator AUTO-runs exact interval-arithmetic
+> resolvers on every allow-listed numeric critical using the accusation's frozen
+> `numeric_basis` and ledger-derived values only, and records the computation on the
+> finding and in the report — **as decision support; nothing demotes today**. A
+> resolver could demote only if its verdict were both binding-invariant AND built on
+> computable premises; no shipped resolver meets both (the delta formula's old/new
+> binding is model-assigned, and "these numbers are rounded displays" is not
+> computable — an exact `dropout of 50%` vs `50.4%` is a real contradiction rounding
+> logic would wrongly excuse). The gate that does act: an eligible critical whose
+> `numeric_basis` is missing or invalid demotes to major (an unauditable numeric
+> accusation may not be a HARD flag).
+
 ## Step 4 — Adjudicate (deterministic — this is the verdict)
 
 The single decider. Pass every auditor's `*.findings.json` (the glob now also enumerates
@@ -796,7 +809,7 @@ python3 - "$PAPER_DIR/report.json" <<'PY'
 import json, sys
 r = json.load(open(sys.argv[1], encoding="utf-8"))
 assert r["overall_verdict"] in {"CLEAN_GIVEN_EVIDENCE", "SOFT_FLAGS", "HARD_FLAGS", "REVIEW_UNAVAILABLE"}, r["overall_verdict"]
-assert r["adjudicator"] == "deterministic-rules-v1" and r["human_review_required"] is True
+assert r["adjudicator"] == "deterministic-rules-v2" and r["human_review_required"] is True
 assert r["anchoring_verified"] is True, "ledger anchoring did not run — --ledger missing?"
 assert r["limitations"], "limitations must always be populated (the honesty contract)"
 c = r["counts"]
@@ -910,7 +923,7 @@ A completed run leaves, in `PAPER_DIR` (we never edit the paper itself):
   `novelty-duplication-advisory.findings.json` mirror (capped at `info` by the MEMO gate).
 - `report.json` (`schemas/report.schema.json`) + `REPORT.md` — the **only** files
   carrying `overall_verdict`, produced solely by `tools/adjudicate_findings.py`
-  (`adjudicator: deterministic-rules-v1`, `human_review_required: true`).
+  (`adjudicator: deterministic-rules-v2`, `human_review_required: true`).
 - `.aris/traces/<skill>/<date>_run<NN>/` — each sub-skill's raw reviewer calls
   (forensic), plus this orchestrator's own run trace (see Review tracing).
 

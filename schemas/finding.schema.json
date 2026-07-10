@@ -198,6 +198,25 @@
           "counter_evidence"
         ]
       }
+    },
+    "numeric_basis": {
+      "type": "array",
+      "description": "REQUIRED (adjudicator gate) on LLM-proposed CRITICALS whose pattern_id is counter-checkable (HP-DELTA-ERROR: roles old/new/stated; HP-NUM-INFLATE, HP-APPENDIX-CONTRA: roles fine/coarse): the frozen computational basis of the accusation — exactly the numeric evidence claims, each with its role. Frozen at creation (attach_refutation's digest guard protects it); the adjudicator re-derives all values from the ledger and runs the deterministic counter-check on THESE claims only. Missing/invalid on an eligible critical → demoted to major (numeric-basis-not-declared-or-invalid).",
+      "items": {
+        "type": "object",
+        "required": [
+          "claim_id",
+          "role"
+        ],
+        "properties": {
+          "claim_id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        }
+      }
     }
   }
 }

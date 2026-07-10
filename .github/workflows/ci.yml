@@ -25,5 +25,7 @@ jobs:
         run: python3 tests/test_select_primary_pdf.py
       - name: Embedded-python syntax lint (SKILL.md validator blocks parse; stamps define-before-use)
         run: python3 tests/test_embedded_python.py
+      - name: Deterministic counter-check unit tests (open intervals, Decimal, UNRESOLVABLE-on-ambiguity)
+        run: python3 tests/test_countercheck.py
       - name: Eval harness (clean + corruption fixtures — 100% recall, 0 clean FP)
         run: python3 eval/run_eval.py
