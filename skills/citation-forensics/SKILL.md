@@ -471,6 +471,7 @@ mcp__codex__codex:
         "verdict_local": "fail|warn|clean|needs_external_check",
         "requires_external_check": false,
         "false_positive_risk": "low|medium|high",
+        "alternative_explanation_checked": "<criticals ONLY — the benign readings you explicitly ruled out: rounding/display precision, unit or metric convention, statistical reporting convention, scope difference. Anchoring proves the text exists, NOT that your interpretation is right; a critical without this field demotes to major>",
         "recommended_reviewer_action": "what to CHECK or ASK — never 'reject'"
       }
     If this key is clean on all three layers, emit []. An empty array is a valid,

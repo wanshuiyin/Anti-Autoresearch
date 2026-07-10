@@ -345,6 +345,209 @@ def test_absent_coverage_stays_legacy():
     assert r["coverage"] == {}
 
 
+# ---- critical scrutiny: alternative-explanation gate + CONTESTED marking ----
+
+def _crit(**kw):
+    f = _f()   # anchored critical, weight-1
+    f["alternative_explanation_checked"] = "ruled out rounding and unit conventions"
+    f.update(kw)
+    return f
+
+
+def _scrutinize(findings, cov_expect=None):
+    A.adjudicate(findings, 2, LEDGER)
+    rc = A.apply_critical_scrutiny(findings, LEDGER)
+    if cov_expect:
+        for k, v in cov_expect.items():
+            assert rc[k] == v, (k, rc)
+    return rc
+
+
+def test_critical_without_alternative_explanation_demotes_to_major():
+    f = _f()   # no alternative_explanation_checked
+    _scrutinize([f])
+    assert f["_severity_final"] == "major"
+    assert "alternative-explanation-not-declared" in f["_adjudication"]
+
+
+def test_critical_with_alternative_explanation_stands():
+    f = _crit()
+    _scrutinize([f], {"eligible": 1, "unavailable": 1})
+    assert f["_severity_final"] == "critical"
+
+
+def test_deterministic_critical_exempt_from_gate():
+    f = _f(reviewer={"deterministic": True})
+    _scrutinize([f], {"eligible": 0})
+    assert f["_severity_final"] == "critical"   # computed, not argued — no gate
+
+
+def test_anchored_refutation_marks_contested_but_never_demotes():
+    f = _crit(refutation={"attempt_status": "completed", "refuted": True,
+                          "reason": "same value under rounding",
+                          "counter_evidence": [{"claim_id": "C001",
+                                                "span": "FooNet reaches 78.0% accuracy"}]})
+    _scrutinize([f], {"eligible": 1, "completed": 1, "contested": 1})
+    assert f["_severity_final"] == "critical"          # severity untouched
+    assert f.get("_contested") is True
+    assert A.verdict_of([f["_severity_final"]]) == "HARD_FLAGS"   # verdict untouched
+
+
+def test_unanchored_refutation_is_not_contested():
+    f = _crit(refutation={"attempt_status": "completed", "refuted": True,
+                          "reason": "just an opinion",
+                          "counter_evidence": [{"claim_id": "C001", "span": "made up counter"}]})
+    _scrutinize([f], {"contested": 0, "completed": 1})
+    assert not f.get("_contested")
+    assert "unanchored-refutation-claim" in f["_adjudication"]
+
+
+def test_refutation_unavailable_counts_and_flag_stands():
+    f = _crit(refutation={"attempt_status": "unavailable"})
+    _scrutinize([f], {"eligible": 1, "unavailable": 1, "completed": 0})
+    assert f["_severity_final"] == "critical"
+
+
+def test_report_carries_refutation_coverage_and_limitation():
+    f = _crit()   # eligible but no refutation attempt
+    A.adjudicate([f], 2, LEDGER)
+    rc = A.apply_critical_scrutiny([f], LEDGER)
+    r = A.build_report([f], _Args(), {"downgraded_obs": 0, "unanchored": 0},
+                       anchoring_verified=True, coverage=None, refutation_cov=rc)
+    assert r["critical_refutation_coverage"]["eligible"] == 1
+    assert any("Critical-refutation pass incomplete" in l for l in r["limitations"])
+
+
+def test_contested_renders_in_md():
+    f = _crit(refutation={"attempt_status": "completed", "refuted": True,
+                          "reason": "rounding convention",
+                          "counter_evidence": [{"claim_id": "C001",
+                                                "span": "FooNet reaches 78.0% accuracy"}]})
+    A.adjudicate([f], 2, LEDGER)
+    rc = A.apply_critical_scrutiny([f], LEDGER)
+    r = A.build_report([f], _Args(), {"downgraded_obs": 0, "unanchored": 0},
+                       anchoring_verified=True, coverage=None, refutation_cov=rc)
+    md = A.render_md(r)
+    assert "CONTESTED" in md and "not\nindependent verification".replace("\n", " ") in md.replace("\n", " ")
+
+
+def test_cli_list_critical_candidates():
+    import json, tempfile, os
+    with tempfile.TemporaryDirectory() as d:
+        led = os.path.join(d, "claims.json")
+        json.dump({"claims": [{"claim_id": "C001",
+                               "text_span": "FooNet reaches 78.0% accuracy on BarBench, a strong result."}]},
+                  open(led, "w"))
+        fnd = os.path.join(d, "f.json")
+        json.dump([_crit()], open(fnd, "w"))
+        import io, contextlib
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = A.main(["--findings", fnd, "--ledger", led, "--paper-id", "t",
+                         "--observability-level", "2", "--list-critical-candidates"])
+        assert rc == 0
+        cands = json.loads(buf.getvalue())
+        assert len(cands) == 1 and cands[0]["finding_id"] == "F1"
+
+
+# ---- round-2 review hardening: gaming/reset/malformed/attach-tool ----
+
+def test_deterministic_string_false_does_not_exempt():
+    # reviewer provenance is model-influenced — only the boolean True exempts
+    f = _f(reviewer={"deterministic": "false"})   # no alternative_explanation_checked
+    _scrutinize([f])
+    assert f["_severity_final"] == "major"
+
+
+def test_gamed_alternative_explanation_rejected():
+    for v in (True, 1, {"x": 1}, "x", "   ok   "):
+        f = _f(alternative_explanation_checked=v)
+        _scrutinize([f])
+        assert f["_severity_final"] == "major", repr(v)
+
+
+def test_preset_contested_is_reset_each_round():
+    f = _crit()
+    f["_contested"] = True          # smuggled in / stale from a prior round
+    _scrutinize([f])
+    assert not f.get("_contested")  # no refutation this round -> no marker
+
+
+def test_hollow_completed_counts_as_malformed():
+    f = _crit(refutation={"attempt_status": "completed"})   # no refuted bool
+    _scrutinize([f], {"malformed": 1, "completed": 0})
+    f2 = _crit(refutation={"attempt_status": "bogus"})
+    _scrutinize([f2], {"malformed": 1, "completed": 0})
+
+
+def test_attach_refutation_tool_roundtrip():
+    import json, os, subprocess, sys, tempfile
+    tool = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "tools",
+                        "attach_refutation.py")
+    with tempfile.TemporaryDirectory() as d:
+        led = os.path.join(d, "claims.json")
+        json.dump({"claims": [{"claim_id": "C001",
+                               "text_span": "FooNet reaches 78.0% accuracy on BarBench, a strong result."}]},
+                  open(led, "w"))
+        fnd = os.path.join(d, "f.json")
+        json.dump([_crit()], open(fnd, "w"))
+        env = dict(os.environ, ARIS_RESOLVED_MODEL="gpt-5.6-sol",
+                   ARIS_RESOLVED_REASONING="xhigh")
+        ce = json.dumps([{"claim_id": "C001", "span": "FooNet reaches 78.0% accuracy"},
+                         {"claim_id": "C001", "span": "fabricated counter"}])
+        r = subprocess.run([sys.executable, tool, "--findings-file", fnd,
+                            "--finding-id", "F1", "--ledger", led,
+                            "--status", "completed", "--refuted", "true",
+                            "--reason", "rounding", "--counter-evidence", ce],
+                           capture_output=True, text=True, env=env)
+        assert r.returncode == 0, r.stderr
+        out = json.load(open(fnd))[0]
+        assert out["refutation"]["refuted"] is True
+        assert len(out["refutation"]["counter_evidence"]) == 1   # fabricated one dropped
+        assert out["severity"] == "critical"                     # finding untouched
+        # second attempt refused without --force-overwrite
+        r2 = subprocess.run([sys.executable, tool, "--findings-file", fnd,
+                             "--finding-id", "F1", "--ledger", led,
+                             "--status", "unavailable"],
+                            capture_output=True, text=True, env=env)
+        assert r2.returncode != 0
+        # unset resolved pair -> loud failure
+        env2 = {k: v for k, v in env.items() if not k.startswith("ARIS_RESOLVED")}
+        r3 = subprocess.run([sys.executable, tool, "--findings-file", fnd,
+                             "--finding-id", "F1", "--ledger", led,
+                             "--status", "unavailable", "--force-overwrite"],
+                            capture_output=True, text=True, env=env2)
+        assert r3.returncode != 0 and "ARIS_RESOLVED" in r3.stderr
+
+
+def test_nondict_counter_evidence_is_malformed_not_crash():
+    f = _crit(refutation={"attempt_status": "completed", "refuted": True,
+                          "reason": "r", "counter_evidence": [1]})
+    _scrutinize([f], {"malformed": 1, "completed": 0})
+    f2 = _crit(refutation={"attempt_status": "completed", "refuted": True})  # missing reason/ce
+    _scrutinize([f2], {"malformed": 1, "completed": 0})
+
+
+def test_candidates_exclude_already_attempted():
+    import json, tempfile, os, io, contextlib
+    with tempfile.TemporaryDirectory() as d:
+        led = os.path.join(d, "claims.json")
+        json.dump({"claims": [{"claim_id": "C001",
+                               "text_span": "FooNet reaches 78.0% accuracy on BarBench, a strong result."}]},
+                  open(led, "w"))
+        done = _crit(refutation=None)   # even a null attempt marker means "attempted"
+        fresh = _crit(); fresh["finding_id"] = "F2"
+        fnd = os.path.join(d, "f.json")
+        json.dump([done, fresh], open(fnd, "w"))
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = A.main(["--findings", fnd, "--ledger", led, "--paper-id", "t",
+                         "--observability-level", "2", "--list-critical-candidates"])
+        assert rc == 0
+        ids = [c["finding_id"] for c in json.loads(buf.getvalue())]
+        assert ids == ["F2"]
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

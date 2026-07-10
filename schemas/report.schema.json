@@ -216,6 +216,33 @@
         }
       },
       "additionalProperties": false
+    },
+    "critical_refutation_coverage": {
+      "type": "object",
+      "description": "Counters for the critical-refutation pass over LLM-proposed weight-1 criticals: eligible/completed/unavailable/malformed/contested. eligible>completed adds a limitation; CONTESTED never changes severity or the verdict.",
+      "properties": {
+        "eligible": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "completed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unavailable": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "malformed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "contested": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

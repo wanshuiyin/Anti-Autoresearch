@@ -423,6 +423,7 @@ mcp__codex__codex:
                     "location":{"file":"...","section":"..."}}],
        "verdict_local":"fail|warn|clean|needs_external_check",
        "requires_external_check":true|false,"false_positive_risk":"low|medium|high",
+       "alternative_explanation_checked": "<criticals ONLY — the benign readings you explicitly ruled out: rounding/display precision, unit or metric convention, statistical reporting convention, scope difference. Anchoring proves the text exists, NOT that your interpretation is right; a critical without this field demotes to major>",
        "recommended_reviewer_action":"what to CHECK or ASK — never 'reject'"}
     An empty array [] is a valid, honest result (the expected baselines are all present).
 ```
