@@ -400,6 +400,7 @@ mcp__codex__codex:
         "requires_external_check": false,
         "false_positive_risk": "low|medium|high",
         "alternative_explanation_checked": "<criticals ONLY — the benign readings you explicitly ruled out: rounding/display precision, unit or metric convention, statistical reporting convention, scope difference. Anchoring proves the text exists, NOT that your interpretation is right; a critical without this field demotes to major>",
+        "numeric_basis": [{"claim_id": "NUM###", "role": "old|new|stated (HP-DELTA-ERROR) or fine|coarse (HP-NUM-INFLATE, HP-APPENDIX-CONTRA)"}],  // criticals of these three patterns ONLY — freeze the exact numeric claims your accusation computes over (must be precisely the numeric claims in your evidence, one role each); the adjudicator re-derives their values from the ledger and runs a deterministic counter-check; missing/invalid → your critical demotes to major
         "recommended_reviewer_action": "what to CHECK or ASK — never 'reject'"
       }
     If you find no discrepancy for an item, simply emit nothing for it. An empty

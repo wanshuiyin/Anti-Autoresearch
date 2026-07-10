@@ -548,6 +548,132 @@ def test_candidates_exclude_already_attempted():
         assert ids == ["F2"]
 
 
+# ---- deterministic counter-check (issue #15): the only demotion path ----
+
+CC_LEDGER = {"C010": "a baseline of 73.1% accuracy",
+             "C011": "reaches 78.0% accuracy",
+             "C012": "a 16.7% relative improvement"}
+CC_VALUES = {"C010": {"raw": "73.1", "normalized": 73.1, "unit": "%"},
+             "C011": {"raw": "78.0", "normalized": 78.0, "unit": "%"},
+             "C012": {"raw": "16.7", "normalized": 16.7, "unit": "%"}}
+
+
+def _delta_crit(stated_raw="16.7", stated_span="a 16.7% relative improvement", **kw):
+    f = {"finding_id": "F9", "skill": "consistency-audit", "severity": "critical",
+         "pattern_id": "HP-DELTA-ERROR", "observability_level_required": 0,
+         "false_positive_risk": "low",
+         "alternative_explanation_checked": "checked rounding, units and stat conventions",
+         "evidence": [{"claim_id": "C010", "span": "a baseline of 73.1% accuracy"},
+                      {"claim_id": "C011", "span": "reaches 78.0% accuracy"},
+                      {"claim_id": "C012", "span": stated_span}],
+         "numeric_basis": [{"claim_id": "C010", "role": "old"},
+                           {"claim_id": "C011", "role": "new"},
+                           {"claim_id": "C012", "role": "stated"}]}
+    f.update(kw)
+    return f
+
+
+def _cc_run(f, values=None, ledger=None):
+    led = dict(CC_LEDGER); led.update(ledger or {})
+    vals = dict(CC_VALUES); vals.update(values or {})
+    A.adjudicate([f], 2, led)
+    return A.apply_critical_scrutiny([f], led, vals)
+
+
+def test_countercheck_real_error_stands():
+    # 73.1 -> 78.0 truly is ~6.7% relative; the stated 16.7% cannot be rounding
+    f = _delta_crit()
+    rc = _cc_run(f)
+    assert f["_severity_final"] == "critical"
+    assert rc["countercheck"]["discrepancy_persists"] == 1
+    assert "countercheck-discrepancy-persists" in f["_adjudication"]
+
+
+def test_countercheck_proved_compatible_demotes_to_info():
+    f = _delta_crit(stated_raw="6.7", stated_span="a 6.7% relative improvement")
+    rc = _cc_run(f, values={"C012": {"raw": "6.7", "normalized": 6.7, "unit": "%"}},
+                 ledger={"C012": "a 6.7% relative improvement"})
+    assert f["_severity_final"] == "info"
+    assert "critical-basis-removed-by-deterministic-countercheck" in f["_adjudication"]
+    assert rc["countercheck"]["proved_compatible"] == 1
+    assert f["_deterministic_countercheck"]["status"] == "PROVED_COMPATIBLE"
+
+
+def test_countercheck_missing_basis_demotes_to_major():
+    f = _delta_crit()
+    del f["numeric_basis"]
+    _cc_run(f)
+    assert f["_severity_final"] == "major"
+    assert "numeric-basis-not-declared-or-invalid" in f["_adjudication"]
+
+
+def test_countercheck_basis_outside_evidence_is_invalid():
+    # basis smuggles an unrelated-but-real ledger claim not cited as evidence
+    f = _delta_crit()
+    f["numeric_basis"][1] = {"claim_id": "C099", "role": "new"}
+    _cc_run(f, values={"C099": {"raw": "78.0", "normalized": 78.0, "unit": "%"}},
+            ledger={"C099": "some unrelated 78.0% number"})
+    assert f["_severity_final"] == "major"
+
+
+def test_countercheck_cherry_picked_subset_is_invalid():
+    # evidence cites a 4th numeric claim the basis conveniently omits
+    f = _delta_crit()
+    f["evidence"].append({"claim_id": "C013", "span": "another 55.0% figure"})
+    _cc_run(f, values={"C013": {"raw": "55.0", "normalized": 55.0, "unit": "%"}},
+            ledger={"C013": "another 55.0% figure"})
+    assert f["_severity_final"] == "major"
+
+
+def test_countercheck_ambiguous_convention_stands():
+    f = _delta_crit(stated_span="improves by 16.7%")
+    _cc_run(f, ledger={"C012": "improves by 16.7%"})
+    assert f["_severity_final"] == "critical"
+    assert "countercheck-unresolvable" in f["_adjudication"]
+
+
+def test_preset_countercheck_marker_is_reset():
+    f = _delta_crit()
+    f["_deterministic_countercheck"] = {"status": "PROVED_COMPATIBLE"}  # smuggled
+    _cc_run(f)
+    assert f["_severity_final"] == "critical"       # real computation says persists
+    assert f["_deterministic_countercheck"]["status"] == "DISCREPANCY_PERSISTS"
+
+
+def test_non_allowlisted_pattern_untouched():
+    f = _delta_crit(pattern_id="HP-AGG-DRIFT")
+    del f["numeric_basis"]
+    rc = _cc_run(f)
+    assert f["_severity_final"] == "critical"
+    assert rc["countercheck"]["eligible"] == 0
+
+
+def test_cli_end_to_end_countercheck_demotion_and_render():
+    import io, contextlib, json, tempfile, os
+    with tempfile.TemporaryDirectory() as d:
+        led = os.path.join(d, "claims.json")
+        json.dump({"claims": [
+            {"claim_id": "C010", "text_span": "a baseline of 73.1% accuracy",
+             "value": {"raw": "73.1", "normalized": 73.1, "unit": "%"}},
+            {"claim_id": "C011", "text_span": "reaches 78.0% accuracy",
+             "value": {"raw": "78.0", "normalized": 78.0, "unit": "%"}},
+            {"claim_id": "C012", "text_span": "a 6.7% relative improvement",
+             "value": {"raw": "6.7", "normalized": 6.7, "unit": "%"}}]},
+            open(led, "w"))
+        fnd = os.path.join(d, "f.json")
+        json.dump([_delta_crit(stated_span="a 6.7% relative improvement")], open(fnd, "w"))
+        out, md = os.path.join(d, "r.json"), os.path.join(d, "r.md")
+        rc = A.main(["--findings", fnd, "--ledger", led, "--paper-id", "t",
+                     "--observability-level", "2", "--out", out, "--md", md])
+        assert rc == 0
+        r = json.load(open(out))
+        assert r["overall_verdict"] == "CLEAN_GIVEN_EVIDENCE"     # demoted to info
+        assert r["critical_countercheck"]["proved_compatible"] == 1
+        assert r["adjudicator"] == "deterministic-rules-v2"
+        m = open(md).read()
+        assert "Deterministically resolved criticals" in m
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0
