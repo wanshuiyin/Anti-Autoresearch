@@ -678,7 +678,7 @@ def main(argv=None):
                   "pattern_id": f.get("pattern_id", ""),
                   "title": f.get("title", "")}
                  for f in findings
-                 if _is_llm_critical(f) and not isinstance(f.get("refutation"), dict)]
+                 if _is_llm_critical(f) and "refutation" not in f]
         print(json.dumps(cands, indent=2, ensure_ascii=False))
         return 0
 

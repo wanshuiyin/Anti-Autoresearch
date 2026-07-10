@@ -535,7 +535,7 @@ def test_candidates_exclude_already_attempted():
         json.dump({"claims": [{"claim_id": "C001",
                                "text_span": "FooNet reaches 78.0% accuracy on BarBench, a strong result."}]},
                   open(led, "w"))
-        done = _crit(refutation={"attempt_status": "unavailable"})
+        done = _crit(refutation=None)   # even a null attempt marker means "attempted"
         fresh = _crit(); fresh["finding_id"] = "F2"
         fnd = os.path.join(d, "f.json")
         json.dump([done, fresh], open(fnd, "w"))
