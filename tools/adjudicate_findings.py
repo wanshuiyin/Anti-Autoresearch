@@ -769,10 +769,13 @@ def render_md(report):
     ]
     fp = report.get("audited_content_fingerprint")
     if fp:
-        lines.append(f"**Audited content:** `{fp[:16]}…` — a downstream gate can verify this "
-                     "report was generated from the pdf/latex/bib artifacts listed in the "
-                     "artifact manifest (root + one subdirectory level — deeper-nested source "
-                     "files are not covered by this hash alone), not replayed onto edited text.")
+        lines.append(f"**Audited content:** `{fp[:16]}…` — binds this report to the "
+                     "pdf/latex/bib artifacts listed in the artifact manifest passed to this "
+                     "adjudication call (root + one subdirectory level — deeper-nested source "
+                     "files are not covered by this hash alone). Proves report<->manifest "
+                     "consistency, NOT that the findings/coverage above are current with this "
+                     "content — a caller could still pair a fresh manifest with stale, "
+                     "pre-edit findings by skipping a re-sweep.")
         lines.append("")
     lines += [
         f"> This is decision SUPPORT for a human reviewer. It flags discrepancies to "
@@ -941,10 +944,10 @@ def _load_manifest(args, ap):
     # the run level and what the manifest's own artifacts support are
     # legitimately allowed to differ, same as the ledger's own
     # observability_level is never cross-checked against the run level).
-    if not isinstance(manifest.get("observability_level"), int) \
-            or isinstance(manifest.get("observability_level"), bool):
-        ap.error(f"--manifest {args.manifest} is missing a valid integer "
-                 "'observability_level' (schema-required)")
+    lvl = manifest.get("observability_level")
+    if not isinstance(lvl, int) or isinstance(lvl, bool) or not (0 <= lvl <= 3):
+        ap.error(f"--manifest {args.manifest} has invalid 'observability_level' {lvl!r} "
+                 "(schema requires an integer 0-3)")
     for i, a in enumerate(manifest["artifacts"]):
         if not isinstance(a, dict):
             ap.error(f"--manifest artifacts[{i}] is not an object")
@@ -996,9 +999,10 @@ def main(argv=None):
                     "audited_content_fingerprint: a hash over the present pdf/latex/bib "
                     "artifacts THE MANIFEST LISTS (root + one subdirectory level — "
                     "build_manifest.py's own scan depth; deeper source files are not "
-                    "covered by this hash alone), so a downstream gate can verify this "
-                    "report was generated from that content, not replayed onto edited "
-                    "text. Absent = null (issue #17 §2).")
+                    "covered by this hash alone). Binds report<->manifest content; does "
+                    "NOT by itself prove the findings/coverage in this report are current "
+                    "with that content (a caller could pair a fresh manifest with stale "
+                    "findings by skipping a re-sweep). Absent = null (issue #17 §2).")
     ap.add_argument("--memo", default="", help="adversarial memo text (informational)")
     ap.add_argument("--limitation", action="append", help="extra limitation line (repeatable)")
     ap.add_argument("--generated-at", default="", help="override timestamp (for reproducible eval)")

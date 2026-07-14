@@ -350,6 +350,8 @@ def test_e2e_manifest_missing_observability_level_rejected():
             {"paper_id": "t", "artifacts": []},                          # missing entirely
             {"paper_id": "t", "artifacts": [], "observability_level": "1"},  # wrong type
             {"paper_id": "t", "artifacts": [], "observability_level": True},  # bool, not int
+            {"paper_id": "t", "artifacts": [], "observability_level": 999},  # out of schema range 0-3
+            {"paper_id": "t", "artifacts": [], "observability_level": -1},   # negative
         ):
             man = os.path.join(d, "man.json")
             _write_json(man, bad_manifest)
@@ -414,7 +416,11 @@ def test_e2e_manifest_bad_artifact_shape_rejected():
             [{"kind": "pdf", "path": "  ", "sha256": "1" * 64, "present": True}],
         ):
             man = os.path.join(d, "man.json")
-            _write_json(man, {"paper_id": "t", "artifacts": bad_artifacts})
+            # observability_level included and valid so each case is actually
+            # rejected for its OWN artifact-shape reason, not short-circuited
+            # by the (separately tested) missing-observability_level check
+            _write_json(man, {"paper_id": "t", "observability_level": 1,
+                              "artifacts": bad_artifacts})
             try:
                 A.main(["--findings", fnd, "--ledger", led, "--paper-id", "t",
                        "--observability-level", "1", "--manifest", man,
