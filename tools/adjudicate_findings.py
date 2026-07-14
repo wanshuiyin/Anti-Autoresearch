@@ -470,13 +470,14 @@ _CONTENT_KINDS = ("pdf", "latex", "bib")
 def ledger_state_sha256(ledger):
     """sha256 binding a claims.json to its OWN identity — both the source
     files it was built FROM (sorted (kind, path, sha256) triples) and the
-    actual claim CONTENT auditors read (sorted (claim_id, text_span,
-    evidence_anchor) triples). Both halves matter: hashing source_files alone
-    would miss a re-run of build_claim_ledger.py that re-derives different
-    claims from byte-identical sources (e.g. an extractor version bump) —
-    the auditors would then be reading NEW claims while an old provenance
-    hash still "matched". Returns None when there is nothing to hash (no
-    source_files AND no claims)."""
+    FULL claim content auditors read (each claim's canonical JSON —
+    sort_keys=True — not hand-picked fields, matching the digest pattern
+    tools/attach_refutation.py already uses for findings). Hashing the whole
+    claim object means type, location, value, refs, evidence_anchor,
+    extractor, confidence — anything an auditor could actually consume — is
+    bound, and stays bound if the schema grows new fields later; hand-picking
+    3 fields would silently miss a change to any other one. Returns None when
+    there is nothing to hash (no source_files AND no claims)."""
     sources = ledger.get("source_files") or []
     claims = ledger.get("claims") or []
     if not sources and not claims:
@@ -486,8 +487,9 @@ def ledger_state_sha256(ledger):
     for s in sorted(sources, key=lambda s: (s.get("kind", ""), s.get("path", ""), s.get("sha256", ""))):
         h.update(f"src\0{s.get('kind', '')}\0{s.get('path', '')}\0{s.get('sha256', '')}\n".encode("utf-8"))
     for c in sorted(claims, key=lambda c: c.get("claim_id", "")):
-        h.update(f"claim\0{c.get('claim_id', '')}\0{c.get('text_span', '')}\0"
-                f"{c.get('evidence_anchor', '')}\n".encode("utf-8"))
+        h.update(b"claim\0")
+        h.update(json.dumps(c, sort_keys=True, ensure_ascii=False).encode("utf-8"))
+        h.update(b"\n")
     return h.hexdigest()
 
 
@@ -827,7 +829,10 @@ def render_md(report):
     return "\n".join(lines) + "\n"
 
 
-_MANIFEST_KINDS = ("pdf", "latex", "bib", "repo", "results")
+# Matches schemas/artifact_manifest.schema.json's kind enum EXACTLY — a
+# schema-valid manifest (including config/logs kinds we don't fingerprint)
+# must never be rejected here.
+_MANIFEST_KINDS = ("pdf", "latex", "bib", "repo", "results", "config", "logs")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 
 
@@ -843,7 +848,11 @@ def _load_manifest(args, ap):
     if not isinstance(manifest, dict) or not isinstance(manifest.get("artifacts"), list):
         ap.error(f"--manifest {args.manifest} is not a valid artifact_manifest.json "
                  "(expected an object with an 'artifacts' list)")
-    if manifest.get("paper_id") not in (None, "", args.paper_id):
+    # build_manifest.py's --paper-id is REQUIRED, so every canonically-produced
+    # manifest always carries one — a missing/empty paper_id here is exactly
+    # the hand-crafted/foreign-manifest case this check exists to catch, not
+    # a legitimate gap to tolerate. No None/"" escape hatch.
+    if manifest.get("paper_id") != args.paper_id:
         ap.error(f"--manifest {args.manifest} has paper_id {manifest.get('paper_id')!r} "
                  f"but --paper-id is {args.paper_id!r} — refusing to fingerprint a "
                  "manifest that may belong to a different paper")

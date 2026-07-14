@@ -8,10 +8,12 @@ Invariants under test:
   artifact changes, stays STABLE when an unrelated file (e.g. report.json itself,
   or a repo/results-only artifact) changes, and is None when no --manifest was
   given or the manifest names zero present content artifacts.
-- coverage_provenance is {} when coverage is absent/empty or the ledger has no
-  source_files; otherwise every key in `coverage` gets a provenance entry, and
-  every entry is the SAME whole-ledger hash (the honest limitation: no
-  per-dimension claim subsetting exists today — see the function's docstring).
+- coverage_provenance is {} when coverage is absent/empty or the ledger has
+  nothing to bind to; otherwise only the `coverage` entries marked `completed`
+  get a provenance entry (not_applicable/review_unavailable never do — they
+  never consulted the ledger), and every entry is the SAME whole-ledger hash
+  (the honest limitation: no per-dimension claim subsetting exists today —
+  see the function's docstring).
 - Neither field ever appears in SEV_ORDER/verdict computation — a full CLI run
   with a HARD_FLAGS-worthy finding still returns HARD_FLAGS regardless of what
   either field contains.
@@ -93,6 +95,29 @@ def test_ledger_state_sha256_changes_when_claims_change_but_sources_dont():
                                               "evidence_anchor": "a" * 64}]}
     b = {"source_files": sources, "claims": [{"claim_id": "C001", "text_span": "new",
                                               "evidence_anchor": "a" * 64}]}
+    assert A.ledger_state_sha256(a) != A.ledger_state_sha256(b)
+
+
+def test_ledger_state_sha256_binds_the_whole_claim_not_just_id_span_anchor():
+    # changing type/location/value while HOLDING claim_id/text_span/
+    # evidence_anchor constant must still change the hash — every field an
+    # auditor could actually read is bound, not just three hand-picked ones
+    base = {"claim_id": "C001", "text_span": "78%", "evidence_anchor": "a" * 64,
+           "type": "number", "location": {"file": "main.tex", "section": "results"},
+           "value": {"raw": "78", "normalized": 78, "unit": "%"}}
+    changed = dict(base, type="comparison",
+                  location={"file": "main.tex", "section": "abstract"},
+                  value={"raw": "0.78", "normalized": 0.78, "unit": "ratio"})
+    a = {"source_files": [], "claims": [base]}
+    b = {"source_files": [], "claims": [changed]}
+    assert A.ledger_state_sha256(a) != A.ledger_state_sha256(b)
+
+
+def test_ledger_state_sha256_distinguishes_claims_missing_the_hashed_fields():
+    # two DIFFERENT claims that both happen to omit claim_id/text_span/
+    # evidence_anchor (but differ in type/value) must not silently collide
+    a = {"source_files": [], "claims": [{"type": "number", "value": {"normalized": 1}}]}
+    b = {"source_files": [], "claims": [{"type": "number", "value": {"normalized": 2}}]}
     assert A.ledger_state_sha256(a) != A.ledger_state_sha256(b)
 
 
@@ -233,10 +258,14 @@ _VERDICT_SHAPE = ("overall_verdict", "counts", "dimension_verdicts", "limitation
 
 
 def test_e2e_new_fields_are_differentially_inert_across_verdict_classes():
-    # for each verdict class, running WITH vs WITHOUT --manifest/--coverage must
-    # produce byte-identical verdict/counts/dimension_verdicts/limitations/coverage
-    # — a test that only checks "still HARD_FLAGS" could pass even if the new
-    # fields' presence unconditionally forced a verdict; this compares both runs.
+    # For each verdict class, toggling ONLY --manifest (coverage is held
+    # identical on both sides — its own on/off behavior is covered separately
+    # by test_e2e_absent_manifest_yields_null_fingerprint_and_empty_provenance
+    # and the coverage_provenance_of pure-function tests above) must produce
+    # byte-identical verdict/counts/dimension_verdicts/limitations/coverage/
+    # coverage_provenance — a test that only checks "still HARD_FLAGS" could
+    # pass even if --manifest's presence unconditionally forced a verdict;
+    # this compares both runs key-by-key.
     full_completed = {k: "completed" for k in A.SKILL_TO_DIMENSION}
     cases = [
         ("HARD_FLAGS", [_CRITICAL_FINDING], full_completed),
