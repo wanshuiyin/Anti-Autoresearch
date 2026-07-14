@@ -121,6 +121,41 @@ def test_ledger_state_sha256_distinguishes_claims_missing_the_hashed_fields():
     assert A.ledger_state_sha256(a) != A.ledger_state_sha256(b)
 
 
+def test_ledger_state_sha256_delimiter_bytes_in_path_dont_collide():
+    # naive f"{kind}\0{path}\0{sha}\n" string-joining is not injective when a
+    # field can contain the separator bytes — canonical JSON encoding must
+    # distinguish these two structurally-different-but-byte-colliding cases
+    a = {"source_files": [{"kind": "a", "path": "b\x00c", "sha256": "d"}], "claims": []}
+    b = {"source_files": [{"kind": "a", "path": "b", "sha256": "c\x00d"}], "claims": []}
+    assert A.ledger_state_sha256(a) != A.ledger_state_sha256(b)
+
+
+def test_ledger_state_sha256_changes_with_paper_id_and_observability_level():
+    base = {"source_files": [], "claims": [{"claim_id": "C001"}]}
+    a = dict(base, paper_id="paper-a", observability_level=1)
+    b = dict(base, paper_id="paper-b", observability_level=1)
+    c = dict(base, paper_id="paper-a", observability_level=2)
+    assert len({A.ledger_state_sha256(a), A.ledger_state_sha256(b), A.ledger_state_sha256(c)}) == 3
+
+
+def test_ledger_state_sha256_handles_lone_surrogate_without_crashing():
+    # malformed PDF/OCR extraction can produce a lone UTF-16 surrogate that
+    # json.load happily parses but naive .encode("utf-8") crashes on — a
+    # fail-CLOSED system must not fail with an unhandled traceback here
+    ledger = {"source_files": [], "claims": [{"claim_id": "C001", "text_span": "\ud800bad"}]}
+    h = A.ledger_state_sha256(ledger)   # must not raise
+    assert h is not None and len(h) == 64
+
+
+def test_content_fingerprint_uses_canonical_json_not_delimiter_joining():
+    # a path containing the old delimiter bytes must not corrupt or collide
+    # the fingerprint — canonical JSON escapes them inside the quoted string
+    a = {"artifacts": [{"kind": "pdf", "path": "b\x00c\nd", "sha256": "1" * 64, "present": True}]}
+    b = {"artifacts": [{"kind": "pdf", "path": "b", "sha256": "1" * 64, "present": True}]}
+    fp_a, fp_b = A.audited_content_fingerprint_of(a), A.audited_content_fingerprint_of(b)
+    assert fp_a is not None and fp_a != fp_b
+
+
 # ---- audited_content_fingerprint_of (pure, over an artifact_manifest.json shape) ----
 
 def test_content_fingerprint_none_without_manifest_or_content_artifacts():
@@ -312,6 +347,9 @@ def test_e2e_manifest_bad_artifact_shape_rejected():
             [{"kind": "pdf", "path": "p.pdf", "sha256": "not-a-real-sha", "present": True}],
             [{"kind": "quantum-flux", "present": True}],
             ["not-even-an-object"],
+            # a truthy STRING "false" must not be treated as boolean True —
+            # a proper Anti-AR-produced manifest always uses real booleans
+            [{"kind": "pdf", "path": "p.pdf", "sha256": "1" * 64, "present": "false"}],
         ):
             man = os.path.join(d, "man.json")
             _write_json(man, {"paper_id": "t", "artifacts": bad_artifacts})

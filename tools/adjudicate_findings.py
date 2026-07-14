@@ -467,36 +467,77 @@ def dimension_verdicts(findings):
 _CONTENT_KINDS = ("pdf", "latex", "bib")
 
 
+def _hash_utf8(s):
+    """UTF-8 encode for hashing. errors='surrogatepass' so a claims.json that
+    somehow carries a lone UTF-16 surrogate (malformed PDF/OCR extraction can
+    produce these) hashes deterministically instead of crashing the whole
+    adjudication with an unhandled UnicodeEncodeError — a fail-CLOSED system
+    must not fail with a traceback on merely-weird-but-JSON-valid input."""
+    return s.encode("utf-8", errors="surrogatepass")
+
+
 def ledger_state_sha256(ledger):
-    """sha256 binding a claims.json to its OWN identity — both the source
-    files it was built FROM (sorted (kind, path, sha256) triples) and the
-    FULL claim content auditors read (each claim's canonical JSON —
-    sort_keys=True — not hand-picked fields, matching the digest pattern
-    tools/attach_refutation.py already uses for findings). Hashing the whole
-    claim object means type, location, value, refs, evidence_anchor,
-    extractor, confidence — anything an auditor could actually consume — is
-    bound, and stays bound if the schema grows new fields later; hand-picking
-    3 fields would silently miss a change to any other one. Returns None when
-    there is nothing to hash (no source_files AND no claims)."""
+    """sha256 binding a claims.json to its OWN identity: paper_id,
+    observability_level, ledger_version, the source files it was built FROM,
+    and the FULL claim content auditors read (each claim's own dict,
+    verbatim — not hand-picked fields, so type/location/value/refs/
+    evidence_anchor/extractor/confidence — anything an auditor could
+    actually consume — is bound, and stays bound if the schema grows new
+    fields later).
+
+    The whole structure is folded through ONE canonical json.dumps
+    (sort_keys=True) call rather than manually delimiter-joining fields —
+    matching tools/attach_refutation.py's existing digest pattern. This
+    matters for more than style: naive `f"{a}\\0{b}\\n"` string-joining is
+    NOT injective when a field can itself contain the separator bytes (a
+    poisoned `path` containing "\\0" could make two different tuples hash
+    identically); JSON's own escaping of embedded control characters inside
+    quoted strings has no such collision.
+
+    SCOPE NOTE: this binds the ledger content at ADJUDICATION time (when
+    this function runs), not literally "the state a given auditor read at
+    ITS completion time" — no mechanism in this repo captures a per-auditor
+    ledger snapshot (auditors don't stamp what they read into coverage.json,
+    only a status string). The existing workflow's own invariant — a full
+    ledger rebuild wipes coverage.json back to all-review_unavailable
+    (workflows/anti-autoresearch/SKILL.md Step 2) — is what currently
+    protects against a genuinely stale ledger; this hash makes THAT
+    assumption checkable by a downstream consumer instead of purely trusted.
+
+    Returns None when there is nothing to hash (no source_files AND no
+    claims)."""
     sources = ledger.get("source_files") or []
     claims = ledger.get("claims") or []
     if not sources and not claims:
         return None
-    h = hashlib.sha256()
-    h.update(f"ledger_version\0{ledger.get('ledger_version', '')}\n".encode("utf-8"))
-    for s in sorted(sources, key=lambda s: (s.get("kind", ""), s.get("path", ""), s.get("sha256", ""))):
-        h.update(f"src\0{s.get('kind', '')}\0{s.get('path', '')}\0{s.get('sha256', '')}\n".encode("utf-8"))
-    for c in sorted(claims, key=lambda c: c.get("claim_id", "")):
-        h.update(b"claim\0")
-        h.update(json.dumps(c, sort_keys=True, ensure_ascii=False).encode("utf-8"))
-        h.update(b"\n")
-    return h.hexdigest()
+    payload = {
+        "paper_id": ledger.get("paper_id"),
+        "observability_level": ledger.get("observability_level"),
+        "ledger_version": ledger.get("ledger_version"),
+        "source_files": sorted(sources, key=lambda s: (s.get("kind", ""), s.get("path", ""),
+                                                        s.get("sha256", ""))),
+        "claims": sorted(claims, key=lambda c: c.get("claim_id", "")),
+    }
+    return hashlib.sha256(
+        _hash_utf8(json.dumps(payload, sort_keys=True, ensure_ascii=False))
+    ).hexdigest()
 
 
 def coverage_provenance_of(coverage, ledger):
-    """Bind every `coverage` entry marked `completed` to the ledger state it
-    was audited against (issue #17 §1: "coverage says completed, but the
-    ledger it covered isn't the one shipped"). Deliberately EXCLUDES
+    """Bind every `coverage` entry marked `completed` to the ledger state
+    present AT ADJUDICATION TIME (issue #17 §1: "coverage says completed,
+    but the ledger it covered isn't the one shipped"). SCOPE NOTE: this is
+    the ledger this function was CALLED with, not literally "the exact
+    bytes a given auditor read at ITS completion time" — no auditor skill
+    stamps a ledger snapshot into coverage.json (only a status string), so
+    true per-auditor-time binding isn't retrofittable from here alone; that
+    would mean changing every auditor skill's coverage.json write contract,
+    out of scope for this additive report-self-binding change. What
+    actually protects against a genuinely stale ledger today is the
+    existing workflow invariant (a full ledger rebuild wipes coverage.json
+    back to all-review_unavailable, workflows/anti-autoresearch/SKILL.md
+    Step 2) — this hash makes THAT assumption checkable by a downstream
+    consumer instead of purely trusted. Deliberately EXCLUDES
     `not_applicable` (the dimension never consulted the ledger — content-
     gated off) and `review_unavailable` (never ran — nothing to bind); a
     provenance hash on either would falsely imply the ledger was read.
@@ -520,11 +561,27 @@ def coverage_provenance_of(coverage, ledger):
 
 def audited_content_fingerprint_of(manifest):
     """sha256 over the paper's audited content closure — every artifact-manifest
-    entry with kind in {pdf, latex, bib} AND present=true, sorted (kind, path,
-    sha256) and folded, reusing build_manifest.py's already-computed hashes
+    entry with kind in {pdf, latex, bib} AND present=true (STRICT boolean,
+    validated by _load_manifest before this ever runs), sorted (kind, path,
+    sha256) and folded through ONE canonical json.dumps (sort_keys=True) —
+    not manual delimiter-joining, which is not injective when a path can
+    contain the separator bytes (see ledger_state_sha256's docstring for the
+    same reasoning). Reuses build_manifest.py's already-computed hashes
     (never re-reads files). Mirrors the aggregation shape ARIS's own
     forensics_gate.py._paper_fingerprint() uses client-side (issue #17 §2),
     so a downstream gate can verify report<->content instead of trusting mtime.
+
+    SCOPE NOTE: bounded by artifact_manifest.json's own scan depth — root +
+    one subdirectory level (build_manifest.py's documented limitation, same
+    as select_primary_pdf.py's). A paper whose LaTeX is split deeper (e.g.
+    `sections/results.tex` two levels down, or heavy `\\input{}` nesting) has
+    content this fingerprint does not see; the ledger_state_sha256 claim
+    hashes partially cover this gap in practice (editing that deep file and
+    rebuilding the ledger changes the CLAIMS extracted from it, which IS
+    bound), but a stale ledger + an edited-but-unrebuilt deep source is not
+    caught by either field. Not something this PR widens or narrows —
+    build_manifest.py's scan depth is pre-existing and out of scope here.
+
     Returns None when no manifest was given, or the manifest names zero
     present content artifacts (a hash over nothing would collide across every
     such paper and falsely look like a real binding)."""
@@ -533,14 +590,13 @@ def audited_content_fingerprint_of(manifest):
     triples = sorted(
         (a.get("kind"), a.get("path", ""), a.get("sha256", ""))
         for a in (manifest.get("artifacts") or [])
-        if a.get("kind") in _CONTENT_KINDS and a.get("present") and a.get("sha256")
+        if a.get("kind") in _CONTENT_KINDS and a.get("present") is True and a.get("sha256")
     )
     if not triples:
         return None
-    h = hashlib.sha256()
-    for kind, path, sha in triples:
-        h.update(f"{kind}\0{path}\0{sha}\n".encode("utf-8"))
-    return h.hexdigest()
+    return hashlib.sha256(
+        _hash_utf8(json.dumps(triples, sort_keys=True, ensure_ascii=False))
+    ).hexdigest()
 
 
 def build_report(findings, args, stats, anchoring_verified, coverage=None,
@@ -862,7 +918,11 @@ def _load_manifest(args, ap):
         if a.get("kind") not in _MANIFEST_KINDS:
             ap.error(f"--manifest artifacts[{i}] has unknown kind {a.get('kind')!r} "
                      f"— known kinds: {_MANIFEST_KINDS}")
-        if a.get("kind") in _CONTENT_KINDS and a.get("present"):
+        if "present" in a and not isinstance(a["present"], bool):
+            ap.error(f"--manifest artifacts[{i}] has non-boolean present={a['present']!r} "
+                     "(schema requires a real boolean — a truthy string like \"false\" "
+                     "must not be silently treated as present)")
+        if a.get("kind") in _CONTENT_KINDS and a.get("present") is True:
             sha = a.get("sha256")
             if not (isinstance(sha, str) and _SHA256_RE.fullmatch(sha)):
                 ap.error(f"--manifest artifacts[{i}] (kind={a.get('kind')!r}) is present "
