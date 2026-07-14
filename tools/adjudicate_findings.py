@@ -498,11 +498,22 @@ def ledger_state_sha256(ledger):
     this function runs), not literally "the state a given auditor read at
     ITS completion time" — no mechanism in this repo captures a per-auditor
     ledger snapshot (auditors don't stamp what they read into coverage.json,
-    only a status string). The existing workflow's own invariant — a full
-    ledger rebuild wipes coverage.json back to all-review_unavailable
-    (workflows/anti-autoresearch/SKILL.md Step 2) — is what currently
-    protects against a genuinely stale ledger; this hash makes THAT
-    assumption checkable by a downstream consumer instead of purely trusted.
+    only a status string). See coverage_provenance_of()'s docstring for why
+    this is NOT a guarantee that the ledger is fresh (the documented
+    "rebuild deletes coverage.json" rule is instruction-level, not
+    mechanically enforced) — only that a downstream consumer can check
+    coverage against whichever ledger this hash actually reflects.
+
+    RESIDUAL AMBIGUITY: this binds parsed JSON semantics, not source bytes —
+    two claims.json files that differ only in numeral SPELLING for the same
+    IEEE-754 double (e.g. "0.1" vs "0.10000000000000001", which decode to
+    the identical float) hash identically for `value.normalized`, since
+    there is no distinguishable value at that point. Genuinely different
+    claims stay distinguished as long as `value.raw` (the verbatim string,
+    also part of the hashed claim dict) or any other field differs — the
+    schema does not REQUIRE `value.raw` to be present, so a claim carrying
+    only a collapsed `value.normalized` with no `raw` is the one case this
+    hash cannot further disambiguate.
 
     Returns None when there is nothing to hash (no source_files AND no
     claims)."""
@@ -532,12 +543,22 @@ def coverage_provenance_of(coverage, ledger):
     stamps a ledger snapshot into coverage.json (only a status string), so
     true per-auditor-time binding isn't retrofittable from here alone; that
     would mean changing every auditor skill's coverage.json write contract,
-    out of scope for this additive report-self-binding change. What
-    actually protects against a genuinely stale ledger today is the
-    existing workflow invariant (a full ledger rebuild wipes coverage.json
-    back to all-review_unavailable, workflows/anti-autoresearch/SKILL.md
-    Step 2) — this hash makes THAT assumption checkable by a downstream
-    consumer instead of purely trusted. Deliberately EXCLUDES
+    out of scope for this additive report-self-binding change.
+
+    NOT A GUARANTEE: workflows/anti-autoresearch/SKILL.md's Step 2 documents
+    a RULE that a stale-ledger rebuild must delete coverage.json (line 236),
+    but that rule is instruction-level — followed by whatever orchestrates
+    the workflow, not mechanically enforced by any code adjudicate_findings.py
+    can see. The Step-2 INIT code itself uses `setdefault`, which only fills
+    MISSING keys and does NOT wipe an existing `completed` entry — if the
+    delete-coverage.json step is skipped (bug, resumed run, hand-edited
+    coverage.json), a stale `completed` entry survives and THIS FUNCTION WILL
+    rebind it to whatever ledger it's given, producing a provenance hash that
+    looks fresh but proves nothing about when the auditor actually ran. This
+    hash's real guarantee is narrower than "the ledger is fresh": it proves
+    "this coverage map's completed entries are internally consistent with
+    THIS ledger, as passed to THIS adjudication call" — nothing more.
+    Deliberately EXCLUDES
     `not_applicable` (the dimension never consulted the ledger — content-
     gated off) and `review_unavailable` (never ran — nothing to bind); a
     provenance hash on either would falsely imply the ledger was read.
@@ -748,8 +769,9 @@ def render_md(report):
     fp = report.get("audited_content_fingerprint")
     if fp:
         lines.append(f"**Audited content:** `{fp[:16]}…` — a downstream gate can verify this "
-                     "report was generated from this exact paper content (hash over the "
-                     "present pdf/latex/bib artifacts), not replayed onto edited text.")
+                     "report was generated from the pdf/latex/bib artifacts listed in the "
+                     "artifact manifest (root + one subdirectory level — deeper-nested source "
+                     "files are not covered by this hash alone), not replayed onto edited text.")
         lines.append("")
     lines += [
         f"> This is decision SUPPORT for a human reviewer. It flags discrepancies to "
@@ -918,15 +940,26 @@ def _load_manifest(args, ap):
         if a.get("kind") not in _MANIFEST_KINDS:
             ap.error(f"--manifest artifacts[{i}] has unknown kind {a.get('kind')!r} "
                      f"— known kinds: {_MANIFEST_KINDS}")
-        if "present" in a and not isinstance(a["present"], bool):
+        # schemas/artifact_manifest.schema.json requires ["kind", "present"] on
+        # every artifact entry — a missing 'present' key is schema-invalid,
+        # not "assume absent"; silently degrading it would let a truncated/
+        # malformed entry pass as an honest not-present artifact.
+        if "present" not in a:
+            ap.error(f"--manifest artifacts[{i}] is missing the required 'present' field")
+        if not isinstance(a["present"], bool):
             ap.error(f"--manifest artifacts[{i}] has non-boolean present={a['present']!r} "
                      "(schema requires a real boolean — a truthy string like \"false\" "
                      "must not be silently treated as present)")
-        if a.get("kind") in _CONTENT_KINDS and a.get("present") is True:
+        if a.get("kind") in _CONTENT_KINDS and a["present"] is True:
             sha = a.get("sha256")
             if not (isinstance(sha, str) and _SHA256_RE.fullmatch(sha)):
                 ap.error(f"--manifest artifacts[{i}] (kind={a.get('kind')!r}) is present "
                          f"but sha256 is not a valid 64-hex digest: {sha!r}")
+            path = a.get("path")
+            if not (isinstance(path, str) and path.strip()):
+                ap.error(f"--manifest artifacts[{i}] (kind={a.get('kind')!r}) is present "
+                         f"with sha256 set but has no real path: {path!r} — a present "
+                         "content artifact without a path can't be tied to any actual file")
     return manifest
 
 
@@ -949,10 +982,12 @@ def main(argv=None):
                          "— the workflow's Step 3.5 uses this instead of re-deriving the rules")
     ap.add_argument("--manifest", default="", help="artifact_manifest.json (from "
                     "build_manifest.py) — when given, report.json carries "
-                    "audited_content_fingerprint: a hash over the present "
-                    "pdf/latex/bib artifacts, so a downstream gate can verify this "
-                    "report was generated from THIS paper content, not replayed onto "
-                    "edited text. Absent = null (issue #17 §2).")
+                    "audited_content_fingerprint: a hash over the present pdf/latex/bib "
+                    "artifacts THE MANIFEST LISTS (root + one subdirectory level — "
+                    "build_manifest.py's own scan depth; deeper source files are not "
+                    "covered by this hash alone), so a downstream gate can verify this "
+                    "report was generated from that content, not replayed onto edited "
+                    "text. Absent = null (issue #17 §2).")
     ap.add_argument("--memo", default="", help="adversarial memo text (informational)")
     ap.add_argument("--limitation", action="append", help="extra limitation line (repeatable)")
     ap.add_argument("--generated-at", default="", help="override timestamp (for reproducible eval)")
@@ -979,6 +1014,18 @@ def main(argv=None):
 
     with open(args.ledger, "r", encoding="utf-8") as fh:
         ledger = json.load(fh)
+    # build_claim_ledger.py's --paper-id is required, so a REAL ledger always
+    # carries one — but --ledger is a long-standing MANDATORY flag every
+    # existing caller (including the whole pre-#17 test suite) already uses,
+    # many with hand-written fixtures that omit paper_id entirely. Match-IF-
+    # PRESENT (not require-and-match, unlike the brand-new --manifest check)
+    # stays backward compatible with every such fixture while still catching
+    # the real adversarial case: a ledger that DOES declare a paper_id other
+    # than the one this run claims to be adjudicating.
+    if ledger.get("paper_id") not in (None, args.paper_id):
+        ap.error(f"--ledger {args.ledger} has paper_id {ledger.get('paper_id')!r} but "
+                 f"--paper-id is {args.paper_id!r} — refusing to adjudicate a ledger "
+                 "that declares a different paper")
     ledger_map = {c.get("claim_id"): c.get("text_span", "")
                   for c in ledger.get("claims", []) if c.get("claim_id")}
     # parsed numeric values (value: {raw, normalized, unit}) — the ONLY numbers a

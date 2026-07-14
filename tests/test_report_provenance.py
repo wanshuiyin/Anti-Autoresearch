@@ -338,6 +338,37 @@ def test_e2e_manifest_paper_id_mismatch_rejected():
             assert e.code != 0
 
 
+def test_e2e_ledger_paper_id_mismatch_rejected():
+    # a ledger that DECLARES a different paper_id than --paper-id must be
+    # refused (the adversarial case: paper A's ledger + paper B's identity)
+    with tempfile.TemporaryDirectory() as d:
+        led, fnd = os.path.join(d, "claims.json"), os.path.join(d, "f.json")
+        _write_json(led, {"paper_id": "paper-a", "claims": [{"claim_id": "C001", "text_span": "x"}]})
+        _write_json(fnd, [])
+        try:
+            A.main(["--findings", fnd, "--ledger", led, "--paper-id", "paper-b",
+                   "--observability-level", "1",
+                   "--out", os.path.join(d, "r.json"), "--md", os.path.join(d, "r.md")])
+            assert False, "mismatched ledger paper_id must be rejected"
+        except SystemExit as e:
+            assert e.code != 0
+
+
+def test_e2e_ledger_without_paper_id_stays_backward_compatible():
+    # match-IF-PRESENT: a ledger that OMITS paper_id (every hand-written
+    # fixture in tests/test_adjudicator.py does this) must keep working —
+    # only a DECLARED mismatch is rejected, not a missing field
+    with tempfile.TemporaryDirectory() as d:
+        led, fnd = os.path.join(d, "claims.json"), os.path.join(d, "f.json")
+        _write_json(led, {"claims": [{"claim_id": "C001", "text_span": "x"}]})
+        _write_json(fnd, [])
+        out = os.path.join(d, "r.json")
+        rc = A.main(["--findings", fnd, "--ledger", led, "--paper-id", "anything",
+                    "--observability-level", "1",
+                    "--out", out, "--md", os.path.join(d, "r.md")])
+        assert rc == 0
+
+
 def test_e2e_manifest_bad_artifact_shape_rejected():
     with tempfile.TemporaryDirectory() as d:
         led, fnd = os.path.join(d, "claims.json"), os.path.join(d, "f.json")
@@ -350,6 +381,13 @@ def test_e2e_manifest_bad_artifact_shape_rejected():
             # a truthy STRING "false" must not be treated as boolean True —
             # a proper Anti-AR-produced manifest always uses real booleans
             [{"kind": "pdf", "path": "p.pdf", "sha256": "1" * 64, "present": "false"}],
+            # 'present' is schema-required (["kind", "present"]) — a missing
+            # key is malformed, not "assume absent"
+            [{"kind": "pdf", "path": "p.pdf", "sha256": "1" * 64}],
+            # present=true content artifact with no real path can't be tied
+            # to any actual file — a fingerprint over it would be meaningless
+            [{"kind": "pdf", "sha256": "1" * 64, "present": True}],
+            [{"kind": "pdf", "path": "  ", "sha256": "1" * 64, "present": True}],
         ):
             man = os.path.join(d, "man.json")
             _write_json(man, {"paper_id": "t", "artifacts": bad_artifacts})
