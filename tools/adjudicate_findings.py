@@ -593,9 +593,10 @@ def audited_content_fingerprint_of(manifest):
     so a downstream gate can verify report<->content instead of trusting mtime.
 
     SCOPE NOTE: bounded by artifact_manifest.json's own scan depth — root +
-    one subdirectory level (build_manifest.py's documented limitation, same
-    as select_primary_pdf.py's). A paper whose LaTeX is split deeper (e.g.
-    `sections/results.tex` two levels down, or heavy `\\input{}` nesting) has
+    ONE subdirectory level (build_manifest.py's documented limitation, same
+    as select_primary_pdf.py's; `sections/results.tex` — one level — IS
+    scanned, `src/sections/results.tex` — two levels — is NOT). A paper
+    whose LaTeX is split that deep, or uses heavy `\\input{}` nesting, has
     content this fingerprint does not see; the ledger_state_sha256 claim
     hashes partially cover this gap in practice (editing that deep file and
     rebuilding the ledger changes the CLAIMS extracted from it, which IS
@@ -934,6 +935,16 @@ def _load_manifest(args, ap):
         ap.error(f"--manifest {args.manifest} has paper_id {manifest.get('paper_id')!r} "
                  f"but --paper-id is {args.paper_id!r} — refusing to fingerprint a "
                  "manifest that may belong to a different paper")
+    # schemas/artifact_manifest.schema.json requires observability_level at
+    # the SAME tier as paper_id/artifacts — require the field to exist for
+    # schema compliance (NOT cross-validated against --observability-level:
+    # the run level and what the manifest's own artifacts support are
+    # legitimately allowed to differ, same as the ledger's own
+    # observability_level is never cross-checked against the run level).
+    if not isinstance(manifest.get("observability_level"), int) \
+            or isinstance(manifest.get("observability_level"), bool):
+        ap.error(f"--manifest {args.manifest} is missing a valid integer "
+                 "'observability_level' (schema-required)")
     for i, a in enumerate(manifest["artifacts"]):
         if not isinstance(a, dict):
             ap.error(f"--manifest artifacts[{i}] is not an object")

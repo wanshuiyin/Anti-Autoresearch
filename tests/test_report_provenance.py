@@ -338,6 +338,30 @@ def test_e2e_manifest_paper_id_mismatch_rejected():
             assert e.code != 0
 
 
+def test_e2e_manifest_missing_observability_level_rejected():
+    # schemas/artifact_manifest.schema.json requires observability_level at
+    # the same tier as paper_id/artifacts — a manifest omitting it (or
+    # carrying a non-int) is schema-invalid, not "assume unset"
+    with tempfile.TemporaryDirectory() as d:
+        led, fnd = os.path.join(d, "claims.json"), os.path.join(d, "f.json")
+        _write_json(led, {"claims": [{"claim_id": "C001", "text_span": "x"}]})
+        _write_json(fnd, [])
+        for bad_manifest in (
+            {"paper_id": "t", "artifacts": []},                          # missing entirely
+            {"paper_id": "t", "artifacts": [], "observability_level": "1"},  # wrong type
+            {"paper_id": "t", "artifacts": [], "observability_level": True},  # bool, not int
+        ):
+            man = os.path.join(d, "man.json")
+            _write_json(man, bad_manifest)
+            try:
+                A.main(["--findings", fnd, "--ledger", led, "--paper-id", "t",
+                       "--observability-level", "1", "--manifest", man,
+                       "--out", os.path.join(d, "r.json"), "--md", os.path.join(d, "r.md")])
+                assert False, f"missing/invalid observability_level must be rejected: {bad_manifest}"
+            except SystemExit as e:
+                assert e.code != 0
+
+
 def test_e2e_ledger_paper_id_mismatch_rejected():
     # a ledger that DECLARES a different paper_id than --paper-id must be
     # refused (the adversarial case: paper A's ledger + paper B's identity)
