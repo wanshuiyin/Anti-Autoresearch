@@ -787,11 +787,13 @@ python3 "$ROOT/tools/adjudicate_findings.py" \
   alongside the auto-written ones. For a byte-reproducible eval run add
   `--generated-at "<fixed ISO8601>"`; omit it normally (a harmless `utcnow`
   DeprecationWarning may print to stderr; exit 0).
-- **`--manifest`** makes `report.json` self-describing (issue #17): `audited_content_fingerprint`
-  hashes the present pdf/latex/bib artifacts (so a downstream gate can verify the report
-  matches the paper it's gating, not stale text), and `coverage_provenance` binds every
-  `coverage` entry to the `claims.json` state it was adjudicated against. Both are additive
-  — omitting `--manifest` degrades them to `null` / `{}`, never blocks the run.
+- Two additive self-binding fields make `report.json` verifiable instead of trusted (issue
+  #17): **`--manifest`** produces `audited_content_fingerprint` — a hash over the present
+  pdf/latex/bib artifacts, so a downstream gate can verify the report matches the paper
+  it's gating, not stale text (omitting `--manifest` degrades this to `null`, never blocks
+  the run). **`coverage_provenance`** (independent of `--manifest` — driven by `--coverage`
+  + the required `--ledger`) binds every `completed` `coverage` entry to the `claims.json`
+  state it was adjudicated against (`{}` when coverage is absent/empty).
 
 It applies, in order (each gate fail-closed and logged per finding): **ANCHOR**
 (above-info without a verbatim ledger span → `info`; counted under `unanchored_demoted`) →
@@ -899,6 +901,7 @@ python3 "$ROOT/tools/adjudicate_findings.py" \
     --ledger "$PAPER_DIR/claims.json" --paper-id mypaper --observability-level "$L" \
     --taxonomy-version 0.5 \
     --coverage "$PAPER_DIR/coverage.json" \
+    --manifest "$PAPER_DIR/artifact_manifest.json" \
     --limitation "Deterministic-only run (no cross-model reviewer): semantic + code-level dimensions were NOT run." \
     --out "$PAPER_DIR/report.json" --md "$PAPER_DIR/REPORT.md"
 # NOTE: without the semantic reviewers this can never say CLEAN — deterministic flags

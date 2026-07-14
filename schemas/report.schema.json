@@ -219,16 +219,25 @@
     },
     "coverage_provenance": {
       "type": "object",
-      "description": "Binds every `coverage` entry to the claims.json (evidence ledger) state it was adjudicated against — sha256 over the ledger's own source_files identity, via tools/adjudicate_findings.py --manifest (issue #17 #1). HONEST LIMITATION: every auditor consumes the full ledger today (no per-dimension claim subsetting exists), so every skill key maps to the SAME whole-ledger hash; the per-skill shape is forward-compatible with real per-dimension scoping, not evidence that it exists. Empty object when --manifest was omitted or the ledger has no source_files.",
-      "additionalProperties": {
-        "type": "string",
-        "pattern": "^[0-9a-f]{64}$"
-      }
+      "description": "Binds every `coverage` entry marked completed to the claims.json (evidence ledger) state it was adjudicated against — sha256 over the ledger's source_files AND claim content, via tools/adjudicate_findings.py --coverage + --ledger (issue #17 #1; independent of --manifest). Keys are a SUBSET of `coverage`'s: not_applicable and review_unavailable entries never appear here — a hash on either would falsely imply the ledger was read. HONEST LIMITATION: every auditor consumes the full ledger today (no per-dimension claim subsetting exists), so every completed skill key maps to the SAME whole-ledger hash; the per-skill shape is forward-compatible with real per-dimension scoping, not evidence that it exists. Empty object when coverage is absent/empty or the ledger has no source_files/claims to bind to. Keys are whitelisted, matching `coverage`.",
+      "properties": {
+        "consistency-audit": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "experiment-forensics": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "baseline-comparison-audit": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "citation-forensics": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "presentation-signals": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "proof-derivation-forensics": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "eval-design-forensics": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "adversarial-case-builder": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "novelty-duplication-advisory": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "ai-style-impressions": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      },
+      "additionalProperties": false
     },
     "audited_content_fingerprint": {
       "type": ["string", "null"],
       "pattern": "^[0-9a-f]{64}$",
-      "description": "sha256 over the present pdf/latex/bib artifacts (via tools/adjudicate_findings.py --manifest, sourced from artifact_manifest.json's already-computed hashes), so a downstream gate can verify this report was generated from THIS paper content rather than replayed onto edited text (issue #17 #2). null when --manifest was omitted or named zero present content artifacts."
+      "description": "sha256 over the present pdf/latex/bib artifacts (via tools/adjudicate_findings.py --manifest, sourced from artifact_manifest.json's already-computed hashes, strictly validated including a paper_id match), so a downstream gate can verify this report was generated from THIS paper content rather than replayed onto edited text (issue #17 #2). null when --manifest was omitted or named zero present content artifacts."
     },
     "critical_refutation_coverage": {
       "type": "object",

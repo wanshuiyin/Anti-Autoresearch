@@ -30,6 +30,7 @@ import datetime
 import hashlib
 import json
 import os
+import re
 import sys
 
 REPORT_VERSION = "0.4"  # v0.4: report self-binding — coverage_provenance + audited_content_fingerprint (issue #17); v0.3: critical_countercheck
@@ -467,37 +468,52 @@ _CONTENT_KINDS = ("pdf", "latex", "bib")
 
 
 def ledger_state_sha256(ledger):
-    """sha256 binding a claims.json to its own source-file identity — sorted
-    (kind, path, sha256) triples from ledger["source_files"], folded. This is
-    the "evidence-ledger slice" a coverage_provenance entry binds to (issue
-    #17 §1). Returns None for a ledger with no source_files (nothing to bind)."""
+    """sha256 binding a claims.json to its OWN identity — both the source
+    files it was built FROM (sorted (kind, path, sha256) triples) and the
+    actual claim CONTENT auditors read (sorted (claim_id, text_span,
+    evidence_anchor) triples). Both halves matter: hashing source_files alone
+    would miss a re-run of build_claim_ledger.py that re-derives different
+    claims from byte-identical sources (e.g. an extractor version bump) —
+    the auditors would then be reading NEW claims while an old provenance
+    hash still "matched". Returns None when there is nothing to hash (no
+    source_files AND no claims)."""
     sources = ledger.get("source_files") or []
-    if not sources:
+    claims = ledger.get("claims") or []
+    if not sources and not claims:
         return None
-    triples = sorted((s.get("kind", ""), s.get("path", ""), s.get("sha256", ""))
-                     for s in sources)
     h = hashlib.sha256()
-    for kind, path, sha in triples:
-        h.update(f"{kind}\0{path}\0{sha}\n".encode("utf-8"))
+    h.update(f"ledger_version\0{ledger.get('ledger_version', '')}\n".encode("utf-8"))
+    for s in sorted(sources, key=lambda s: (s.get("kind", ""), s.get("path", ""), s.get("sha256", ""))):
+        h.update(f"src\0{s.get('kind', '')}\0{s.get('path', '')}\0{s.get('sha256', '')}\n".encode("utf-8"))
+    for c in sorted(claims, key=lambda c: c.get("claim_id", "")):
+        h.update(f"claim\0{c.get('claim_id', '')}\0{c.get('text_span', '')}\0"
+                f"{c.get('evidence_anchor', '')}\n".encode("utf-8"))
     return h.hexdigest()
 
 
 def coverage_provenance_of(coverage, ledger):
-    """Bind every entry in `coverage` to the ledger state it was adjudicated
-    against. HONEST LIMITATION (issue #17 §1): every auditor consumes the
-    FULL ledger today (DESIGN.md §2 — a single deterministic evidence ledger,
-    no per-dimension claim subsetting), so every skill maps to the SAME
-    whole-ledger hash. The per-skill shape exists so real per-dimension
-    scoping — if auditors ever record which claims they actually consulted —
-    slots in without a schema break; it is NOT evidence of scoping today.
-    Returns {} when coverage is None/empty or the ledger has no source_files
-    to bind to (nothing meaningful to report — never fabricate a hash)."""
+    """Bind every `coverage` entry marked `completed` to the ledger state it
+    was audited against (issue #17 §1: "coverage says completed, but the
+    ledger it covered isn't the one shipped"). Deliberately EXCLUDES
+    `not_applicable` (the dimension never consulted the ledger — content-
+    gated off) and `review_unavailable` (never ran — nothing to bind); a
+    provenance hash on either would falsely imply the ledger was read.
+    Scoping to `completed` also makes this robust to WHEN it's called
+    relative to build_report()'s fail-closed setdefault fill: that fill only
+    ever ADDS `review_unavailable` keys, never a `completed` one, so the key
+    set here is identical whether `coverage` is pre- or post-normalization.
+    HONEST LIMITATION (issue #17 §1): every auditor consumes the FULL ledger
+    today (DESIGN.md §2 — a single deterministic evidence ledger, no per-
+    dimension claim subsetting), so every completed skill maps to the SAME
+    whole-ledger hash; the per-skill shape is forward-compatible with real
+    per-dimension scoping, NOT evidence it exists today. Returns {} when
+    coverage is None/empty or the ledger has nothing to bind to."""
     if not coverage:
         return {}
     state = ledger_state_sha256(ledger)
     if state is None:
         return {}
-    return {skill: state for skill in coverage}
+    return {skill: state for skill, status in coverage.items() if status == "completed"}
 
 
 def audited_content_fingerprint_of(manifest):
@@ -811,6 +827,40 @@ def render_md(report):
     return "\n".join(lines) + "\n"
 
 
+_MANIFEST_KINDS = ("pdf", "latex", "bib", "repo", "results")
+_SHA256_RE = re.compile(r"[0-9a-f]{64}")
+
+
+def _load_manifest(args, ap):
+    """Load + strictly validate --manifest. A garbage or foreign manifest must
+    fail LOUD (ap.error), never silently degrade audited_content_fingerprint
+    into a fingerprint over bogus/wrong-paper data — that would be worse than
+    no fingerprint at all (a false sense of binding)."""
+    if not args.manifest:
+        return None
+    with open(args.manifest, "r", encoding="utf-8") as fh:
+        manifest = json.load(fh)
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("artifacts"), list):
+        ap.error(f"--manifest {args.manifest} is not a valid artifact_manifest.json "
+                 "(expected an object with an 'artifacts' list)")
+    if manifest.get("paper_id") not in (None, "", args.paper_id):
+        ap.error(f"--manifest {args.manifest} has paper_id {manifest.get('paper_id')!r} "
+                 f"but --paper-id is {args.paper_id!r} — refusing to fingerprint a "
+                 "manifest that may belong to a different paper")
+    for i, a in enumerate(manifest["artifacts"]):
+        if not isinstance(a, dict):
+            ap.error(f"--manifest artifacts[{i}] is not an object")
+        if a.get("kind") not in _MANIFEST_KINDS:
+            ap.error(f"--manifest artifacts[{i}] has unknown kind {a.get('kind')!r} "
+                     f"— known kinds: {_MANIFEST_KINDS}")
+        if a.get("kind") in _CONTENT_KINDS and a.get("present"):
+            sha = a.get("sha256")
+            if not (isinstance(sha, str) and _SHA256_RE.fullmatch(sha)):
+                ap.error(f"--manifest artifacts[{i}] (kind={a.get('kind')!r}) is present "
+                         f"but sha256 is not a valid 64-hex digest: {sha!r}")
+    return manifest
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Deterministic adjudicator for Anti-Autoresearch findings.")
     ap.add_argument("--findings", nargs="+", required=True, help="findings.json file(s)")
@@ -858,14 +908,6 @@ def main(argv=None):
             ap.error(f"unknown coverage skill key(s): {unknown} — a typo here would "
                      f"silently bypass the acquittal gate. Known keys: {sorted(known)}")
 
-    manifest = None
-    if args.manifest:
-        with open(args.manifest, "r", encoding="utf-8") as fh:
-            manifest = json.load(fh)
-        if not isinstance(manifest, dict) or not isinstance(manifest.get("artifacts"), list):
-            ap.error(f"--manifest {args.manifest} is not a valid artifact_manifest.json "
-                     "(expected an object with an 'artifacts' list)")
-
     with open(args.ledger, "r", encoding="utf-8") as fh:
         ledger = json.load(fh)
     ledger_map = {c.get("claim_id"): c.get("text_span", "")
@@ -901,6 +943,11 @@ def main(argv=None):
                  if _is_llm_critical(f) and "refutation" not in f]
         print(json.dumps(cands, indent=2, ensure_ascii=False))
         return 0
+
+    # --manifest is loaded here, AFTER the --list-critical-candidates early
+    # return: that path doesn't consume it, so a malformed/foreign manifest
+    # must never block candidate listing (only the final report needs it).
+    manifest = _load_manifest(args, ap)
 
     report = build_report(findings, args, stats, anchoring_verified=anchoring_verified,
                           coverage=coverage, refutation_cov=refutation_cov,
