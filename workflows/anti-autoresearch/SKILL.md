@@ -769,6 +769,7 @@ python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "${FINDINGS[@]}" \
     --ledger "$PAPER_DIR/claims.json" \
     --coverage "$PAPER_DIR/coverage.json" \
+    --manifest "$PAPER_DIR/artifact_manifest.json" \
     --paper-id "$PAPER_ID" --observability-level "$L" --taxonomy-version 0.5 \
     --memo "$(cat "$PAPER_DIR/adversarial-case-builder.memo.md" 2>/dev/null)" \
     --limitation "Run observability level L$L — see references/observability-levels.md for what this tier can and cannot decide." \
@@ -786,6 +787,11 @@ python3 "$ROOT/tools/adjudicate_findings.py" \
   alongside the auto-written ones. For a byte-reproducible eval run add
   `--generated-at "<fixed ISO8601>"`; omit it normally (a harmless `utcnow`
   DeprecationWarning may print to stderr; exit 0).
+- **`--manifest`** makes `report.json` self-describing (issue #17): `audited_content_fingerprint`
+  hashes the present pdf/latex/bib artifacts (so a downstream gate can verify the report
+  matches the paper it's gating, not stale text), and `coverage_provenance` binds every
+  `coverage` entry to the `claims.json` state it was adjudicated against. Both are additive
+  — omitting `--manifest` degrades them to `null` / `{}`, never blocks the run.
 
 It applies, in order (each gate fail-closed and logged per finding): **ANCHOR**
 (above-info without a verbatim ledger span → `info`; counted under `unanchored_demoted`) →

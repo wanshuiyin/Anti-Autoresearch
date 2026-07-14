@@ -217,6 +217,19 @@
       },
       "additionalProperties": false
     },
+    "coverage_provenance": {
+      "type": "object",
+      "description": "Binds every `coverage` entry to the claims.json (evidence ledger) state it was adjudicated against — sha256 over the ledger's own source_files identity, via tools/adjudicate_findings.py --manifest (issue #17 #1). HONEST LIMITATION: every auditor consumes the full ledger today (no per-dimension claim subsetting exists), so every skill key maps to the SAME whole-ledger hash; the per-skill shape is forward-compatible with real per-dimension scoping, not evidence that it exists. Empty object when --manifest was omitted or the ledger has no source_files.",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      }
+    },
+    "audited_content_fingerprint": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "sha256 over the present pdf/latex/bib artifacts (via tools/adjudicate_findings.py --manifest, sourced from artifact_manifest.json's already-computed hashes), so a downstream gate can verify this report was generated from THIS paper content rather than replayed onto edited text (issue #17 #2). null when --manifest was omitted or named zero present content artifacts."
+    },
     "critical_refutation_coverage": {
       "type": "object",
       "description": "Counters for the critical-refutation pass over LLM-proposed weight-1 criticals: eligible/completed/unavailable/malformed/contested. eligible>completed adds a limitation; CONTESTED never changes severity or the verdict.",

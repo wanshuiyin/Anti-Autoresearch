@@ -27,11 +27,12 @@ integrity-forensics-contract}.md.
 """
 import argparse
 import datetime
+import hashlib
 import json
 import os
 import sys
 
-REPORT_VERSION = "0.3"
+REPORT_VERSION = "0.4"  # v0.4: report self-binding — coverage_provenance + audited_content_fingerprint (issue #17); v0.3: critical_countercheck
 ADJUDICATOR_ID = "deterministic-rules-v2"  # v2: deterministic counter-check resolvers (issue #15); v1: critical scrutiny
 
 import os as _os
@@ -459,8 +460,74 @@ def dimension_verdicts(findings):
     return {d: verdict_of([s]) for d, s in dims.items()}
 
 
+# Content-artifact kinds that make up "the paper" for fingerprinting purposes.
+# repo/results manifest entries carry no sha256 (build_manifest.py never hashes
+# a whole directory) and are deliberately excluded — see issue #17.
+_CONTENT_KINDS = ("pdf", "latex", "bib")
+
+
+def ledger_state_sha256(ledger):
+    """sha256 binding a claims.json to its own source-file identity — sorted
+    (kind, path, sha256) triples from ledger["source_files"], folded. This is
+    the "evidence-ledger slice" a coverage_provenance entry binds to (issue
+    #17 §1). Returns None for a ledger with no source_files (nothing to bind)."""
+    sources = ledger.get("source_files") or []
+    if not sources:
+        return None
+    triples = sorted((s.get("kind", ""), s.get("path", ""), s.get("sha256", ""))
+                     for s in sources)
+    h = hashlib.sha256()
+    for kind, path, sha in triples:
+        h.update(f"{kind}\0{path}\0{sha}\n".encode("utf-8"))
+    return h.hexdigest()
+
+
+def coverage_provenance_of(coverage, ledger):
+    """Bind every entry in `coverage` to the ledger state it was adjudicated
+    against. HONEST LIMITATION (issue #17 §1): every auditor consumes the
+    FULL ledger today (DESIGN.md §2 — a single deterministic evidence ledger,
+    no per-dimension claim subsetting), so every skill maps to the SAME
+    whole-ledger hash. The per-skill shape exists so real per-dimension
+    scoping — if auditors ever record which claims they actually consulted —
+    slots in without a schema break; it is NOT evidence of scoping today.
+    Returns {} when coverage is None/empty or the ledger has no source_files
+    to bind to (nothing meaningful to report — never fabricate a hash)."""
+    if not coverage:
+        return {}
+    state = ledger_state_sha256(ledger)
+    if state is None:
+        return {}
+    return {skill: state for skill in coverage}
+
+
+def audited_content_fingerprint_of(manifest):
+    """sha256 over the paper's audited content closure — every artifact-manifest
+    entry with kind in {pdf, latex, bib} AND present=true, sorted (kind, path,
+    sha256) and folded, reusing build_manifest.py's already-computed hashes
+    (never re-reads files). Mirrors the aggregation shape ARIS's own
+    forensics_gate.py._paper_fingerprint() uses client-side (issue #17 §2),
+    so a downstream gate can verify report<->content instead of trusting mtime.
+    Returns None when no manifest was given, or the manifest names zero
+    present content artifacts (a hash over nothing would collide across every
+    such paper and falsely look like a real binding)."""
+    if not manifest:
+        return None
+    triples = sorted(
+        (a.get("kind"), a.get("path", ""), a.get("sha256", ""))
+        for a in (manifest.get("artifacts") or [])
+        if a.get("kind") in _CONTENT_KINDS and a.get("present") and a.get("sha256")
+    )
+    if not triples:
+        return None
+    h = hashlib.sha256()
+    for kind, path, sha in triples:
+        h.update(f"{kind}\0{path}\0{sha}\n".encode("utf-8"))
+    return h.hexdigest()
+
+
 def build_report(findings, args, stats, anchoring_verified, coverage=None,
-                 refutation_cov=None, countercheck_cov=None):
+                 refutation_cov=None, countercheck_cov=None,
+                 coverage_provenance=None, content_fingerprint=None):
     # The integrity verdict is computed from verdict-WEIGHT-1 findings ONLY. Zero-weight
     # findings (AIS style impressions + ADV memos) are reported but provably cannot move it.
     weighted = [f for f in findings if f.get("_verdict_weight", 1) == 1]
@@ -556,6 +623,8 @@ def build_report(findings, args, stats, anchoring_verified, coverage=None,
         datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None).isoformat() + "Z",
         "overall_verdict": overall,
         "coverage": coverage,
+        "coverage_provenance": coverage_provenance or {},   # additive — never gates
+        "audited_content_fingerprint": content_fingerprint,  # additive — never gates
         "critical_refutation_coverage": refutation_cov,
         "critical_countercheck": countercheck_cov or {
             "eligible": 0, "proved_compatible": 0, "informational": 0,
@@ -601,6 +670,14 @@ def render_md(report):
         f"**Verdict:** {badge}  ·  **Observability:** L{report['observability_level']}  "
         f"·  **Taxonomy:** v{report['taxonomy_version']}  ·  **Adjudicator:** {report['adjudicator']}",
         "",
+    ]
+    fp = report.get("audited_content_fingerprint")
+    if fp:
+        lines.append(f"**Audited content:** `{fp[:16]}…` — a downstream gate can verify this "
+                     "report was generated from this exact paper content (hash over the "
+                     "present pdf/latex/bib artifacts), not replayed onto edited text.")
+        lines.append("")
+    lines += [
         f"> This is decision SUPPORT for a human reviewer. It flags discrepancies to "
         f"investigate — it does **not** judge misconduct. `CLEAN_GIVEN_EVIDENCE` means "
         f"\"nothing checkable at L{report['observability_level']} is broken\", not \"the paper is honest\".",
@@ -751,6 +828,12 @@ def main(argv=None):
     ap.add_argument("--list-critical-candidates", action="store_true",
                     help="print the refutation-eligible criticals (post-gates) as JSON and exit "
                          "— the workflow's Step 3.5 uses this instead of re-deriving the rules")
+    ap.add_argument("--manifest", default="", help="artifact_manifest.json (from "
+                    "build_manifest.py) — when given, report.json carries "
+                    "audited_content_fingerprint: a hash over the present "
+                    "pdf/latex/bib artifacts, so a downstream gate can verify this "
+                    "report was generated from THIS paper content, not replayed onto "
+                    "edited text. Absent = null (issue #17 §2).")
     ap.add_argument("--memo", default="", help="adversarial memo text (informational)")
     ap.add_argument("--limitation", action="append", help="extra limitation line (repeatable)")
     ap.add_argument("--generated-at", default="", help="override timestamp (for reproducible eval)")
@@ -774,6 +857,14 @@ def main(argv=None):
         if unknown:
             ap.error(f"unknown coverage skill key(s): {unknown} — a typo here would "
                      f"silently bypass the acquittal gate. Known keys: {sorted(known)}")
+
+    manifest = None
+    if args.manifest:
+        with open(args.manifest, "r", encoding="utf-8") as fh:
+            manifest = json.load(fh)
+        if not isinstance(manifest, dict) or not isinstance(manifest.get("artifacts"), list):
+            ap.error(f"--manifest {args.manifest} is not a valid artifact_manifest.json "
+                     "(expected an object with an 'artifacts' list)")
 
     with open(args.ledger, "r", encoding="utf-8") as fh:
         ledger = json.load(fh)
@@ -813,7 +904,9 @@ def main(argv=None):
 
     report = build_report(findings, args, stats, anchoring_verified=anchoring_verified,
                           coverage=coverage, refutation_cov=refutation_cov,
-                          countercheck_cov=countercheck_cov)
+                          countercheck_cov=countercheck_cov,
+                          coverage_provenance=coverage_provenance_of(coverage, ledger),
+                          content_fingerprint=audited_content_fingerprint_of(manifest))
 
     md = render_md(report)          # render FIRST — a render crash must not leave
     with open(args.out, "w", encoding="utf-8") as fh:   # a report.json without its REPORT.md
