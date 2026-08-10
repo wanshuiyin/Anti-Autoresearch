@@ -870,9 +870,12 @@ honest." `human_review_required` is always `true`.
 
 When no cross-model reviewer is available (offline / no codex), you can still produce a
 real, reproducible report from the deterministic core alone — the load-bearing,
-eval-gated part of the repo (**100% recall on the three deterministic patterns
-`HP-DELTA-ERROR` / `HP-NUM-INFLATE` / `HP-DUP-TABLE`, zero clean false-positives**;
-`README.md` Status). All real tools, exact flags:
+eval-gated part of the repo (**100% recall on the seven eval-gated deterministic
+patterns — delta arithmetic, display-precision inflation, duplicate tables, GRIM,
+GRIMMER, variance impossibility, statcheck — with zero clean false-positives**;
+`README.md` Status). All four deterministic checkers run here, the same set the eval
+harness gates; running fewer would quietly drop the GRIM / variance / statcheck math
+this mode is advertised on. All real tools, exact flags:
 
 ```bash
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd); PAPER_DIR="<from Step 0>"
@@ -890,6 +893,10 @@ python3 "$ROOT/tools/check_numeric_consistency.py" --ledger "$PAPER_DIR/claims.j
     --out "$PAPER_DIR/consistency-audit.deterministic.findings.json"
 python3 "$ROOT/tools/check_presentation.py"        --ledger "$PAPER_DIR/claims.json" \
     --out "$PAPER_DIR/presentation-signals.deterministic.findings.json"
+python3 "$ROOT/tools/check_stat_consistency.py"    --ledger "$PAPER_DIR/claims.json" \
+    --out "$PAPER_DIR/consistency-audit.stat.findings.json"
+python3 "$ROOT/tools/check_ai_style.py"            --ledger "$PAPER_DIR/claims.json" \
+    --out "$PAPER_DIR/ai-style-impressions.findings.json"
 python3 - "$PAPER_DIR" <<'PY'
 import json, os, sys
 # deterministic-only mode: every semantic reviewer dimension is, by construction, unavailable
@@ -901,7 +908,7 @@ cov = {k: "review_unavailable" for k in
 json.dump(cov, open(os.path.join(sys.argv[1], "coverage.json"), "w"), indent=2)
 PY
 python3 "$ROOT/tools/adjudicate_findings.py" \
-    --findings "$PAPER_DIR"/*.deterministic.findings.json \
+    --findings "$PAPER_DIR"/*.findings.json \
     --ledger "$PAPER_DIR/claims.json" --paper-id mypaper --observability-level "$L" \
     --taxonomy-version 0.5 \
     --coverage "$PAPER_DIR/coverage.json" \
