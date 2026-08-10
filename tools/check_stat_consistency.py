@@ -463,8 +463,9 @@ def check_statcheck(claims):
             if key in seen:
                 continue
             seen.add(key)
-            headline = _section_headline(loc.get("section"))
-            sev = "critical" if headline else "major"
+            # medium FP-risk means "not certain enough for critical", so state major
+            # at the source instead of emitting critical for the gate to cap.
+            sev = "major"
             fpr = "medium"
             vl = "fail"
             why = "reported p claims significance the statistic does not support"
