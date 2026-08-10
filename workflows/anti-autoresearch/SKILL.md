@@ -65,7 +65,7 @@ silently dropped. Same artifacts → same ledger → same summary.
         ▼
 [3] advisory memos (each reads the ledger + merged findings · NO verdict weight):
         /adversarial-case-builder      → adversarial-case-builder.memo.md       (strongest evidence-bound objection)
-        /novelty-duplication-advisory  → novelty-duplication-advisory.memo.md   (if ≥1 contribution claim · MEMO-ONLY · prior-work overlap · capped at info)
+        /novelty-duplication-advisory  → novelty-duplication-advisory.memo.md   (if ≥1 contribution claim · MEMO-ONLY · prior-work overlap · zero verdict weight)
         │
         ▼
 [4] tools/adjudicate_findings.py  --ledger REQUIRED  → report.json + REPORT.md
@@ -744,7 +744,7 @@ Cost note: criticals are rare; a clean paper skips this step entirely (`[]`).
 
 The single decider. Pass every auditor's `*.findings.json` (the glob now also enumerates
 the verdict-bearing `proof-derivation-forensics.findings.json` and the info-only
-`novelty-duplication-advisory.findings.json` mirror — the latter capped at `info` by the
+`novelty-duplication-advisory.findings.json` mirror — the latter zero-weight by the
 MEMO gate), the **required** ledger, the run level, the taxonomy version, and the
 adversarial memo. `--ledger` is what re-verifies each
 finding quotes a **verbatim ledger span**; argparse makes it mandatory — and without a

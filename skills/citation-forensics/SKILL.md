@@ -637,7 +637,7 @@ Scope of this gate: **anchoring + schema hygiene** — verbatim-span anchoring (
 must be a substring of a `type:"citation"` claim), enum coercion, non-citation-pattern
 rejection, observability fallback, and cross-model provenance — so every kept finding
 is well-formed and honestly anchored. It does **not** compute the verdict, the FP-risk
-cap, or the observability *downgrade* against the run level; those belong to
+column, or the observability comparison against the run level; those belong to
 `tools/adjudicate_findings.py`, the single decider.
 
 **Always emit.** Write `citation-forensics.findings.json` even when it is `[]` (no
