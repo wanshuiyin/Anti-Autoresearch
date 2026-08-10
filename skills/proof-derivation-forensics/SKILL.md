@@ -556,7 +556,7 @@ GFAMILY = {"HP-PROOF-OBLIGATION-GAP", "HP-PROOF-CIRCULARITY", "HP-DERIVATION-INV
 # a verdict-bearing proof/derivation flaw is decided from the LaTeX SOURCE, because
 # PDF-extracted math is unreliable (mangled symbols, subscripts, equation structure) — an
 # L0 (PDF-only) "this step is invalid" risks flagging an extraction artifact. An unknown/
-# missing pattern fails closed to L2 (auto-demotes at L0/L1).
+# missing pattern fails closed to L2 (declares a level above L0/L1).
 OBS = {"HP-PROOF-OBLIGATION-GAP": 1, "HP-PROOF-CIRCULARITY": 1, "HP-DERIVATION-INVALID": 1,
        "HP-SYMBOL-SEMANTIC-DRIFT": 1, "HP-ASSUMPTION-SMUGGLE": 1, "HP-UNDEFINED-NOTATION": 1}
 SEV = {"critical", "major", "minor", "info"}
@@ -796,7 +796,7 @@ human-readable rendering is the orchestrator's job, not this skill's.
   → `/experiment-forensics` at **L2**; family G is decided at L1 and never reaches for code.
 - **You want an "is this AI-written math" verdict** → out of scope. We assert a step
   does not hold, not who or what wrote it; surface hints live in
-  `/presentation-signals` (auxiliary, capped at minor).
+  `/presentation-signals` (auxiliary, surface-class).
 - **On a timer** → never `/loop` / `/schedule` / `CronCreate` this skill; re-fire only
   when the paper or ledger changes (see the fence at the top).
 

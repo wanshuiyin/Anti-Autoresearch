@@ -76,8 +76,8 @@ rules 1–2, 7–8; `references/reviewer-independence.md` Layer 2). This skill c
 | `experiment-forensics` | Are reported numbers what the code computes? (fake GT, self-norm, phantom) | L2 | yes |
 | `baseline-comparison-audit` | Right baselines present, tuned, "SOTA" earned? | L0 stated / L2 verified | yes |
 | `citation-forensics` | Do cited papers exist and support the claim made? | L0 | yes |
-| `presentation-signals` | Surface "AI-flavor" hints (auxiliary) | L0 | capped at minor |
-| **`adversarial-case-builder`** (this) | **Strongest *anchored* rejection memo + defense** | **any (inherits anchors' level)** | **none (memo-only, capped at info)** |
+| `presentation-signals` | Surface "AI-flavor" hints (auxiliary) | L0 | surface-class label |
+| **`adversarial-case-builder`** (this) | **Strongest *anchored* rejection memo + defense** | **any (inherits anchors' level)** | **none (memo-only, zero verdict weight)** |
 
 **This skill detects nothing new.** It does not re-read the paper to invent
 objections, does not assign severities the upstream auditors didn't already license,
@@ -118,7 +118,7 @@ ANCHOR_UNIVERSE     = ledger claim_ids (claims.json) + finding_ids (sibling *.fi
 DISPOSITION         = kill_constructed | partial_case | honest_null   # informational, NOT the report verdict
 TAXONOMY_VERSION    = 0.5               # references/hack-pattern-taxonomy.md
 MEMO_FILE           = adversarial-case-builder.memo.md          # canonical output (fed to --memo)
-FINDINGS_FILE       = adversarial-case-builder.findings.json    # info-only mirror (or []), capped at info
+FINDINGS_FILE       = adversarial-case-builder.findings.json    # info-only mirror (or []), zero verdict weight
 TRACE_POLICY        = forensic (never silently dropped)
 TRACE_DIR           = .aris/traces/adversarial-case-builder/<YYYY-MM-DD>_run<NN>/
 ```
@@ -250,7 +250,7 @@ mcp__codex__codex:
        NOT hedge ("the authors might respond" — the defense gets the next pass).
     6. HONEST NULL IS A VALID OUTPUT. If the anchored evidence does NOT license a
        strong rejection (the only anchored findings are minor / high-FP / info, or
-       every decisive one auto-demotes at L), SAY SO plainly in <=120 words: "the
+       every decisive one declares a level above L), SAY SO plainly in <=120 words: "the
        anchored evidence does not support a strong rejection because …". Do NOT
        manufacture a kill from weak evidence — an honest null is the correct, expected
        answer in that case.
@@ -728,10 +728,10 @@ only from `tools/adjudicate_findings.py` (Step 5 / the orchestrator).
   missing baseline, code-level fraud) → use the owning detector (`consistency-audit` /
   `citation-forensics` / `baseline-comparison-audit` / `experiment-forensics`). This
   skill only *narrates* what they found.
-- **You want a verdict from this skill** → impossible by design; it is capped at
+- **You want a verdict from this skill** → impossible by design; it carries zero verdict weight and is reported at
   `info`. Read `REPORT.md`'s `overall_verdict` from the adjudicator instead.
 - **You want an AI-text / "looks machine-written" verdict** → out of scope; surface
-  hints live in `/presentation-signals` (auxiliary, capped at minor). This repo is
+  hints live in `/presentation-signals` (auxiliary, surface-class). This repo is
   **not** an AI-text classifier.
 - **On a timer** → never `/loop` / `/schedule` / `CronCreate` this skill; re-fire only
   when the ledger / findings / paper change (see the fence at the top).

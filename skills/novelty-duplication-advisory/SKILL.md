@@ -115,7 +115,7 @@ rules novelty · absence ≠ originality.** Three honesty spines hold this skill
 | `baseline-comparison-audit` | Right baselines present, tuned, "SOTA" earned? | profile only | yes |
 | `citation-forensics` | Do the *cited* papers EXIST and support the claim they are used for? | yes (existence/context of *cited* works) | yes |
 | `proof-derivation-forensics` | Does the written proof / derivation hold? | no | yes |
-| `presentation-signals` | Surface "AI-flavor" hints (auxiliary) | no | capped at minor |
+| `presentation-signals` | Surface "AI-flavor" hints (auxiliary) | no | surface-class label |
 | `adversarial-case-builder` | Strongest *anchored* rejection memo + defense | no | none (memo-only) |
 | **`novelty-duplication-advisory`** (this) | **What prior-work OVERLAP should a reviewer weigh for trivial-combination / duplicate?** | **YES — retrieves *uncited* prior work** | **none (memo-only, capped at info)** |
 
@@ -1086,7 +1086,7 @@ It writes **no verdict and no report** of its own — `report.json` / `REPORT.md
 - **You need code/result-level fraud** (fake GT, self-normalization, phantom numbers) →
   `/experiment-forensics` at **L2**.
 - **You want an AI-text / "looks machine-written" verdict** → out of scope. Surface hints live
-  in `/presentation-signals` (auxiliary, capped at minor); this repo is **not** an AI-text
+  in `/presentation-signals` (auxiliary, surface-class); this repo is **not** an AI-text
   classifier and **not** a plagiarism detector — it surfaces candidates to weigh.
 - **No corpus access** → the retrieval cannot run; the honest output is `retrieval_incomplete`
   (concludes nothing), not a guessed "no duplication".

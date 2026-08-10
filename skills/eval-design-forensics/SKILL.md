@@ -93,7 +93,7 @@ settle.** Four properties:
    is decided from the described protocol and emits
    `observability_level_required: 0`. The **L2 confirmation** of the same leak/
    omission is a **separate** finding with `observability_level_required: 2` that
-   auto-demotes on a PDF-only run (`references/observability-levels.md`). So a
+   is marked as needing L2 on a PDF-only run (`references/observability-levels.md`). So a
    PDF-only run keeps the stated-tell as a flag and the verification as an info
    "confirm-at-L2" pointer — never the reverse.
 
@@ -110,7 +110,7 @@ This skill is the **L0/L1-stated / L2-verified** sibling of
 | `consistency-audit` | Does the paper contradict ITSELF / described method = evaluated method? (owns `HP-AGG-DRIFT`, `HP-APPENDIX-CONTRA`, text-only `HP-SCOPE-INFLATE`) | L0 |
 | `baseline-comparison-audit` | Are the right baselines present, fairly tuned, and is "SOTA" earned? (owns `HP-MISSING-BASELINE`, `HP-SIG-OVERLAP`) | L0 stated / L2 verified |
 | `citation-forensics` | Do the cited papers exist and support the claim? | L0 |
-| `presentation-signals` | Surface "AI-flavor" hints (auxiliary, capped at minor) | L0 |
+| `presentation-signals` | Surface "AI-flavor" hints (auxiliary, surface-class) | L0 |
 | `adversarial-case-builder` | Strongest evidence-bound rejection memo (no verdict weight) | any |
 
 **Do NOT raise here** (hand off instead):
@@ -417,7 +417,7 @@ mcp__codex__codex:
     3. OBSERVABILITY. A leak visible in the DESCRIBED protocol => observability_level_
        required = 0 (this is verdict-bearing from a PDF). A leak only CONFIRMABLE from the
        split/preprocessing files => a SEPARATE finding with observability_level_required = 2
-       (it auto-demotes on an L0/L1 run — that is correct). NEVER put the stated tell at 2.
+       (an L0/L1 run reports it as needing L2 — that is correct). NEVER put the stated tell at 2.
     4. HAND OFF THE 3 UNDECIDABLE SUBTYPES. illegitimate-proxy feature, sampling bias, and
        pretraining/benchmark contamination are NOT decidable from the PDF or the repo:
        set verdict_local "needs_external_check", requires_external_check true, severity
@@ -862,7 +862,7 @@ second deterministic file** and never edits the audited paper.
   judge / declared-but-unreported condition is decidable from the described protocol →
   `observability_level_required: 0` (this is the opposite of `experiment-forensics`,
   which is info-only below L2). The L2 *confirmation* of the same tell is a separate
-  `observability_level_required: 2` finding that auto-demotes on a PDF-only run.
+  `observability_level_required: 2` finding that is marked as needing L2 on a PDF-only run.
 - **No span → no severity.** Reject unanchored/paraphrased findings to `info` here (the
   adjudicator re-enforces). `span in claim`, whitespace-normalized — never `claim in
   span`. The anchor is a PAPER claim (the protocol / judge / declared-condition
@@ -910,7 +910,7 @@ second deterministic file** and never edits the audited paper.
 - **Whether a reported number matches the repo / code** (fake GT, self-norm, phantom)
   → `/experiment-forensics` at **L2**.
 - **An AI-text / "looks machine-written" verdict** → out of scope; surface hints live in
-  `/presentation-signals` (auxiliary, capped at minor). This repo is **not** an AI-text
+  `/presentation-signals` (auxiliary, surface-class). This repo is **not** an AI-text
   classifier.
 - **On a timer** → never `/loop` / `/schedule` / `CronCreate` this skill; re-fire only
   when the paper, ledger, or observability level changes (see the fence at the top).

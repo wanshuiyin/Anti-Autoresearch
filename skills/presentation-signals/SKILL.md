@@ -48,7 +48,7 @@ These signals are **real** in the sense that reviewers react to them — but the
 honest author uses LLM assistance for prose; a legitimate teaser figure can look
 "generated". So this skill's contract is narrow and permanent:
 
-- it emits only the five §F surface patterns, all **capped at `minor`**;
+- it emits only the five §F surface patterns, all **labelled surface-class**;
 - it defaults every *semantic* finding to `false_positive_risk: high` (the deterministic
   `HP-DUP-TABLE` / `HP-PIPELINE-ARTIFACT` checks set their own — the latter is low-FP);
 - it **never** says a paper is "AI-generated" or implies fabrication;
@@ -86,7 +86,7 @@ structurally almost never becomes even a `minor` flag. The model **proposes**;
 
 | Auditor | Question it answers | Level |
 |---------|---------------------|------|
-| **`presentation-signals`** (this) | **Surface tells a reviewer notices first (dup tables, pipeline artifacts, thin/LLM figures, padding) — AUXILIARY, capped at `minor`** | **L0** |
+| **`presentation-signals`** (this) | **Surface tells a reviewer notices first (dup tables, pipeline artifacts, thin/LLM figures, padding) — AUXILIARY, labelled surface-class** | **L0** |
 | `ai-style-impressions` | Pure AI writing-style impressions (AI-flavor, defensive hedging, broken narrative arc, jargon-stuffing, invented codenames) — zero verdict weight (AIS track) | L0 |
 | `consistency-audit` | Does the paper contradict ITSELF / described method = evaluated method? | L0 |
 | `experiment-forensics` | Are the reported numbers what the code actually computes? (fake GT, self-norm, phantom) | L2 |
@@ -599,7 +599,7 @@ only from `tools/adjudicate_findings.py` (Step 6 / the orchestrator).
 ## Key rules
 
 - **Auxiliary only; never a verdict.** Surface signals contribute at most
-  `SOFT_FLAGS` and are **capped at `minor`** by the adjudicator (by skill AND by
+  `SOFT_FLAGS` and are **labelled surface-class** by the adjudicator (by skill AND by
   pattern_id). They are context for the substantive findings, not standalone evidence.
 - **Not authorship detection.** Never label a paper "AI-generated" or imply misconduct
   from a surface signal. This repo is **not** an AI-text classifier — it audits
@@ -627,7 +627,7 @@ only from `tools/adjudicate_findings.py` (Step 6 / the orchestrator).
 - **No `claims.json` yet** → run `/evidence-ledger` first; this skill never invents
   structure from the raw PDF.
 - **You want an AI-text / "looks machine-written" verdict** → out of scope by design.
-  This skill is auxiliary and capped at `minor`; for authorship detection use a
+  This skill is auxiliary and labelled surface-class; for authorship detection use a
   dedicated tool (Pangram / GPTZero / Binoculars).
 - **You need numeric self-contradiction / method drift** → `/consistency-audit`.
 - **You need citation existence / wrong-context** → `/citation-forensics`.

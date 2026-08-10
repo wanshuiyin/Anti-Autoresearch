@@ -57,7 +57,7 @@ silently dropped. Same artifacts → same ledger → same summary.
         citation-forensics         (if ≥1 citation claim)
         baseline-comparison-audit  (if ≥1 comparison / SOTA scope claim)
         experiment-forensics       (always · L0/L1 = info "could-not-verify" · L2 = full code audit)
-        presentation-signals       (always · AUXILIARY · capped at minor)
+        presentation-signals       (always · AUXILIARY · surface-class label)
         ai-style-impressions       (always · AIS track · NOT integrity · zero verdict weight)
         proof-derivation-forensics (if ≥1 theorem/proof/derivation claim · verdict-bearing · dim=proof · L1 source, CAN reach HARD_FLAGS; L0 PDF-only → info)
         eval-design-forensics      (if ≥1 comparison/eval claim · family H · dim=evaluation · L0/L1 stated-tells: leakage / judge-validity / selective-reporting)
@@ -468,7 +468,7 @@ expects; the `Owns` column is the taxonomy-v0.5 patterns that skill may emit:
 | `/citation-forensics "<PAPER_DIR>"` | ≥1 `citation` claim | `citation-forensics.findings.json` | HP-CITE-HALLUC, HP-CITE-CONTEXT, HP-CITE-RETRACTED |
 | `/baseline-comparison-audit "<PAPER_DIR>"` | ≥1 comparison/SOTA scope claim | `baseline-comparison-audit.findings.json` | HP-MISSING-BASELINE, HP-WEAK-BASELINE, HP-SIG-OVERLAP, HP-DELTA-ERROR(cross-claim), HP-RESOURCE-IDENTITY-MISMATCH |
 | `/experiment-forensics "<PAPER_DIR>"` | **always** (depth scales with L) | `experiment-forensics.findings.json` | HP-FAKE-GT, HP-SELF-NORM, HP-PHANTOM-RESULT, HP-DEAD-METRIC, HP-SCOPE-INFLATE(verified), HP-METHOD-DRIFT(L2), HP-SUSPICIOUS-REGULARITY(L2), HP-PLACEHOLDER-DATA(L2), HP-RESULT-ARTIFACT-MISMATCH(L2), HP-MISSING-REPRO-ARTIFACT(L2) |
-| `/presentation-signals "<PAPER_DIR>"` | **always** (AUXILIARY, capped at `minor`) | `presentation-signals.deterministic.findings.json` (+ semantic `presentation-signals.findings.json`) | HP-DUP-TABLE, HP-PIPELINE-ARTIFACT, HP-THIN-FLOAT, HP-LLM-FIGURE, HP-PAGE-PADDING |
+| `/presentation-signals "<PAPER_DIR>"` | **always** (AUXILIARY, labelled surface-class) | `presentation-signals.deterministic.findings.json` (+ semantic `presentation-signals.findings.json`) | HP-DUP-TABLE, HP-PIPELINE-ARTIFACT, HP-THIN-FLOAT, HP-LLM-FIGURE, HP-PAGE-PADDING |
 | `/proof-derivation-forensics "<PAPER_DIR>"` | ≥1 theorem/proof/derivation claim (self-guards: writes `[]` if `HAS_PROOFS=no`) | `proof-derivation-forensics.findings.json` | HP-PROOF-OBLIGATION-GAP, HP-PROOF-CIRCULARITY, HP-DERIVATION-INVALID, HP-SYMBOL-SEMANTIC-DRIFT, HP-ASSUMPTION-SMUGGLE, HP-UNDEFINED-NOTATION |
 | `/eval-design-forensics "<PAPER_DIR>"` | ≥1 comparison/eval claim (family H, L0/L1 stated-tells; dim=evaluation) | `eval-design-forensics.findings.json` | HP-EVAL-LEAKAGE, HP-JUDGE-VALIDITY, HP-SELECTIVE-REPORTING |
 | `/ai-style-impressions "<PAPER_DIR>"` | **always** (AIS track · NOT integrity · **zero verdict weight** · separate report section) | `ai-style-impressions.deterministic.findings.json` (+ semantic `ai-style-impressions.findings.json`) | AIS-NARRATIVE-ARC-BREAK, AIS-LLM-PHRASE-TICS, AIS-DEFENSIVE-HEDGE, AIS-JARGON-STUFF, AIS-INVENTED-CODENAME, AIS-CLAUSE-FORMULA-WALL, AIS-GRATUITOUS-PSEUDOCODE, AIS-BULLET-LIST-OVERUSE, AIS-BOLD-MODULE-SPAM, AIS-RESTATE-OVERCLAIM, AIS-FOCUS-DRIFT, AIS-SINGLE-STYLE-FIGURES, AIS-APPENDIX-DUMPING-GROUND |
@@ -963,7 +963,7 @@ deterministic adjudicator, and presents.
 - **Detect-only.** No step edits the audited paper or repo (no `Edit` granted; reviewer
   sandbox is `read-only`). Output describes a *discrepancy to check/ask*, never "reject"
   or "the authors faked X".
-- **Surface signals stay weak.** `presentation-signals` is auxiliary, capped at `minor`
+- **Surface signals stay weak.** `presentation-signals` is auxiliary, labelled surface-class
   (by skill and by `pattern_id`), default `false_positive_risk: high`. This repo is
   **not** an AI-text classifier — for authorship use a dedicated detector.
 - **Proof decides from the source; novelty never decides.** `proof-derivation-forensics`

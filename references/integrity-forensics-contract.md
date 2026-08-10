@@ -22,7 +22,7 @@ input (pdf | pdf+latex | pdf+repo+results)
         ├── citation-forensics         (existence / metadata / context / retraction)
         ├── proof-derivation-forensics (written proof: gap / circularity / invalid step — L1)
         ├── eval-design-forensics      (evaluation validity: leakage / judge / selective reporting — L0/L1)
-        ├── presentation-signals       (surface / AI-flavor signals — capped at minor)
+        ├── presentation-signals       (surface / AI-flavor signals — surface-class label)
         └── adversarial-case-builder   (evidence-bound memo; emits NO verdict-bearing findings)
         │
         ▼

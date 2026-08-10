@@ -590,7 +590,7 @@ python3 "$ROOT/tools/check_numeric_consistency.py" --ledger "$PAPER_DIR/claims.j
     --out consistency-audit.deterministic.findings.json
 
 # presentation-signals' surface checks (HP-DUP-TABLE via table_cell claims, etc.) —
-# AUXILIARY, capped at minor by the adjudicator, default false_positive_risk:high,
+# AUXILIARY, surface-class label by the adjudicator, default false_positive_risk:high,
 # NOT an AI-text classifier, never a standalone verdict:
 python3 "$ROOT/tools/check_presentation.py" --ledger "$PAPER_DIR/claims.json" \
     --out presentation-signals.deterministic.findings.json

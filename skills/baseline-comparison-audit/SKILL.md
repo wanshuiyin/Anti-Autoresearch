@@ -85,7 +85,7 @@ settle.** Four properties:
    (contract rule 6).
 4. **Observability caps severity.** Stated-comparison checks are L0; a fairness
    finding that needs the actual config/seed files is `observability_level_required:
-   2` and auto-demotes on a PDF-only run (`references/observability-levels.md`).
+   2` and is marked as needing L2 on a PDF-only run (`references/observability-levels.md`).
 
 ## How this differs from the other auditors (route correctly)
 
@@ -95,7 +95,7 @@ settle.** Four properties:
 | `experiment-forensics` | Are the reported numbers what the code actually computes? (fake GT, self-norm, phantom) | L2 |
 | **`baseline-comparison-audit`** (this) | **Are the right baselines present (completeness), fairly tuned/configured (fairness), and is "outperforms/SOTA" statistically earned (significance)?** | **L0 stated / L2 verified** |
 | `citation-forensics` | Do the cited baseline papers exist and support the claim? | L0 |
-| `presentation-signals` | Surface "AI-flavor" hints (auxiliary, capped at minor) | L0 |
+| `presentation-signals` | Surface "AI-flavor" hints (auxiliary, surface-class) | L0 |
 | `adversarial-case-builder` | Strongest evidence-bound rejection memo (no verdict weight) | any |
 
 **Do NOT raise here** (hand off instead): generic in-text scope inflation
@@ -905,7 +905,7 @@ second deterministic file** and never edits the audited paper.
   (gpt-5.6-sol xhigh); completeness and fairness/significance/delta are separate fresh
   `mcp__codex__codex` threads; `codex-reply` is never used (absent from `allowed-tools`).
 - **Observability honesty.** Config/budget asymmetry only the repo reveals gets
-  `observability_level_required: 2` so a PDF-only run auto-demotes it. You cannot prove
+  `observability_level_required: 2` so a PDF-only run reports it as needing L2. You cannot prove
   an undocumented budget gap from a PDF.
 - **Stay in lane.** Generic text scope-overclaim → `consistency-audit`
   (`HP-SCOPE-INFLATE`); code/result fraud → `experiment-forensics` (L2); citation
@@ -932,7 +932,7 @@ second deterministic file** and never edits the audited paper.
 - **Whether a *cited* baseline paper EXISTS / is used in-context** →
   `/citation-forensics`.
 - **An AI-text / "looks machine-written" verdict** → out of scope; surface hints live
-  in `/presentation-signals` (auxiliary, capped at minor). This repo is **not** an
+  in `/presentation-signals` (auxiliary, surface-class). This repo is **not** an
   AI-text classifier.
 - **On a timer** → never `/loop` / `/schedule` / `CronCreate` this skill; re-fire only
   when the paper, ledger, or live leaderboard changes (see the fence at the top).

@@ -87,7 +87,7 @@ deterministic tool decides the verdict.** Both axes from
 | `consistency-audit` | Does the paper contradict ITSELF / does described method = evaluated method? | L0 |
 | `baseline-comparison-audit` | Are the right baselines present, tuned, and is "SOTA" earned? | L0 stated / L2 verified |
 | `citation-forensics` | Do the cited papers exist and support the claim made? | L0 |
-| `presentation-signals` | Surface "AI-flavor" hints (auxiliary, capped at minor) | L0 |
+| `presentation-signals` | Surface "AI-flavor" hints (auxiliary, surface-class) | L0 |
 | `adversarial-case-builder` | Strongest evidence-bound rejection memo (no verdict weight) | any |
 
 **Do NOT raise here** (hand off instead): pure text-vs-text contradiction or
@@ -746,7 +746,7 @@ python3 "$ROOT/tools/adjudicate_findings.py" --findings "$TARGET"/*.findings.jso
 - **Not an AI-text classifier.** "Results look too clean" is `HP-SUSPICIOUS-REGULARITY`
   — high-FP, only `major` when the *result files* contradict the table (L2); a bare
   "looks fake" from a table is deferred to `consistency-audit`. Never infer authorship
-  or misconduct from surface impressions (those live, capped at minor, in
+  or misconduct from surface impressions (those live, surface-class label, in
   `presentation-signals`).
 - **`pattern_id` ∈ taxonomy v0.5 only** (`PATTERNS_OWNED`); the taxonomy is a
   post-hoc mapping layer, not the detector.
@@ -767,7 +767,7 @@ python3 "$ROOT/tools/adjudicate_findings.py" --findings "$TARGET"/*.findings.jso
   baseline integrity or "SOTA / first" → `/baseline-comparison-audit` (+
   `/citation-forensics`), handed off via `needs_external_check`.
 - **For authorship / "is this AI-written".** Out of scope — surface "AI-flavor" lives
-  in `/presentation-signals` (auxiliary, capped at minor); this repo is **not** an
+  in `/presentation-signals` (auxiliary, surface-class); this repo is **not** an
   AI-text classifier.
 - **On a timer.** Re-firing adds no signal — only a higher observability level does;
   schedule the *wait for artifacts*, then run once at the new level (see the cadence
