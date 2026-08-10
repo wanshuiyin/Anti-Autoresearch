@@ -65,8 +65,9 @@ Its job is to *find and quote*; the rules *decide*. Two consequences:
 
 1. A finding with no span cannot raise the verdict (the adjudicator rejects
    critical/major findings that lack evidence — see the contract).
-2. The verdict is reproducible: same ledger + same findings → same verdict, with
-   no model in the final decision.
+2. The summary is reproducible: same ledger + same findings → same summary, by a
+   fixed rule. It reports what the auditors proposed; only the anchor check moves a
+   severity, and it does so on a fact a computation establishes.
 
 ## What the reviewer is told (and not told)
 

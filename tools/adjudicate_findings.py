@@ -1,26 +1,37 @@
 #!/usr/bin/env python3
 """
-adjudicate_findings.py — the deterministic adjudicator.
+adjudicate_findings.py — the deterministic reporter.
 
 The structural defense against "LLM slop grading LLM slop": the language-model
-auditors PROPOSE findings (each anchored to an evidence-ledger span); this script
-DECIDES the verdict by fixed rules. No model is in the final decision, so the
-verdict is reproducible: same findings + same observability level -> same verdict.
+auditors PROPOSE findings (each anchored to an evidence-ledger span); no model
+ever writes a severity that this script then treats as authoritative, and no
+model writes the summary. What this script does NOT do any more is decide, on
+the model's behalf, which of its proposals do not count.
 
-Gates applied to every finding, in order (each may demote severity and is logged):
-  1. ANCHOR gate       — any above-info finding not quoting a verbatim ledger span
-                         (or any finding when no ledger is given) -> info.
-  2. OBSERVABILITY gate — observability_level_required missing/invalid, or > run level -> info.
-  3. FP-RISK gate      — false_positive_risk high -> cap at minor; medium -> cap at major.
-  4. ZERO-WEIGHT gate  — advisory memos (ADV-*/memo skills) + the AI writing-style track
-                         (AIS-* / ai-style-impressions / deprecated style ids) -> info + weight 0.
-  5. SURFACE gate      — family-F presentation patterns (by skill or id)  -> cap at minor.
-  6. EXTERNAL-CHECK    — needs_external_check / requires_external_check    -> info.
+One computation still moves severity:
+  ANCHOR — an above-info finding whose quoted span is not in the ledger (or any
+           finding when no ledger is given) drops to info and is reported as
+           unanchored. That the span is absent from the paper is a fact a
+           computation establishes.
 
-Verdict rule (after gating):
+Everything else is recorded beside the finding, for the human:
+  _observability_required / _observability_met   what level the auditor said it needs
+  _fp_risk                                       the auditor's own false-positive estimate
+  _surface_signal                                family-F presentation class
+  _needs_external_check                          the auditor marked it unsettled
+  _verdict_weight = 0                            AIS / advisory memos, reported separately
+
+Those four used to demote. Three of them read fields the AUDITOR supplies about
+its own output — false_positive_risk is literally an "honest self-assessment" in
+finding.schema.json — so demoting on them let a model's opinion of itself change
+severity through a rule that only looked deterministic.
+
+Summary rule (over weight-1 findings):
   any critical                 -> HARD_FLAGS
   else any major/minor         -> SOFT_FLAGS
   else                         -> CLEAN_GIVEN_EVIDENCE   (NOT "the paper is honest")
+The summary reports what the auditors PROPOSED, computed by a fixed rule. It is
+not an adjudication that those proposals stand — a human reads the table.
 
 Pure standard library. See references/{reviewer-independence,observability-levels,
 integrity-forensics-contract}.md.
@@ -346,10 +357,24 @@ def apply_critical_scrutiny(findings, ledger_map=None, ledger_values=None):
 
 
 def adjudicate(findings, run_level, ledger_map=None):
-    """Demote each finding by the gates, in order. Every gate is fail-closed:
-    anything not provably safe drops to info, so a finding can only raise the
-    verdict if it is anchored, declares its observability need, survives the FP cap,
-    and is not memo-only. Returns counters for the report."""
+    """Annotate each finding; move severity only where a COMPUTATION licenses it.
+
+    One rule still moves severity: ANCHOR. An above-info finding whose quoted span
+    is not in the ledger is a span the auditor did not actually find in the paper,
+    which is a fact a computation establishes, so it drops to info and is reported
+    as unanchored.
+
+    Everything else annotates. Observability, false-positive risk and
+    needs-external-check are fields the AUDITOR supplies about its own output —
+    false_positive_risk is described in finding.schema.json as an "honest
+    self-assessment". Demoting on them let a model's opinion of itself change
+    severity through a rule that merely looked deterministic. They are now recorded
+    beside the finding for the human who reads the report.
+
+    Zero-weight (AIS / advisory memos) and surface-only presentation signals stay
+    categorical: they are decided by skill and pattern id, not by anything a model
+    asserts, and they say what KIND of signal this is rather than how bad it is.
+    """
     stats = {"downgraded_obs": 0, "unanchored": 0}
     for f in findings:
         original = f.get("severity", "info")
@@ -358,8 +383,8 @@ def adjudicate(findings, run_level, ledger_map=None):
         sev = original
         reasons = []
 
-        # 1. ANCHOR/SPAN gate — applies to ANY above-info finding (incl. minor).
-        #    No ledger => cannot anchor anything => fail closed (everything -> info).
+        # ANCHOR/SPAN gate — the one computation that still moves severity.
+        # No ledger => nothing can be anchored => fail closed.
         if SEV_ORDER[sev] > SEV_ORDER["info"]:
             if ledger_map is None:
                 sev = "info"
@@ -369,23 +394,24 @@ def adjudicate(findings, run_level, ledger_map=None):
                 sev = "info"
                 reasons.append("unanchored-demotion")
                 stats["unanchored"] += 1
+        f["_anchored"] = "unanchored-demotion" not in reasons and "no-ledger-fail-closed" not in reasons
 
-        # 2. OBSERVABILITY gate — fail-closed: missing/invalid requirement -> info.
-        #    type(req) is int (NOT isinstance) so JSON booleans (True==1) are rejected.
-        if SEV_ORDER[sev] > SEV_ORDER["info"]:
-            req = f.get("observability_level_required")
-            if type(req) is not int or req < 0 or req > 3:
-                sev = "info"
-                reasons.append("undeclared-observability")
-            elif req > run_level:
-                sev = "info"
-                reasons.append(f"observability-demotion(req=L{req}>run=L{run_level})")
+        # OBSERVABILITY — annotation. type(req) is int (NOT isinstance) so JSON
+        # booleans (True == 1) are still rejected as undeclared.
+        req = f.get("observability_level_required")
+        if type(req) is not int or req < 0 or req > 3:
+            f["_observability_required"] = None
+            f["_observability_met"] = False
+            reasons.append("observability-undeclared")
+        else:
+            f["_observability_required"] = req
+            f["_observability_met"] = req <= run_level
+            if req > run_level:
+                reasons.append(f"observability-exceeds-run(req=L{req}>run=L{run_level})")
                 stats["downgraded_obs"] += 1
 
-        # 3. FP-RISK gate — case-normalized + fail-CLOSED on a garbled value. A field that
-        #    is absent defaults to "low" (no cap — FP-risk is a secondary, optional gate),
-        #    but a value that IS present yet unrecognized (e.g. "HIGH", a typo, a non-str)
-        #    is treated as high-FP -> cap at minor, so a mis-cased "HIGH" can't escape uncapped.
+        # FP-RISK — annotation. An unrecognized value still reads as high, so a
+        # mis-cased "HIGH" is not quietly treated as low.
         fpr_raw = f.get("false_positive_risk")
         if fpr_raw is None:
             fpr = "low"
@@ -393,46 +419,34 @@ def adjudicate(findings, run_level, ledger_map=None):
             fpr = fpr_raw.lower()
         else:
             fpr = "high"
-        capped = _cap(sev, FP_CAP[fpr])
-        if capped != sev:
-            reasons.append(f"fp-cap({fpr})")
-            sev = capped
+        f["_fp_risk"] = fpr
 
-        # 4. ZERO-WEIGHT gate — advisory memos AND the AI writing-style impression track
-        #    (AIS-* / ai-style-impressions / the deprecated style ids) are reported but NEVER
-        #    move the integrity verdict: forced to info here AND given _verdict_weight 0 below
-        #    (the verdict is computed from weight-1 findings ONLY). Enforced by skill, pattern
-        #    PREFIX, and the deprecated-id set, so nothing smuggled in can bypass it.
-        if _is_zero_weight(f):
+        # ZERO-WEIGHT — categorical. Advisory memos and the AI writing-style track
+        # are reported in their own section and never form an integrity verdict.
+        # Enforced by skill, pattern PREFIX and the deprecated-id set.
+        zero_weight = _is_zero_weight(f)
+        if zero_weight:
             capped = _cap(sev, "info")
             if capped != sev:
                 reasons.append("zero-weight-cap")
                 sev = capped
 
-        # 5. SURFACE gate — family-F presentation signals capped at minor (by skill
-        #    OR pattern_id), so a pile of surface signals is at most a SOFT_FLAGS
-        #    "look closer", never HARD — even if smuggled in under another skill. The
-        #    pattern_id is .strip()'d so a dirty "HP-THIN-FLOAT " can't bypass the cap.
+        # SURFACE — categorical label. Family-F presentation signals are a
+        # "look closer" class, not an integrity claim.
         pid5 = f.get("pattern_id")
         pid5 = pid5.strip() if isinstance(pid5, str) else ""
-        if f.get("skill") in SURFACE_ONLY_SKILLS or pid5 in SURFACE_PATTERNS:
-            capped = _cap(sev, "minor")
-            if capped != sev:
-                reasons.append("surface-only-cap")
-                sev = capped
+        f["_surface_signal"] = bool(f.get("skill") in SURFACE_ONLY_SKILLS or pid5 in SURFACE_PATTERNS)
 
-        # 6. EXTERNAL-CHECK gate — a finding the auditor itself marks unsettled
-        #    (verdict_local=needs_external_check, or requires_external_check) is NOT a
-        #    confirmed flag: it may inform a human but must never raise the verdict.
-        if SEV_ORDER[sev] > SEV_ORDER["info"] and (
-                f.get("verdict_local") == "needs_external_check"
-                or f.get("requires_external_check") is True):
-            sev = "info"
-            reasons.append("needs-external-check")
+        # EXTERNAL-CHECK — annotation. The auditor itself marked this unsettled.
+        f["_needs_external_check"] = bool(
+            f.get("verdict_local") == "needs_external_check"
+            or f.get("requires_external_check") is True)
+        if f["_needs_external_check"]:
+            reasons.append("auditor-marked-needs-external-check")
 
         f["_severity_original"] = original
         f["_severity_final"] = sev
-        f["_verdict_weight"] = 0 if _is_zero_weight(f) else 1
+        f["_verdict_weight"] = 0 if zero_weight else 1
         f["_adjudication"] = reasons
     return stats
 
@@ -605,13 +619,24 @@ def render_md(report):
         f"investigate — it does **not** judge misconduct. `CLEAN_GIVEN_EVIDENCE` means "
         f"\"nothing checkable at L{report['observability_level']} is broken\", not \"the paper is honest\".",
         "",
+        "> **How to read the table.** Every proposal an auditor made is listed, at the "
+        "severity that auditor proposed. The verdict above applies a fixed rule to those "
+        "proposals; it is not a ruling that they stand. The columns are what you weigh: "
+        "`Anchored: NO` means the quoted span was not found in the paper (that proposal "
+        "is already dropped to info); `Observability L2 ✗` means the auditor said it needs "
+        "evidence this run did not have; `FP-risk: high` is the auditor's own estimate that "
+        "it may be a false positive; `Surface` marks a presentation signal rather than an "
+        "integrity claim; `Ext-check` means the auditor marked it unsettled itself.",
+        "",
         "## Findings (evidence first)",
         "",
-        "| ID | Dimension | Severity | Pattern | Where | FP-risk | Contest |",
-        "|----|-----------|----------|---------|-------|---------|---------|",
+        "| ID | Dimension | Severity | Pattern | Where | Anchored | Observability | FP-risk | Surface | Ext-check | Contest |",
+        "|----|-----------|----------|---------|-------|----------|---------------|---------|---------|-----------|---------|",
     ]
-    shown = [f for f in report["findings"]
-             if f["_severity_final"] != "info" and f.get("_verdict_weight", 1) == 1]
+    # Everything the auditors proposed is shown. Demotion used to remove findings
+    # from this table entirely, so a reader could not even disagree with it; the
+    # columns now carry what the gates used to decide silently.
+    shown = [f for f in report["findings"] if f.get("_verdict_weight", 1) == 1]
     for f in sorted(shown, key=lambda x: -SEV_ORDER[x["_severity_final"]]):
         loc = ""
         for ev in f.get("evidence", []) or []:
@@ -619,14 +644,19 @@ def render_md(report):
             fname = os.path.basename(l.get("file", "?")) if l.get("file") else "?"
             loc = f"{fname}:{l.get('section', l.get('line',''))}"
             break
+        req = f.get("_observability_required")
+        obs = "—" if req is None else (f"L{req} ✓" if f.get("_observability_met") else f"L{req} ✗ (run L{report['observability_level']})")
         lines.append(
             f"| {f.get('finding_id','?')} | {SKILL_TO_DIMENSION.get(f.get('skill'),'—')} "
             f"| {f['_severity_final']} | {f.get('pattern_id','—')} | {loc or '—'} "
-            f"| {f.get('false_positive_risk','—')} "
+            f"| {'yes' if f.get('_anchored') else 'NO'} | {obs} "
+            f"| {f.get('_fp_risk', f.get('false_positive_risk','—'))} "
+            f"| {'yes' if f.get('_surface_signal') else '—'} "
+            f"| {'yes' if f.get('_needs_external_check') else '—'} "
             f"| {'⚠️ CONTESTED' if f.get('_contested') else '—'} |"
         )
     if not shown:
-        lines.append("| — | — | none above info | — | — | — | — |")
+        lines.append("| — | — | no findings proposed | — | — | — | — | — | — | — | — |")
     if any(f.get("_contested") for f in shown):
         lines += ["",
                   "> ⚠️ **CONTESTED** = a fresh adversarial refutation pass produced a "
@@ -720,8 +750,8 @@ def render_md(report):
         "",
         f"- critical: {c['critical']}  ·  major: {c['major']}  ·  minor: {c['minor']}  "
         f"·  info: {c['info']}",
-        f"- demoted for observability: {c['downgraded_for_observability']}  ·  "
-        f"demoted unanchored: {c.get('unanchored_demoted', 0)}",
+        f"- needing evidence this run lacked: {c['downgraded_for_observability']}  ·  "
+        f"dropped as unanchored: {c.get('unanchored_demoted', 0)}",
         f"- AI writing-style impressions (zero verdict weight): {c.get('ai_style_impressions', 0)}",
         "",
         "## Limitations",

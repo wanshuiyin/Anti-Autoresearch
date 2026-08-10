@@ -45,49 +45,57 @@ def test_no_evidence_demoted():
     assert _final([_f(severity="major", evidence=[])]) == ["info"]
 
 
-def test_missing_observability_req_fails_closed():
+
+def test_missing_observability_req_is_annotated_not_demoted():
+    # the requirement is the AUDITOR's own declaration, so it labels the finding
+    # rather than silently rewriting how bad the finding is
     f = _f()
     del f["observability_level_required"]
-    assert _final([f]) == ["info"]
-    assert "undeclared-observability" in f["_adjudication"]
+    assert _final([f]) == ["critical"]
+    assert f["_observability_required"] is None
+    assert f["_observability_met"] is False
+    assert "observability-undeclared" in f["_adjudication"]
 
 
-def test_observability_above_run_demoted():
-    # an L2 code-level critical, run at L0 -> info (cannot shout fraud from a PDF)
+def test_observability_above_run_is_annotated():
+    # an L2 code-level critical, run at L0: reported, and marked as not met
     f = _f(observability_level_required=2)
-    assert _final([f], run_level=0) == ["info"]
+    assert _final([f], run_level=0) == ["critical"]
+    assert f["_observability_required"] == 2
+    assert f["_observability_met"] is False
+    assert any("observability-exceeds-run" in r for r in f["_adjudication"])
 
 
-def test_fp_high_caps_to_minor():
-    assert _final([_f(false_positive_risk="high")]) == ["minor"]
-
+def test_fp_high_is_annotated_not_capped():
+    f = _f(false_positive_risk="high")
+    assert _final([f]) == ["critical"]
+    assert f["_fp_risk"] == "high"
 
 def test_memo_only_skill_capped_to_info():
     f = _f(skill="adversarial-case-builder")
     assert _final([f]) == ["info"]
 
 
-def test_surface_only_skill_capped_to_minor():
-    # presentation/AI-flavor signals cap at minor -> at most SOFT_FLAGS, never HARD
+
+def test_surface_only_skill_is_labelled():
+    # presentation/AI-flavor signals are labelled as a surface class, not rescored
     f = _f(skill="presentation-signals")  # critical by default
-    assert _final([f]) == ["minor"]
-    assert "surface-only-cap" in f["_adjudication"]
-    assert A.verdict_of(["minor"]) == "SOFT_FLAGS"
+    assert _final([f]) == ["critical"]
+    assert f["_surface_signal"] is True
 
 
-def test_surface_pattern_capped_even_under_other_skill():
-    # an F-pattern smuggled in under a non-surface skill is STILL capped at minor
-    f = _f(skill="consistency-audit", pattern_id="HP-THIN-FLOAT")  # critical by default
-    assert _final([f]) == ["minor"]
-    assert "surface-only-cap" in f["_adjudication"]
+def test_surface_pattern_labelled_even_under_other_skill():
+    # an F-pattern smuggled in under a non-surface skill is STILL labelled surface
+    f = _f(skill="consistency-audit", pattern_id="HP-THIN-FLOAT")
+    assert _final([f]) == ["critical"]
+    assert f["_surface_signal"] is True
 
 
-def test_surface_pattern_strip_bypass_rejected():
-    # a dirty pattern_id with a trailing space must STILL hit the surface cap (-> minor)
-    f = _f(skill="consistency-audit", pattern_id="HP-THIN-FLOAT ")  # critical by default
-    assert _final([f]) == ["minor"]
-    assert "surface-only-cap" in f["_adjudication"]
-
+def test_surface_pattern_label_survives_whitespace():
+    # a dirty pattern_id with a trailing space must STILL be labelled surface
+    f = _f(skill="consistency-audit", pattern_id="HP-THIN-FLOAT ")
+    assert _final([f]) == ["critical"]
+    assert f["_surface_signal"] is True
 
 def test_advisory_pattern_capped_even_under_other_skill():
     # an ADV-* advisory pattern smuggled in under a verdict-bearing skill is STILL info
@@ -160,11 +168,13 @@ def test_integrity_and_ais_coexist():
     assert rep["counts"]["ai_style_impressions"] == 1
 
 
-def test_needs_external_check_capped_to_info():
-    # a finding the auditor itself marks unsettled cannot raise the verdict
-    assert _final([_f(verdict_local="needs_external_check")]) == ["info"]
-    assert _final([_f(requires_external_check=True)]) == ["info"]
 
+def test_needs_external_check_is_annotated():
+    # a finding the auditor itself marks unsettled is reported, and marked unsettled
+    for f in (_f(verdict_local="needs_external_check"), _f(requires_external_check=True)):
+        assert _final([f]) == ["critical"]
+        assert f["_needs_external_check"] is True
+        assert "auditor-marked-needs-external-check" in f["_adjudication"]
 
 def test_short_span_not_anchored():
     # a 1-char / punctuation-only span is a substring of almost any claim -> must NOT anchor
@@ -173,21 +183,28 @@ def test_short_span_not_anchored():
         assert _final([f]) == ["info"], bad
 
 
-def test_fp_garbled_token_fails_closed():
-    # a present-but-unrecognized FP token (mis-cased / typo / non-str) -> treated high -> minor
-    assert _final([_f(false_positive_risk="HIGH")]) == ["minor"]
-    assert _final([_f(false_positive_risk="bogus")]) == ["minor"]
-    assert _final([_f(false_positive_risk=5)]) == ["minor"]
+
+def test_fp_garbled_token_reads_high():
+    # a present-but-unrecognized FP token (mis-cased / typo / non-str) reads as high,
+    # so a mis-cased "HIGH" is never quietly recorded as low
+    for bad in ("HIGH", "bogus", 5):
+        f = _f(false_positive_risk=bad)
+        _final([f])
+        assert f["_fp_risk"] == "high"
 
 
-def test_fp_medium_caps_to_major():
-    assert _final([_f(false_positive_risk="medium")]) == ["major"]
+def test_fp_medium_is_annotated():
+    f = _f(false_positive_risk="medium")
+    assert _final([f]) == ["critical"]
+    assert f["_fp_risk"] == "medium"
 
 
-def test_observability_out_of_range_fails_closed():
-    assert _final([_f(observability_level_required=7)]) == ["info"]
-    assert _final([_f(observability_level_required=-1)]) == ["info"]
-
+def test_observability_out_of_range_reads_undeclared():
+    for bad in (7, -1):
+        f = _f(observability_level_required=bad)
+        assert _final([f]) == ["critical"]
+        assert f["_observability_required"] is None
+        assert "observability-undeclared" in f["_adjudication"]
 
 def test_malformed_findings_do_not_crash():
     # non-str pattern_id / non-str span / non-str severity must not raise (and must not anchor)
@@ -229,11 +246,13 @@ def test_span_padding_bypass_rejected():
     assert _final([f]) == ["info"]
 
 
+
 def test_json_boolean_observability_rejected():
-    # observability_level_required: true  (JSON bool, ==1 in python) must be rejected
+    # observability_level_required: true  (JSON bool, ==1 in python) is not a level
     f = _f(observability_level_required=True)
-    assert _final([f], run_level=1) == ["info"]
-    assert "undeclared-observability" in f["_adjudication"]
+    _final([f], run_level=1)
+    assert f["_observability_required"] is None
+    assert "observability-undeclared" in f["_adjudication"]
 
 
 # ---- coverage gate (review_unavailable must never masquerade as CLEAN) ----

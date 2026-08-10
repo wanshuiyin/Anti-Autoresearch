@@ -1,6 +1,6 @@
 ---
 name: adversarial-case-builder
-description: "Synthesize the single strongest EVIDENCE-BOUND reviewer case to reject a paper, built ONLY from the evidence ledger (claims.json) + the other auditors' confirmed findings — never free-floating LLM critique. Two fresh cross-model codex threads: an attack writes the ~200-word rejection paragraph (every accusation tagged to an existing claim_id/finding_id), a defense decomposes it and rules each point against the anchored evidence. MEMO-ONLY: emits adversarial-case-builder.memo.md (fed to the adjudicator via --memo) and carries NO verdict weight — tools/adjudicate_findings.py lists it in MEMO_ONLY_SKILLS and caps it at info. Honest-null allowed (the paper may survive). Run LAST. Detect-only. Adapted from ARIS kill-argument. Triggers: \"adversarial case\", \"strongest objection\", \"rejection memo\", \"kill argument\", \"最强拒稿点\"."
+description: "Synthesize the single strongest EVIDENCE-BOUND reviewer case to reject a paper, built ONLY from the evidence ledger (claims.json) + the other auditors' confirmed findings — never free-floating LLM critique. Two fresh cross-model codex threads: an attack writes the ~200-word rejection paragraph (every accusation tagged to an existing claim_id/finding_id), a defense decomposes it and rules each point against the anchored evidence. MEMO-ONLY: emits adversarial-case-builder.memo.md (fed to the adjudicator via --memo) and carries NO verdict weight — tools/adjudicate_findings.py lists it in ZERO_WEIGHT_SKILLS and caps it at info. Honest-null allowed (the paper may survive). Run LAST. Detect-only. Adapted from ARIS kill-argument. Triggers: \"adversarial case\", \"strongest objection\", \"rejection memo\", \"kill argument\", \"最强拒稿点\"."
 argument-hint: [paper-dir | claims.json]
 allowed-tools: Bash(*), Read, Write, mcp__codex__codex
 ---
@@ -26,7 +26,7 @@ merged `*.findings.json` exist).
 > mode is exactly the "LLM slop grading LLM slop" failure this repo exists to refuse.
 > So here every attack point must cite an existing ledger `claim_id` or `finding_id`,
 > and the skill never emits verdict-bearing findings: `tools/adjudicate_findings.py`
-> lists `adversarial-case-builder` in `MEMO_ONLY_SKILLS` and caps anything from it at
+> lists `adversarial-case-builder` in `ZERO_WEIGHT_SKILLS` and caps anything from it at
 > `info`. The deterministic adjudicator owns the verdict; this skill owns the memo.
 
 ## Why this exists
@@ -566,7 +566,7 @@ out += ["### Anchoring audit", "",
         % (counts["already_addressed"], counts["partially_addressed"], counts["unresolved"]), ""]
 out += ["---",
         "_Informational only. `tools/adjudicate_findings.py` lists `adversarial-case-builder` in "
-        "`MEMO_ONLY_SKILLS` and caps every finding it could emit at `info`, so this memo contributes "
+        "`ZERO_WEIGHT_SKILLS` and caps every finding it could emit at `info`, so this memo contributes "
         "**no verdict weight**. The deterministic adjudicator owns the verdict._"]
 memo_path = os.path.join(D, "adversarial-case-builder.memo.md")
 open(memo_path, "w", encoding="utf-8").write("\n".join(out) + "\n")
@@ -689,7 +689,7 @@ only from `tools/adjudicate_findings.py` (Step 5 / the orchestrator).
 ## Key rules
 
 - **No verdict — by design.** This skill never raises the report's verdict. The
-  adjudicator's `MEMO_ONLY_SKILLS` gate caps it at `info`, and it is excluded from
+  adjudicator's `ZERO_WEIGHT_SKILLS` gate caps it at `info`, and it is excluded from
   `dimension_verdicts`. The memo *informs*; the deterministic rules *decide*.
 - **Evidence-bound.** Every attack point cites an existing `claim_id` / `finding_id`;
   claim citations carry a verbatim span. Step 3 deletes uncited rhetoric. `span in

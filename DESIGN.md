@@ -22,7 +22,8 @@ sentence and its hash".
 The structural answer to "LLM slop grading LLM slop": auditors *propose* findings;
 `tools/adjudicate_findings.py` *decides* the verdict by fixed rules (span gate →
 observability gate → FP-risk cap → memo-only cap). The verdict is reproducible with
-no model in the final decision. This is a second independence axis on top of ARIS's
+the severities in it are the auditors' proposals, annotated rather than silently
+rescored. This is a second independence axis on top of ARIS's
 cross-model (executor ≠ reviewer) rule.
 
 ## 4. Observability levels make honesty structural

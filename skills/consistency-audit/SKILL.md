@@ -595,9 +595,10 @@ python3 "$ROOT/tools/adjudicate_findings.py" \
     --out "$D/report.json" --md "$D/REPORT.md"
 ```
 
-The adjudicator applies, in order: ANCHOR → OBSERVABILITY → FP-RISK → MEMO → SURFACE
-gates, then computes `overall_verdict` ∈ {CLEAN_GIVEN_EVIDENCE, SOFT_FLAGS,
-HARD_FLAGS} (any span-anchored **critical** decidable at `L` → HARD_FLAGS). No model
+The adjudicator drops an unanchored above-info finding to `info` — that is the only
+severity it changes — records observability / FP-risk / surface / needs-external-check /
+zero-weight as annotations, then computes `overall_verdict` ∈ {CLEAN_GIVEN_EVIDENCE,
+SOFT_FLAGS, HARD_FLAGS} (any span-anchored **critical** → HARD_FLAGS). No model
 is in the final decision. Treat a single-skill report as a PREVIEW — the paper's
 verdict comes from the orchestrator over all dimensions.
 
