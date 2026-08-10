@@ -932,7 +932,7 @@ A completed run leaves, in `PAPER_DIR` (we never edit the paper itself):
 - `novelty-duplication-advisory.memo.md` — the prior-work overlap advisory (informational,
   memo-only), present when the novelty advisory ran; alongside it the retrieval records
   `novelty-duplication-advisory.profile.json` / `.candidates.json` and the info-only
-  `novelty-duplication-advisory.findings.json` mirror (capped at `info` by the MEMO gate).
+  `novelty-duplication-advisory.findings.json` mirror (zero verdict weight by the MEMO gate).
 - `report.json` (`schemas/report.schema.json`) + `REPORT.md` — the **only** files
   carrying `overall_verdict`, produced solely by `tools/adjudicate_findings.py`
   (`adjudicator: deterministic-rules-v2`, `human_review_required: true`).
@@ -971,7 +971,7 @@ deterministic adjudicator, and presents.
   span-anchored **critical** family-G flaw reaches `HARD_FLAGS` with no repo/results, but
   needs the L1 source (PDF-extracted math is unreliable; an L0 PDF-only run → `info`); it
   emits only the five family-G patterns and self-guards to `[]` when no proof is present.
-  `novelty-duplication-advisory` is **memo-only** (`ZERO_WEIGHT_SKILLS`, capped at `info`):
+  `novelty-duplication-advisory` is **memo-only** (`ZERO_WEIGHT_SKILLS`, zero verdict weight):
   it retrieves and *lays out* prior-work overlap but **never** rules trivial/duplicate, and
   absence of a retrieved match is **not** evidence of originality (the only auditor that
   consults an external corpus, which is exactly why it carries no verdict weight).

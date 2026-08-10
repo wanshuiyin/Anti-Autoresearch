@@ -117,7 +117,7 @@ rules novelty · absence ≠ originality.** Three honesty spines hold this skill
 | `proof-derivation-forensics` | Does the written proof / derivation hold? | no | yes |
 | `presentation-signals` | Surface "AI-flavor" hints (auxiliary) | no | surface-class label |
 | `adversarial-case-builder` | Strongest *anchored* rejection memo + defense | no | none (memo-only) |
-| **`novelty-duplication-advisory`** (this) | **What prior-work OVERLAP should a reviewer weigh for trivial-combination / duplicate?** | **YES — retrieves *uncited* prior work** | **none (memo-only, capped at info)** |
+| **`novelty-duplication-advisory`** (this) | **What prior-work OVERLAP should a reviewer weigh for trivial-combination / duplicate?** | **YES — retrieves *uncited* prior work** | **none (memo-only, zero verdict weight)** |
 
 **Route, do not overreach.** `citation-forensics` checks the works the paper *already cites*;
 this skill goes looking for prior work the paper *omits or overlaps*. A **wrong-context or
@@ -135,7 +135,7 @@ two advisory overlap signals — and even those it only *surfaces*.
 | Subject | the author's own prospective idea | a third party's submitted paper |
 | Paper side | a free-text method description | **ledger claims** (`claim_id` + verbatim span) |
 | Output | a `Score: X/10` + recommendation + "suggested positioning" | a side-by-side overlap memo — **no score, no recommendation** |
-| Verdict | "Novelty: HIGH/MEDIUM/LOW" | **none** — never rules trivial/duplicate; capped at `info` |
+| Verdict | "Novelty: HIGH/MEDIUM/LOW" | **none** — never rules trivial/duplicate; zero verdict weight |
 | Empty retrieval | "looks novel, proceed" | "no candidate overlap found — this says **nothing** about novelty" |
 | Prior-work anchoring | `verify_papers.py` (anti-hallucination) | every candidate a resolved record in `candidates.json`; unresolved → dropped |
 
@@ -165,7 +165,7 @@ DISPOSITION          = candidate_overlap_surfaced | no_candidate_overlap_found |
 ADVISORY_PATTERNS    = ADV-TRIVIAL-COMBINATION · ADV-DUPLICATE-PUBLICATION   (zero verdict weight)
 TAXONOMY_VERSION     = 0.5                     # references/hack-pattern-taxonomy.md
 MEMO_FILE            = novelty-duplication-advisory.memo.md            # canonical human-facing output
-FINDINGS_FILE        = novelty-duplication-advisory.findings.json      # info-only mirror (or []); globbed, capped at info
+FINDINGS_FILE        = novelty-duplication-advisory.findings.json      # info-only mirror (or []); globbed, zero verdict weight
 PROFILE_FILE         = novelty-duplication-advisory.profile.json       # executor-built retrieval profile (from the ledger)
 CANDIDATES_FILE      = novelty-duplication-advisory.candidates.json    # retrieved prior work (REAL records only)
 TRACE_POLICY         = forensic (never silently dropped)
@@ -1076,7 +1076,7 @@ It writes **no verdict and no report** of its own — `report.json` / `REPORT.md
   *author-facing* ARIS `/novelty-check`, not this forensics advisory. This skill never scores or
   recommends; it only surfaces overlap for a human to weigh.
 - **You want a "this paper is trivial / a duplicate" verdict** → impossible by design; novelty
-  is a reviewer judgment and this skill is capped at `info`. Read the memo and decide yourself.
+  is a reviewer judgment and this skill is zero verdict weight. Read the memo and decide yourself.
 - **You need to verify a *cited* reference exists / is used in the right context** →
   `/citation-forensics` (this skill is about overlap with work the paper need not cite).
 - **You need to verify an empirical "first / SOTA / beats prior work" claim** →
