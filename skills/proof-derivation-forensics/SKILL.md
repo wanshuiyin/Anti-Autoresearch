@@ -223,7 +223,7 @@ and `PAPER_ID`, into every step below.
 - **`RUN_LEVEL_L == 0`** (PDF-text only) → proceed, but **recall is reduced**: equation
   and theorem-statement spans are poorly captured, so obligation/assumption findings
   that need the LaTeX source to confirm an obligation is undischarged anywhere will
-  carry `observability_level_required: 1` and auto-demote to `info` (honest — you can
+  carry `observability_level_required: 1`, so an L0 run reports them as unconfirmed (honest — you can
   suspect from PDF text, you cannot confirm). Family G is at full strength at **L1**.
 - **`RUN_LEVEL_L == 2`** → proof checks run identically (they are textual/semantic);
   the extra L2 power (paper-number↔result-file) belongs to `/experiment-forensics`.
@@ -626,7 +626,7 @@ for f in proposed:
         f.setdefault("_notes", []).append("g-finding-declared-above-L1")
     # family-G floor: a verdict-bearing proof/derivation finding needs the LaTeX source (L1) —
     # PDF-extracted math is unreliable, so an L0 G finding must not raise the verdict. Clamp UP
-    # to L1 (conservative: RAISES the observability bar -> auto-demotes at an L0 run; unlike the
+    # to L1 (conservative: RAISES the observability bar -> reported as unconfirmed at L0; unlike the
     # >L2 case above, clamping up never launders an over-claim into a pass).
     if pid in GFAMILY and isinstance(olr, int) and olr < 1:
         olr = 1
@@ -648,7 +648,7 @@ PY
 **Scope of this gate: anchoring + schema hygiene + family-G enforcement** — verbatim-span
 anchoring, enum coercion, non-G pattern rejection, observability fallback, and
 cross-model provenance — so every kept finding is well-formed, honestly anchored, and
-in this skill's lane. It does **not** compute the verdict, the FP-risk cap, or the
+in this skill's lane. It does **not** compute the summary, the FP-risk column, or the
 observability *downgrade* against the run level; those belong to
 `tools/adjudicate_findings.py`, the single decider. Note this skill applies **no
 critical-floor** (unlike consistency-audit's `HP-SUSPICIOUS-REGULARITY`): family-G
