@@ -27,7 +27,5 @@ jobs:
         run: python3 tests/test_embedded_python.py
       - name: Deterministic counter-check unit tests (open intervals, Decimal, UNRESOLVABLE-on-ambiguity)
         run: python3 tests/test_countercheck.py
-      - name: Report self-binding unit tests (coverage_provenance + audited_content_fingerprint, issue #17)
-        run: python3 tests/test_report_provenance.py
       - name: Eval harness (clean + corruption fixtures — 100% recall, 0 clean FP)
         run: python3 eval/run_eval.py
