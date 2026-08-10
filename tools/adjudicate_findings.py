@@ -218,7 +218,7 @@ def _valid_numeric_basis(f, ledger_values):
     COMPLETE — every numeric claim in the evidence appears in the basis (a basis
     that cherry-picks a compatible subset is invalid). Returns {role: claim_id}
     or None."""
-    _resolver, roles_needed, _demotable = CC_ALLOWLIST[f.get("pattern_id")]
+    _resolver, roles_needed = CC_ALLOWLIST[f.get("pattern_id")]
     basis = f.get("numeric_basis")
     if not isinstance(basis, list) or not all(isinstance(b, dict) for b in basis):
         return None
@@ -249,7 +249,7 @@ def _valid_numeric_basis(f, ledger_values):
 def _run_countercheck(f, role_map, ledger_values, ledger_map):
     """Execute the pattern's resolver on LEDGER-DERIVED values only. Returns
     (status, evidence) — the caller applies the fixed demotion rule."""
-    resolver, _roles, _demotable = CC_ALLOWLIST[f.get("pattern_id")]
+    resolver, _roles = CC_ALLOWLIST[f.get("pattern_id")]
     vals = {r: ledger_values[cid] for r, cid in role_map.items()}
     if resolver == "rounding_interval":
         stated = vals["stated"]
@@ -281,7 +281,7 @@ def apply_critical_scrutiny(findings, ledger_map=None, ledger_values=None):
     Returns the critical_refutation_coverage counters for the report."""
     cov = {"eligible": 0, "completed": 0, "unavailable": 0, "malformed": 0,
            "contested": 0}
-    cc = {"eligible": 0, "proved_compatible": 0, "informational": 0,
+    cc = {"eligible": 0, "compatible": 0, "informational": 0,
           "discrepancy_persists": 0, "unresolvable": 0, "basis_invalid": 0}
     for f in findings:
         reasons = f.setdefault("_adjudication", [])
@@ -306,20 +306,17 @@ def apply_critical_scrutiny(findings, ledger_map=None, ledger_values=None):
                 f["_severity_final"] = "major"
                 reasons.append("numeric-basis-not-declared-or-invalid")
             else:
-                _res, _rr, demotable = CC_ALLOWLIST[f.get("pattern_id")]
                 status, cc_ev = _run_countercheck(f, role_map, ledger_values or {},
                                                   ledger_map or {})
                 f["_deterministic_countercheck"] = {"status": status, **cc_ev}
-                if status == PROVED_COMPATIBLE and demotable:
-                    cc["proved_compatible"] += 1
-                    f["_severity_final"] = "info"
-                    reasons.append("critical-basis-removed-by-deterministic-countercheck")
-                elif status == PROVED_COMPATIBLE:
-                    # binding-variant resolver (delta): the computation's verdict
-                    # depends on model-assigned roles, so it may INFORM but never
-                    # demote — recorded for the human, severity untouched.
+                if status == PROVED_COMPATIBLE:
+                    # The computation says the accusation's arithmetic is compatible
+                    # with the paper's numbers. That is decision support, not an
+                    # acquittal: compatible arithmetic cannot establish that no
+                    # discrepancy exists (see countercheck.py's module doctrine).
+                    # Recorded for the human; severity untouched.
                     cc["informational"] += 1
-                    reasons.append("countercheck-informational-only (model-bound roles)")
+                    reasons.append("countercheck-compatible-informational")
                 elif status == "DISCREPANCY_PERSISTS":
                     cc["discrepancy_persists"] += 1
                     reasons.append("countercheck-discrepancy-persists")
@@ -577,7 +574,7 @@ def build_report(findings, args, stats, anchoring_verified, coverage=None,
         "coverage": coverage,
         "critical_refutation_coverage": refutation_cov,
         "critical_countercheck": countercheck_cov or {
-            "eligible": 0, "proved_compatible": 0, "informational": 0,
+            "eligible": 0, "compatible": 0, "informational": 0,
             "discrepancy_persists": 0, "unresolvable": 0, "basis_invalid": 0},
         "adjudicator": ADJUDICATOR_ID,
         "anchoring_verified": anchoring_verified,
@@ -763,14 +760,16 @@ def render_md(report):
 
     c = report["counts"]
     resolved = [f for f in report["findings"]
-                if (f.get("_deterministic_countercheck") or {}).get("status") == "PROVED_COMPATIBLE"
-                and f.get("_severity_final") == "info"]
+                if (f.get("_deterministic_countercheck") or {}).get("status") == "PROVED_COMPATIBLE"]
     if resolved:
-        lines += ["", "## Deterministically resolved criticals", "",
-                  "_The following critical accusations were demoted to info by a "
-                  "COMPUTATION (interval arithmetic over the displayed precision of "
-                  "the very numbers they cite) proving the discrepancy cannot be "
-                  "established. No model output took part in the demotion._", ""]
+        lines += ["", "## Counter-checked criticals (computation says compatible)", "",
+                  "_For each of these, interval arithmetic over the displayed precision of "
+                  "the very numbers the accusation cites finds the stated discrepancy "
+                  "COMPATIBLE with the paper. That is decision support, not an acquittal: "
+                  "compatible arithmetic cannot establish that no discrepancy exists (a "
+                  "paper writing \"exactly 50%\" against a table's 50.4% is a real "
+                  "contradiction interval logic would excuse). Severity is unchanged; weigh "
+                  "it yourself._", ""]
         for f in resolved:
             cc = f["_deterministic_countercheck"]
             lines.append(f"- **{f.get('finding_id','?')}** (`{f.get('pattern_id','—')}`) — "
