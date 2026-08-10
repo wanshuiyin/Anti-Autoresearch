@@ -115,7 +115,9 @@ def check_defensive_hedge(claims, start=0):
             f"inconsistency and not an authorship verdict. If a specific hedge instead reveals a "
             f"real scope/evaluation limitation, that is a separate integrity finding "
             f"(HP-SCOPE-INFLATE / eval-design-forensics)."),
-        "severity": "minor",                          # adjudicator forces AIS to info, weight 0
+        # AIS is a style impression, never an integrity finding: say so at the
+        # source instead of relying on the adjudicator to demote it.
+        "severity": "info",
         "observability_level_required": 0,
         "evidence": evidence,
         "verdict_local": "warn",

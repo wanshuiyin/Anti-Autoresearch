@@ -769,7 +769,6 @@ python3 "$ROOT/tools/adjudicate_findings.py" \
     --findings "${FINDINGS[@]}" \
     --ledger "$PAPER_DIR/claims.json" \
     --coverage "$PAPER_DIR/coverage.json" \
-    --manifest "$PAPER_DIR/artifact_manifest.json" \
     --paper-id "$PAPER_ID" --observability-level "$L" --taxonomy-version 0.5 \
     --memo "$(cat "$PAPER_DIR/adversarial-case-builder.memo.md" 2>/dev/null)" \
     --limitation "Run observability level L$L — see references/observability-levels.md for what this tier can and cannot decide." \
@@ -787,19 +786,6 @@ python3 "$ROOT/tools/adjudicate_findings.py" \
   alongside the auto-written ones. For a byte-reproducible eval run add
   `--generated-at "<fixed ISO8601>"`; omit it normally (a harmless `utcnow`
   DeprecationWarning may print to stderr; exit 0).
-- Two additive self-binding fields, both narrower than they might first sound (issue
-  #17 — see `tools/adjudicate_findings.py`'s `ledger_state_sha256`/`coverage_provenance_of`/
-  `audited_content_fingerprint_of` docstrings for the full scoping):
-  **`--manifest`** produces `audited_content_fingerprint` — a hash over the pdf/latex/bib
-  artifacts the manifest LISTS (root + one subdirectory level — build_manifest.py's own
-  scan depth; a paper whose LaTeX is split deeper is not fully covered), so a downstream
-  gate can catch an obviously-replayed report, not verify exhaustive freshness (omitting
-  `--manifest` degrades this to `null`, never blocks the run).
-  **`coverage_provenance`** (independent of `--manifest` — driven by `--coverage` + the
-  required `--ledger`) binds every `completed` `coverage` entry to the `claims.json` state
-  passed to THIS adjudication call — it proves internal consistency with whatever ledger it
-  was given, not that the ledger is fresh or that the auditor that marked a dimension
-  `completed` actually read this exact state (`{}` when coverage is absent/empty).
 
 It applies, in order (each gate fail-closed and logged per finding): **ANCHOR**
 (above-info without a verbatim ledger span → `info`; counted under `unanchored_demoted`) →
@@ -907,7 +893,6 @@ python3 "$ROOT/tools/adjudicate_findings.py" \
     --ledger "$PAPER_DIR/claims.json" --paper-id mypaper --observability-level "$L" \
     --taxonomy-version 0.5 \
     --coverage "$PAPER_DIR/coverage.json" \
-    --manifest "$PAPER_DIR/artifact_manifest.json" \
     --limitation "Deterministic-only run (no cross-model reviewer): semantic + code-level dimensions were NOT run." \
     --out "$PAPER_DIR/report.json" --md "$PAPER_DIR/REPORT.md"
 # NOTE: without the semantic reviewers this can never say CLEAN — deterministic flags

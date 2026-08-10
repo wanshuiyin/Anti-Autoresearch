@@ -27,13 +27,11 @@ integrity-forensics-contract}.md.
 """
 import argparse
 import datetime
-import hashlib
 import json
 import os
-import re
 import sys
 
-REPORT_VERSION = "0.4"  # v0.4: report self-binding — coverage_provenance + audited_content_fingerprint (issue #17); v0.3: critical_countercheck
+REPORT_VERSION = "0.5"  # v0.5: dropped v0.4's self-binding hashes — nothing consumed them; v0.3: critical_countercheck
 ADJUDICATOR_ID = "deterministic-rules-v2"  # v2: deterministic counter-check resolvers (issue #15); v1: critical scrutiny
 
 import os as _os
@@ -461,169 +459,8 @@ def dimension_verdicts(findings):
     return {d: verdict_of([s]) for d, s in dims.items()}
 
 
-# Content-artifact kinds that make up "the paper" for fingerprinting purposes.
-# repo/results manifest entries carry no sha256 (build_manifest.py never hashes
-# a whole directory) and are deliberately excluded — see issue #17.
-_CONTENT_KINDS = ("pdf", "latex", "bib")
-
-
-def _hash_utf8(s):
-    """UTF-8 encode for hashing. errors='surrogatepass' so a claims.json that
-    somehow carries a lone UTF-16 surrogate (malformed PDF/OCR extraction can
-    produce these) hashes deterministically instead of crashing the whole
-    adjudication with an unhandled UnicodeEncodeError — a fail-CLOSED system
-    must not fail with a traceback on merely-weird-but-JSON-valid input."""
-    return s.encode("utf-8", errors="surrogatepass")
-
-
-def ledger_state_sha256(ledger):
-    """sha256 binding a claims.json to its OWN identity: paper_id,
-    observability_level, ledger_version, the source files it was built FROM,
-    and the FULL claim content auditors read (each claim's own dict,
-    verbatim — not hand-picked fields, so type/location/value/refs/
-    evidence_anchor/extractor/confidence — anything an auditor could
-    actually consume — is bound, and stays bound if the schema grows new
-    fields later).
-
-    The whole structure is folded through ONE canonical json.dumps
-    (sort_keys=True) call rather than manually delimiter-joining fields —
-    matching tools/attach_refutation.py's existing digest pattern. This
-    matters for more than style: naive `f"{a}\\0{b}\\n"` string-joining is
-    NOT injective when a field can itself contain the separator bytes (a
-    poisoned `path` containing "\\0" could make two different tuples hash
-    identically); JSON's own escaping of embedded control characters inside
-    quoted strings has no such collision.
-
-    SCOPE NOTE: this binds the ledger content at ADJUDICATION time (when
-    this function runs), not literally "the state a given auditor read at
-    ITS completion time" — no mechanism in this repo captures a per-auditor
-    ledger snapshot (auditors don't stamp what they read into coverage.json,
-    only a status string). See coverage_provenance_of()'s docstring for why
-    this is NOT a guarantee that the ledger is fresh (the documented
-    "rebuild deletes coverage.json" rule is instruction-level, not
-    mechanically enforced) — only that a downstream consumer can check
-    coverage against whichever ledger this hash actually reflects.
-
-    RESIDUAL AMBIGUITY: this binds parsed JSON semantics, not source bytes —
-    two claims.json files that differ only in numeral SPELLING for the same
-    IEEE-754 double (e.g. "0.1" vs "0.10000000000000001", which decode to
-    the identical float) hash identically for `value.normalized`, since
-    there is no distinguishable value at that point. Genuinely different
-    claims stay distinguished as long as `value.raw` (the verbatim string,
-    also part of the hashed claim dict) or any other field differs — the
-    schema does not REQUIRE `value.raw` to be present, so a claim carrying
-    only a collapsed `value.normalized` with no `raw` is the one case this
-    hash cannot further disambiguate.
-
-    Returns None when there is nothing to hash (no source_files AND no
-    claims)."""
-    sources = ledger.get("source_files") or []
-    claims = ledger.get("claims") or []
-    if not sources and not claims:
-        return None
-    payload = {
-        "paper_id": ledger.get("paper_id"),
-        "observability_level": ledger.get("observability_level"),
-        "ledger_version": ledger.get("ledger_version"),
-        "source_files": sorted(sources, key=lambda s: (s.get("kind", ""), s.get("path", ""),
-                                                        s.get("sha256", ""))),
-        "claims": sorted(claims, key=lambda c: c.get("claim_id", "")),
-    }
-    return hashlib.sha256(
-        _hash_utf8(json.dumps(payload, sort_keys=True, ensure_ascii=False))
-    ).hexdigest()
-
-
-def coverage_provenance_of(coverage, ledger):
-    """Bind every `coverage` entry marked `completed` to the ledger state
-    present AT ADJUDICATION TIME (issue #17 §1: "coverage says completed,
-    but the ledger it covered isn't the one shipped"). SCOPE NOTE: this is
-    the ledger this function was CALLED with, not literally "the exact
-    bytes a given auditor read at ITS completion time" — no auditor skill
-    stamps a ledger snapshot into coverage.json (only a status string), so
-    true per-auditor-time binding isn't retrofittable from here alone; that
-    would mean changing every auditor skill's coverage.json write contract,
-    out of scope for this additive report-self-binding change.
-
-    NOT A GUARANTEE: workflows/anti-autoresearch/SKILL.md's Step 2 documents
-    a RULE that a stale-ledger rebuild must delete coverage.json (line 236),
-    but that rule is instruction-level — followed by whatever orchestrates
-    the workflow, not mechanically enforced by any code adjudicate_findings.py
-    can see. The Step-2 INIT code itself uses `setdefault`, which only fills
-    MISSING keys and does NOT wipe an existing `completed` entry — if the
-    delete-coverage.json step is skipped (bug, resumed run, hand-edited
-    coverage.json), a stale `completed` entry survives and THIS FUNCTION WILL
-    rebind it to whatever ledger it's given, producing a provenance hash that
-    looks fresh but proves nothing about when the auditor actually ran. This
-    hash's real guarantee is narrower than "the ledger is fresh": it proves
-    "this coverage map's completed entries are internally consistent with
-    THIS ledger, as passed to THIS adjudication call" — nothing more.
-    Deliberately EXCLUDES
-    `not_applicable` (the dimension never consulted the ledger — content-
-    gated off) and `review_unavailable` (never ran — nothing to bind); a
-    provenance hash on either would falsely imply the ledger was read.
-    Scoping to `completed` also makes this robust to WHEN it's called
-    relative to build_report()'s fail-closed setdefault fill: that fill only
-    ever ADDS `review_unavailable` keys, never a `completed` one, so the key
-    set here is identical whether `coverage` is pre- or post-normalization.
-    HONEST LIMITATION (issue #17 §1): every auditor consumes the FULL ledger
-    today (DESIGN.md §2 — a single deterministic evidence ledger, no per-
-    dimension claim subsetting), so every completed skill maps to the SAME
-    whole-ledger hash; the per-skill shape is forward-compatible with real
-    per-dimension scoping, NOT evidence it exists today. Returns {} when
-    coverage is None/empty or the ledger has nothing to bind to."""
-    if not coverage:
-        return {}
-    state = ledger_state_sha256(ledger)
-    if state is None:
-        return {}
-    return {skill: state for skill, status in coverage.items() if status == "completed"}
-
-
-def audited_content_fingerprint_of(manifest):
-    """sha256 over the paper's audited content closure — every artifact-manifest
-    entry with kind in {pdf, latex, bib} AND present=true (STRICT boolean,
-    validated by _load_manifest before this ever runs), sorted (kind, path,
-    sha256) and folded through ONE canonical json.dumps (sort_keys=True) —
-    not manual delimiter-joining, which is not injective when a path can
-    contain the separator bytes (see ledger_state_sha256's docstring for the
-    same reasoning). Reuses build_manifest.py's already-computed hashes
-    (never re-reads files). Mirrors the aggregation shape ARIS's own
-    forensics_gate.py._paper_fingerprint() uses client-side (issue #17 §2),
-    so a downstream gate can verify report<->content instead of trusting mtime.
-
-    SCOPE NOTE: bounded by artifact_manifest.json's own scan depth — root +
-    ONE subdirectory level (build_manifest.py's documented limitation, same
-    as select_primary_pdf.py's; `sections/results.tex` — one level — IS
-    scanned, `src/sections/results.tex` — two levels — is NOT). A paper
-    whose LaTeX is split that deep, or uses heavy `\\input{}` nesting, has
-    content this fingerprint does not see; the ledger_state_sha256 claim
-    hashes partially cover this gap in practice (editing that deep file and
-    rebuilding the ledger changes the CLAIMS extracted from it, which IS
-    bound), but a stale ledger + an edited-but-unrebuilt deep source is not
-    caught by either field. Not something this PR widens or narrows —
-    build_manifest.py's scan depth is pre-existing and out of scope here.
-
-    Returns None when no manifest was given, or the manifest names zero
-    present content artifacts (a hash over nothing would collide across every
-    such paper and falsely look like a real binding)."""
-    if not manifest:
-        return None
-    triples = sorted(
-        (a.get("kind"), a.get("path", ""), a.get("sha256", ""))
-        for a in (manifest.get("artifacts") or [])
-        if a.get("kind") in _CONTENT_KINDS and a.get("present") is True and a.get("sha256")
-    )
-    if not triples:
-        return None
-    return hashlib.sha256(
-        _hash_utf8(json.dumps(triples, sort_keys=True, ensure_ascii=False))
-    ).hexdigest()
-
-
 def build_report(findings, args, stats, anchoring_verified, coverage=None,
-                 refutation_cov=None, countercheck_cov=None,
-                 coverage_provenance=None, content_fingerprint=None):
+                 refutation_cov=None, countercheck_cov=None):
     # The integrity verdict is computed from verdict-WEIGHT-1 findings ONLY. Zero-weight
     # findings (AIS style impressions + ADV memos) are reported but provably cannot move it.
     weighted = [f for f in findings if f.get("_verdict_weight", 1) == 1]
@@ -719,8 +556,6 @@ def build_report(findings, args, stats, anchoring_verified, coverage=None,
         datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None).isoformat() + "Z",
         "overall_verdict": overall,
         "coverage": coverage,
-        "coverage_provenance": coverage_provenance or {},   # additive — never gates
-        "audited_content_fingerprint": content_fingerprint,  # additive — never gates
         "critical_refutation_coverage": refutation_cov,
         "critical_countercheck": countercheck_cov or {
             "eligible": 0, "proved_compatible": 0, "informational": 0,
@@ -766,18 +601,6 @@ def render_md(report):
         f"**Verdict:** {badge}  ·  **Observability:** L{report['observability_level']}  "
         f"·  **Taxonomy:** v{report['taxonomy_version']}  ·  **Adjudicator:** {report['adjudicator']}",
         "",
-    ]
-    fp = report.get("audited_content_fingerprint")
-    if fp:
-        lines.append(f"**Audited content:** `{fp[:16]}…` — binds this report to the "
-                     "pdf/latex/bib artifacts listed in the artifact manifest passed to this "
-                     "adjudication call (root + one subdirectory level — deeper-nested source "
-                     "files are not covered by this hash alone). Proves report<->manifest "
-                     "consistency, NOT that the findings/coverage above are current with this "
-                     "content — a caller could still pair a fresh manifest with stale, "
-                     "pre-edit findings by skipping a re-sweep.")
-        lines.append("")
-    lines += [
         f"> This is decision SUPPORT for a human reviewer. It flags discrepancies to "
         f"investigate — it does **not** judge misconduct. `CLEAN_GIVEN_EVIDENCE` means "
         f"\"nothing checkable at L{report['observability_level']} is broken\", not \"the paper is honest\".",
@@ -911,72 +734,6 @@ def render_md(report):
     return "\n".join(lines) + "\n"
 
 
-# Matches schemas/artifact_manifest.schema.json's kind enum EXACTLY — a
-# schema-valid manifest (including config/logs kinds we don't fingerprint)
-# must never be rejected here.
-_MANIFEST_KINDS = ("pdf", "latex", "bib", "repo", "results", "config", "logs")
-_SHA256_RE = re.compile(r"[0-9a-f]{64}")
-
-
-def _load_manifest(args, ap):
-    """Load + strictly validate --manifest. A garbage or foreign manifest must
-    fail LOUD (ap.error), never silently degrade audited_content_fingerprint
-    into a fingerprint over bogus/wrong-paper data — that would be worse than
-    no fingerprint at all (a false sense of binding)."""
-    if not args.manifest:
-        return None
-    with open(args.manifest, "r", encoding="utf-8") as fh:
-        manifest = json.load(fh)
-    if not isinstance(manifest, dict) or not isinstance(manifest.get("artifacts"), list):
-        ap.error(f"--manifest {args.manifest} is not a valid artifact_manifest.json "
-                 "(expected an object with an 'artifacts' list)")
-    # build_manifest.py's --paper-id is REQUIRED, so every canonically-produced
-    # manifest always carries one — a missing/empty paper_id here is exactly
-    # the hand-crafted/foreign-manifest case this check exists to catch, not
-    # a legitimate gap to tolerate. No None/"" escape hatch.
-    if manifest.get("paper_id") != args.paper_id:
-        ap.error(f"--manifest {args.manifest} has paper_id {manifest.get('paper_id')!r} "
-                 f"but --paper-id is {args.paper_id!r} — refusing to fingerprint a "
-                 "manifest that may belong to a different paper")
-    # schemas/artifact_manifest.schema.json requires observability_level at
-    # the SAME tier as paper_id/artifacts — require the field to exist for
-    # schema compliance (NOT cross-validated against --observability-level:
-    # the run level and what the manifest's own artifacts support are
-    # legitimately allowed to differ, same as the ledger's own
-    # observability_level is never cross-checked against the run level).
-    lvl = manifest.get("observability_level")
-    if not isinstance(lvl, int) or isinstance(lvl, bool) or not (0 <= lvl <= 3):
-        ap.error(f"--manifest {args.manifest} has invalid 'observability_level' {lvl!r} "
-                 "(schema requires an integer 0-3)")
-    for i, a in enumerate(manifest["artifacts"]):
-        if not isinstance(a, dict):
-            ap.error(f"--manifest artifacts[{i}] is not an object")
-        if a.get("kind") not in _MANIFEST_KINDS:
-            ap.error(f"--manifest artifacts[{i}] has unknown kind {a.get('kind')!r} "
-                     f"— known kinds: {_MANIFEST_KINDS}")
-        # schemas/artifact_manifest.schema.json requires ["kind", "present"] on
-        # every artifact entry — a missing 'present' key is schema-invalid,
-        # not "assume absent"; silently degrading it would let a truncated/
-        # malformed entry pass as an honest not-present artifact.
-        if "present" not in a:
-            ap.error(f"--manifest artifacts[{i}] is missing the required 'present' field")
-        if not isinstance(a["present"], bool):
-            ap.error(f"--manifest artifacts[{i}] has non-boolean present={a['present']!r} "
-                     "(schema requires a real boolean — a truthy string like \"false\" "
-                     "must not be silently treated as present)")
-        if a.get("kind") in _CONTENT_KINDS and a["present"] is True:
-            sha = a.get("sha256")
-            if not (isinstance(sha, str) and _SHA256_RE.fullmatch(sha)):
-                ap.error(f"--manifest artifacts[{i}] (kind={a.get('kind')!r}) is present "
-                         f"but sha256 is not a valid 64-hex digest: {sha!r}")
-            path = a.get("path")
-            if not (isinstance(path, str) and path.strip()):
-                ap.error(f"--manifest artifacts[{i}] (kind={a.get('kind')!r}) is present "
-                         f"with sha256 set but has no real path: {path!r} — a present "
-                         "content artifact without a path can't be tied to any actual file")
-    return manifest
-
-
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Deterministic adjudicator for Anti-Autoresearch findings.")
     ap.add_argument("--findings", nargs="+", required=True, help="findings.json file(s)")
@@ -994,15 +751,6 @@ def main(argv=None):
     ap.add_argument("--list-critical-candidates", action="store_true",
                     help="print the refutation-eligible criticals (post-gates) as JSON and exit "
                          "— the workflow's Step 3.5 uses this instead of re-deriving the rules")
-    ap.add_argument("--manifest", default="", help="artifact_manifest.json (from "
-                    "build_manifest.py) — when given, report.json carries "
-                    "audited_content_fingerprint: a hash over the present pdf/latex/bib "
-                    "artifacts THE MANIFEST LISTS (root + one subdirectory level — "
-                    "build_manifest.py's own scan depth; deeper source files are not "
-                    "covered by this hash alone). Binds report<->manifest content; does "
-                    "NOT by itself prove the findings/coverage in this report are current "
-                    "with that content (a caller could pair a fresh manifest with stale "
-                    "findings by skipping a re-sweep). Absent = null (issue #17 §2).")
     ap.add_argument("--memo", default="", help="adversarial memo text (informational)")
     ap.add_argument("--limitation", action="append", help="extra limitation line (repeatable)")
     ap.add_argument("--generated-at", default="", help="override timestamp (for reproducible eval)")
@@ -1029,18 +777,6 @@ def main(argv=None):
 
     with open(args.ledger, "r", encoding="utf-8") as fh:
         ledger = json.load(fh)
-    # build_claim_ledger.py's --paper-id is required, so a REAL ledger always
-    # carries one — but --ledger is a long-standing MANDATORY flag every
-    # existing caller (including the whole pre-#17 test suite) already uses,
-    # many with hand-written fixtures that omit paper_id entirely. Match-IF-
-    # PRESENT (not require-and-match, unlike the brand-new --manifest check)
-    # stays backward compatible with every such fixture while still catching
-    # the real adversarial case: a ledger that DOES declare a paper_id other
-    # than the one this run claims to be adjudicating.
-    if ledger.get("paper_id") not in (None, args.paper_id):
-        ap.error(f"--ledger {args.ledger} has paper_id {ledger.get('paper_id')!r} but "
-                 f"--paper-id is {args.paper_id!r} — refusing to adjudicate a ledger "
-                 "that declares a different paper")
     ledger_map = {c.get("claim_id"): c.get("text_span", "")
                   for c in ledger.get("claims", []) if c.get("claim_id")}
     # parsed numeric values (value: {raw, normalized, unit}) — the ONLY numbers a
@@ -1075,16 +811,9 @@ def main(argv=None):
         print(json.dumps(cands, indent=2, ensure_ascii=False))
         return 0
 
-    # --manifest is loaded here, AFTER the --list-critical-candidates early
-    # return: that path doesn't consume it, so a malformed/foreign manifest
-    # must never block candidate listing (only the final report needs it).
-    manifest = _load_manifest(args, ap)
-
     report = build_report(findings, args, stats, anchoring_verified=anchoring_verified,
                           coverage=coverage, refutation_cov=refutation_cov,
-                          countercheck_cov=countercheck_cov,
-                          coverage_provenance=coverage_provenance_of(coverage, ledger),
-                          content_fingerprint=audited_content_fingerprint_of(manifest))
+                          countercheck_cov=countercheck_cov)
 
     md = render_md(report)          # render FIRST — a render crash must not leave
     with open(args.out, "w", encoding="utf-8") as fh:   # a report.json without its REPORT.md

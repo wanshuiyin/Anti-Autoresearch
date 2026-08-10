@@ -637,7 +637,7 @@ human-readable rendering is the orchestrator's job, not this skill's.
 - **Hand off external claims.** "SOTA / first" → `needs_external_check` +
   `requires_external_check: true`; to baseline / citation forensics, not a guess.
 - **Taxonomy is a mapping layer, not a detector.** Detect from the ledger +
-  checklist, then map to a `pattern_id` (v0.4); never start from "go find HP-X."
+  checklist, then map to a `pattern_id` (v0.5); never start from "go find HP-X."
 - **Two files, no merge.** Deterministic and semantic findings stay in separate
   files (disjoint ids) to avoid double-counting under the orchestrator's glob.
 - **Detect-only.** Never edit the audited paper (reviewer sandbox is read-only).
