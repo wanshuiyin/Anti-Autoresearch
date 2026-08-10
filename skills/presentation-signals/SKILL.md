@@ -292,7 +292,8 @@ mcp__codex__codex:
     notices at a glance. You are explicitly NOT deciding whether the paper is
     AI-written, and NOT whether it is fraudulent. You are NOT an AI-text classifier.
     Your output is auxiliary "look closer" context that a deterministic adjudicator
-    will CAP at severity "minor"; it can never raise a verdict on its own. Default to
+    is a surface-class signal reported under its own label; it does not carry an
+    integrity verdict on its own. Default to
     SILENCE: an empty array [] is the expected, correct output for most papers.
 
     INPUTS (in your working directory, read them directly):
@@ -313,7 +314,8 @@ mcp__codex__codex:
        (a note) or drop it — it can NEVER be a flag. The ledger holds numbers, scope,
        captions, citations, and table cells; generic prose is usually NOT in it, so
        any surface impression that cannot quote such a claim will correctly remain "info".
-    3. SEVERITY + FP. Surface flags are capped at "minor". For any ANCHORED finding
+    3. SEVERITY + FP. Surface flags are a "look closer" class — `minor` is the honest
+       severity for one; say so rather than inflating. For any ANCHORED finding
        (rule 2 satisfied) set severity = "minor"; an UNANCHORED signal stays "info"
        (rule 2) — never promote it to "minor". NEVER use "major"/"critical" (the
        adjudicator caps surface signals at minor regardless; do not argue past it). Set

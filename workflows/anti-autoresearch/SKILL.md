@@ -829,8 +829,9 @@ PY
 ```
 
 **The summary is reproducible: same findings + same `L` → same summary, by a fixed
-rule. What it reports is what the auditors PROPOSED — only the anchor check moves a
-severity, and it does so on a fact a computation establishes. The summary is not a
+rule. What it reports is what the auditors PROPOSED — only the anchor check and
+critical scrutiny move a severity, and both act on the accusation's own completeness
+rather than on the paper. The summary is not a
 ruling that those proposals stand; the table's columns are what the human weighs.**
 
 ## Step 5 — Present

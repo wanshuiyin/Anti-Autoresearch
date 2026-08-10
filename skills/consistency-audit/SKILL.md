@@ -490,11 +490,10 @@ for f in proposed:
     if f.get("false_positive_risk") not in FPR: f["false_positive_risk"] = "high"
     if f["verdict_local"] == "needs_external_check":
         f["requires_external_check"] = True
-    # MANDATORY floor: HP-SUSPICIOUS-REGULARITY can never shout "fraud" from a table
-    # alone — pin it to minor / fp:high / req:L2 (auto-demotes on a PDF-only run),
-    # overriding whatever the reviewer filled in (see "Observability honesty").
+    # HP-SUSPICIOUS-REGULARITY cannot be settled from a table alone: it is high-FP by
+    # construction and needs the code/results to confirm. Declare that (the report shows
+    # both columns) instead of rewriting what the reviewer proposed.
     if pid == "HP-SUSPICIOUS-REGULARITY":
-        if f["severity"] in ("critical", "major"): f["severity"] = "minor"
         f["false_positive_risk"] = "high"
         f["observability_level_required"] = 2
     # ANCHOR gate: span must be a verbatim, ws-normalized SUBSTRING of its cited claim
@@ -595,9 +594,10 @@ python3 "$ROOT/tools/adjudicate_findings.py" \
     --out "$D/report.json" --md "$D/REPORT.md"
 ```
 
-The adjudicator drops an unanchored above-info finding to `info` — that is the only
-severity it changes — records observability / FP-risk / surface / needs-external-check /
-zero-weight as annotations, then computes `overall_verdict` ∈ {CLEAN_GIVEN_EVIDENCE,
+The adjudicator drops an unanchored above-info finding to `info`, and drops a
+`critical` whose own `numeric_basis` or alternative explanation is missing to `major` —
+those are the only severities it changes. It records observability / FP-risk / surface /
+needs-external-check / zero-weight as annotations, then computes `overall_verdict` ∈ {CLEAN_GIVEN_EVIDENCE,
 SOFT_FLAGS, HARD_FLAGS} (any span-anchored **critical** → HARD_FLAGS). No model
 is in the final decision. Treat a single-skill report as a PREVIEW — the paper's
 verdict comes from the orchestrator over all dimensions.

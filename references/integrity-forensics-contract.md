@@ -40,7 +40,7 @@ input (pdf | pdf+latex | pdf+repo+results)
 2. **No span → no high severity.** A `critical` or `major` finding MUST have ≥1
    `evidence` entry with a non-empty `span`. The adjudicator demotes violators to
    `info`. (This is the single most important integrity rule of the repo.)
-3. **Declare your observability requirement.** Every finding sets
+3. **Declare your observability requirement** — it is reported next to the finding, so a claim needing code is never read as confirmed from a PDF. Every finding sets
    `observability_level_required`. Findings above the run's level are demoted (see
    `observability-levels.md`).
 4. **Discrepancy, not accusation.** `description` and

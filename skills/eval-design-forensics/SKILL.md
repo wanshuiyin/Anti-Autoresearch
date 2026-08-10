@@ -645,12 +645,10 @@ for f in proposed:
     RESOLVED_MODEL = _aris_os.environ["ARIS_RESOLVED_MODEL"]          # exported by the executor from the call that ACTUALLY ran
     RESOLVED_REASONING = _aris_os.environ["ARIS_RESOLVED_REASONING"]  # (fail LOUD if unset — never stamp a target default)
     f["reviewer"] = {"model": RESOLVED_MODEL, "reasoning": RESOLVED_REASONING, "deterministic": False}
-    # honest hand-off: needs_external_check carries no severity weight (the 3 leakage external
-    # subtypes land here) — pin it to info, never drop it. Mirrors the adjudicator's gate 6.
+    # needs_external_check is the auditor saying it could not settle this itself. Record it;
+    # the adjudicator reports it in its own column and the human weighs it. Do NOT rescore.
     if f.get("verdict_local") == "needs_external_check" or f.get("requires_external_check") is True:
-        f["requires_external_check"] = True
-        if f.get("severity") in ABOVE:
-            f["severity"] = "info"; f.setdefault("_demotions", []).append("needs-external-check-no-weight"); ext += 1
+        f["requires_external_check"] = True; ext += 1
     kept.append(f)
 
 for k, f in enumerate(kept, 1):                                       # one namespace, sequential

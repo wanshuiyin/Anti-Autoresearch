@@ -115,7 +115,7 @@
         },
         "downgraded_for_observability": {
           "type": "integer",
-          "description": "How many findings the adjudicator demoted because the run's evidence tier was below the finding's required level."
+          "description": "How many findings declare an evidence tier above the run's. They are reported with that shortfall marked, not rescored."
         }
       }
     },

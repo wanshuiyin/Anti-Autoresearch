@@ -412,11 +412,13 @@ def adjudicate(findings, run_level, ledger_map=None):
                 reasons.append(f"observability-exceeds-run(req=L{req}>run=L{run_level})")
                 stats["downgraded_obs"] += 1
 
-        # FP-RISK — annotation. An unrecognized value still reads as high, so a
-        # mis-cased "HIGH" is not quietly treated as low.
+        # FP-RISK — annotation. Absent is NOT "low": the auditors flag a missing
+        # declaration, so reporting it as low would invert what they meant. An
+        # unrecognized value still reads as high, so a mis-cased "HIGH" is not
+        # quietly treated as low.
         fpr_raw = f.get("false_positive_risk")
         if fpr_raw is None:
-            fpr = "low"
+            fpr = "undeclared"
         elif isinstance(fpr_raw, str) and fpr_raw.lower() in FP_CAP:
             fpr = fpr_raw.lower()
         else:

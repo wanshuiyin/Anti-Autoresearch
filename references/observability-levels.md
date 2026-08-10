@@ -6,7 +6,8 @@ A reviewer auditing an unknown submission rarely has everything. What you can
 *decide* depends on what you can *see*. We make that explicit: every run declares
 an **observability level**, and every finding declares the **minimum level at
 which it is decidable**. The adjudicator (`tools/adjudicate_findings.py`)
-**downgrades** any finding whose required level exceeds the run's actual level.
+**marks** any finding whose required level exceeds the run's actual level, in its
+own report column.
 
 > You cannot assert code-level fraud from a PDF. You can only assert that the PDF
 > contradicts itself, or that something checkable-from-text does not hold.
@@ -41,13 +42,15 @@ strongest thing we can truthfully say is about *internal* integrity:
 - `HARD_FLAGS` — ≥1 span-anchored **critical** discrepancy decidable at this level
   (e.g. abstract number contradicts its own table; a cited paper does not exist).
 
-## How severity downgrade works
+## How the observability mismatch is reported
 
 A finding tagged `observability_level_required: 2` (e.g. "result file does not
-contain this number") emitted during an **L0** run is impossible to substantiate —
-the adjudicator demotes it to at most `info` and counts it under
-`counts.downgraded_for_observability`. This makes it structurally impossible to
-shout "fraud" from a PDF.
+contain this number") emitted during an **L0** run is impossible to substantiate
+in that run. The report shows it with `Observability: L2 ✗ (run L0)` and counts it
+under `counts.downgraded_for_observability`, so a reader sees both the claim and
+the fact that this run could not confirm it. Nobody can read such a finding as a
+confirmed code-level result — and nobody has to guess what was dropped, because
+nothing is.
 
 ## Why this matters
 

@@ -37,7 +37,7 @@
 | **C** | Baseline 诚信 | 对比基线缺失、偏弱、配置不公平 |
 | **D** | 实验诚信 | 假 GT、幽灵结果、代码 ≠ 数字(需代码) |
 | **E** | 引用诚信 | 伪造、张冠李戴、已撤稿 |
-| **F** | 表面信号 | 排版、文风、配图——封顶 `minor` |
+| **F** | 表面信号 | 排版、文风、配图——单独标注为表象类,不构成诚信判定 |
 | **G** | 证明诚信 | 漏证、循环论证、无效推导 |
 | **H** | 评测设计有效性 | 数据泄漏、LLM 裁判可信度、选择性报告 |
 
@@ -124,7 +124,7 @@ claude
 | `/experiment-forensics` | *(L2 —— 需代码+结果)* 假 / 派生 GT、分数自归一化、幽灵结果、placeholder 数据、代码产出 ≠ 报告数字 |
 | `/proof-derivation-forensics` | *(L1 —— 需 LaTeX 源)* 写出来的证明:跳过的义务、循环论证、无效步骤、符号漂移、偷藏假设 |
 | `/eval-design-forensics` | 评测有效性:训练/测试泄漏、有利益冲突或未验证的 LLM-judge 指标、选择性报告(丢条件 / 换指标) |
-| `/presentation-signals` | *(封顶 `minor` → 最多 SOFT)* 可核查的表象迹象:重复表、残留 pipeline/模板串、LLM 配图、页数注水 —— 当上下文,永不定罪 |
+| `/presentation-signals` | *(标注为表象类信号)* 可核查的表象迹象:重复表、残留 pipeline/模板串、LLM 配图、页数注水 —— 当上下文,永不定罪 |
 
 单个 skill 只**提出**带 span 锚点的 findings,**永远不给 verdict**。要判决,把 findings
 喂给确定性裁决器(下一节那条 `python3 tools/adjudicate_findings.py … --ledger …`)——
