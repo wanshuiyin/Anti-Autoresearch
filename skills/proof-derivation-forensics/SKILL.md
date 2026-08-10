@@ -618,11 +618,12 @@ for f in proposed:
         # missing/garbled -> a written-proof flaw is decided from the LaTeX source (L1);
         # unknown pattern fail-closes to L2.
         olr = 1 if pid in GFAMILY else 2
-    elif pid in GFAMILY and olr > 1 and f["severity"] in ABOVE_INFO:
+    elif pid in GFAMILY and olr > 1:
         # reviewer EXPLICITLY marked an owned G finding as needing code/results (>=L2).
         # family-G validity is decided from the WRITTEN proof, so >=L2 means this finding is
-        # mis-routed / over-claimed -> demote to info (do NOT silently clamp it down to L1).
-        f["severity"] = "info"; demoted += 1
+        # mis-routed / over-claimed. Record that; the adjudicator reports the mismatch and
+        # the human weighs it (do NOT silently clamp the level down to L1 either).
+        f.setdefault("_notes", []).append("g-finding-declared-above-L1")
     # family-G floor: a verdict-bearing proof/derivation finding needs the LaTeX source (L1) —
     # PDF-extracted math is unreliable, so an L0 G finding must not raise the verdict. Clamp UP
     # to L1 (conservative: RAISES the observability bar -> auto-demotes at an L0 run; unlike the

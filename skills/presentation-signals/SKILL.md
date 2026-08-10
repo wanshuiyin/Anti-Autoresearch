@@ -431,8 +431,8 @@ for f in proposed:
     f["observability_level_required"] = 0    # every F-pattern is L0-decidable
     sev = f.get("severity")
     if sev not in SEV: sev = "info"
-    if sev in {"critical", "major"}:         # SURFACE cap: a surface signal is NEVER above minor
-        sev = "minor"; capped += 1
+    # No surface rescore here: the adjudicator labels these `_surface_signal` and the
+    # report shows the label. Emit the severity you actually mean.
     # ANCHOR gate: span must be a verbatim ws-normalized SUBSTRING of its cited claim
     anchored = []
     for ev in (f.get("evidence") or []):

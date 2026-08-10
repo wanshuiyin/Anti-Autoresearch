@@ -8,11 +8,16 @@ ever writes a severity that this script then treats as authoritative, and no
 model writes the summary. What this script does NOT do any more is decide, on
 the model's behalf, which of its proposals do not count.
 
-One computation still moves severity:
+Two rules still move a severity, and both act on the ACCUSATION rather than on
+the paper:
   ANCHOR — an above-info finding whose quoted span is not in the ledger (or any
            finding when no ledger is given) drops to info and is reported as
            unanchored. That the span is absent from the paper is a fact a
            computation establishes.
+  CRITICAL SCRUTINY (apply_critical_scrutiny, further down) — a critical that does
+           not declare an alternative explanation, or whose numeric_basis is
+           missing or malformed, drops to major. That is not a judgement about the
+           paper: it limits an accusation whose own basis cannot be re-checked.
 
 Everything else is recorded beside the finding, for the human:
   _observability_required / _observability_met   what level the auditor said it needs
@@ -384,17 +389,14 @@ def adjudicate(findings, run_level, ledger_map=None):
         reasons = []
 
         # ANCHOR/SPAN gate — the one computation that still moves severity.
-        # No ledger => nothing can be anchored => fail closed.
-        if SEV_ORDER[sev] > SEV_ORDER["info"]:
-            if ledger_map is None:
-                sev = "info"
-                reasons.append("no-ledger-fail-closed")
-                stats["unanchored"] += 1
-            elif not _anchored(f, ledger_map):
-                sev = "info"
-                reasons.append("unanchored-demotion")
-                stats["unanchored"] += 1
-        f["_anchored"] = "unanchored-demotion" not in reasons and "no-ledger-fail-closed" not in reasons
+        # Evaluated for EVERY finding so the column is honest about info-level ones
+        # too; no ledger => nothing can be anchored => fail closed.
+        is_anchored = bool(ledger_map) and _anchored(f, ledger_map)
+        f["_anchored"] = is_anchored
+        if SEV_ORDER[sev] > SEV_ORDER["info"] and not is_anchored:
+            sev = "info"
+            reasons.append("no-ledger-fail-closed" if ledger_map is None else "unanchored-demotion")
+            stats["unanchored"] += 1
 
         # OBSERVABILITY — annotation. type(req) is int (NOT isinstance) so JSON
         # booleans (True == 1) are still rejected as undeclared.
@@ -488,8 +490,9 @@ def build_report(findings, args, stats, anchoring_verified, coverage=None,
     if args.observability_level < 2:
         limitations.append(
             "L%d run: code/result-level patterns (fake GT, self-normalization, "
-            "phantom results, dead metrics) were NOT verifiable and appear only as "
-            "info-level 'could-not-check' signals." % args.observability_level
+            "phantom results, dead metrics) were NOT verifiable here. Any such finding "
+            "in this report is a proposal the run could not confirm — its Observability "
+            "column shows the level it needs." % args.observability_level
         )
     if args.observability_level == 0:
         limitations.append(
@@ -637,18 +640,22 @@ def render_md(report):
     # from this table entirely, so a reader could not even disagree with it; the
     # columns now carry what the gates used to decide silently.
     shown = [f for f in report["findings"] if f.get("_verdict_weight", 1) == 1]
-    for f in sorted(shown, key=lambda x: -SEV_ORDER[x["_severity_final"]]):
+    for f in sorted(shown, key=lambda x: (-SEV_ORDER[x["_severity_final"]],
+                                          -SEV_ORDER.get(x.get("_severity_original", "info"), 0))):
         loc = ""
         for ev in f.get("evidence", []) or []:
             l = ev.get("location") or {}
             fname = os.path.basename(l.get("file", "?")) if l.get("file") else "?"
             loc = f"{fname}:{l.get('section', l.get('line',''))}"
             break
+        sev_cell = f["_severity_final"]
+        if f["_severity_final"] != f.get("_severity_original"):
+            sev_cell = f"{f['_severity_final']} (proposed {f['_severity_original']})"
         req = f.get("_observability_required")
         obs = "—" if req is None else (f"L{req} ✓" if f.get("_observability_met") else f"L{req} ✗ (run L{report['observability_level']})")
         lines.append(
             f"| {f.get('finding_id','?')} | {SKILL_TO_DIMENSION.get(f.get('skill'),'—')} "
-            f"| {f['_severity_final']} | {f.get('pattern_id','—')} | {loc or '—'} "
+            f"| {sev_cell} | {f.get('pattern_id','—')} | {loc or '—'} "
             f"| {'yes' if f.get('_anchored') else 'NO'} | {obs} "
             f"| {f.get('_fp_risk', f.get('false_positive_risk','—'))} "
             f"| {'yes' if f.get('_surface_signal') else '—'} "
@@ -666,7 +673,8 @@ def render_md(report):
                   "Read both spans and decide."]
 
     lines += ["", "### Detail", ""]
-    for f in sorted(shown, key=lambda x: -SEV_ORDER[x["_severity_final"]]):
+    for f in sorted(shown, key=lambda x: (-SEV_ORDER[x["_severity_final"]],
+                                          -SEV_ORDER.get(x.get("_severity_original", "info"), 0))):
         lines.append(f"**{f.get('finding_id','?')} — {f.get('title','')}** "
                      f"({f['_severity_final']})")
         lines.append("")
@@ -686,6 +694,29 @@ def render_md(report):
             lines.append(f"  - reviewer action: {f['recommended_reviewer_action']}")
         if f.get("_adjudication"):
             lines.append(f"  - _adjudicator: {', '.join(f['_adjudication'])}_")
+        lines.append("")
+
+    adv = [f for f in report["findings"]
+           if f.get("_verdict_weight", 1) == 0 and not _is_ais(f)]
+    if adv:
+        lines += [
+            "## Advisory memos — NOT integrity findings · ZERO verdict weight",
+            "",
+            "> Prior-work overlap and adversarial-case material. Listed so nothing an "
+            "auditor produced is invisible; these never form a verdict.",
+            "",
+            "| ID | Skill | Pattern | Where |",
+            "|----|-------|---------|-------|",
+        ]
+        for f in adv:
+            loc = ""
+            for ev in f.get("evidence", []) or []:
+                l = ev.get("location") or {}
+                fname = os.path.basename(l.get("file", "?")) if l.get("file") else "?"
+                loc = f"{fname}:{l.get('section', l.get('line',''))}"
+                break
+            lines.append(f"| {f.get('finding_id','?')} | {f.get('skill','—')} "
+                         f"| {f.get('pattern_id','—')} | {loc or '—'} |")
         lines.append("")
 
     ais = [f for f in report["findings"] if _is_ais(f)]

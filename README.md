@@ -308,8 +308,9 @@ just noise."* Three structural defenses, not just a disclaimer:
    Same findings → same summary, by a fixed rule. The severities in it are what the
    auditors proposed, annotated with what the computation could and could not confirm.
 3. **Observability levels.** A run declares what it could see (L0 PDF-only → L2
-   repo+results); findings that need code are **auto-demoted** on a PDF-only run.
-   You can never shout "fraud" from a PDF. See
+   repo+results). A finding that needs code is **reported with the level it needs and
+   a mark that this run did not have it**, so nothing shouts "fraud" from a PDF and
+   nothing disappears either. See
    [references/observability-levels.md](references/observability-levels.md).
 
 **Surface signals and AI writing-style impressions have firewalls.** Family-F surface tells

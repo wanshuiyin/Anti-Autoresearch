@@ -18,12 +18,15 @@ the *only* structure auditors reason over. Invariant: **no span → no high-seve
 finding.** This is the difference between "a model said so" and "here is the exact
 sentence and its hash".
 
-## 3. The LLM never grades (reviewer ≠ adjudicator)
+## 3. The LLM never grades; and neither does the tool
 The structural answer to "LLM slop grading LLM slop": auditors *propose* findings;
-`tools/adjudicate_findings.py` *decides* the verdict by fixed rules (span gate →
-observability gate → FP-risk cap → memo-only cap). The verdict is reproducible with
-the severities in it are the auditors' proposals, annotated rather than silently
-rescored. This is a second independence axis on top of ARIS's
+`tools/adjudicate_findings.py` *reports* them and summarizes by a fixed rule. It does
+not decide, on the model's behalf, which proposals do not count. Two rules still move a
+severity, and both act on the accusation rather than on the paper: an unanchored span
+drops to `info`, and a `critical` whose own numeric basis or alternative explanation is
+missing drops to `major`. Everything else — observability, false-positive risk, surface
+class, needs-external-check — is recorded next to the finding for the human. The summary
+is reproducible; it is not a ruling. This is a second independence axis on top of ARIS's
 cross-model (executor ≠ reviewer) rule.
 
 ## 4. Observability levels make honesty structural

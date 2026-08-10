@@ -664,17 +664,17 @@ for f in proposed:
     # ANCHOR gate: above-info needs >=1 anchored span
     if f.get("severity") in ABOVE and not anchored:
         f["severity"] = "info"; f.setdefault("_demotions", []).append("unanchored"); demoted += 1
-    # OBSERVABILITY hygiene — MIRROR the adjudicator, fail-closed: an above-info finding whose
-    # observability_level_required is missing/invalid demotes to info. NEVER silently default to 0
-    # (that would let a forgotten level-2 config-only asymmetry survive an L0 run). type() not
-    # isinstance() so JSON booleans (True==1) are rejected, exactly as adjudicate_findings.py does.
+    # OBSERVABILITY hygiene — record, never rescore. The adjudicator annotates the level a
+    # finding declares against the level this run had; a missing/invalid declaration is
+    # flagged so a forgotten level-2 asymmetry is visible rather than quietly passing as
+    # confirmed. type() not isinstance() so JSON booleans (True==1) are rejected.
     olr = f.get("observability_level_required")
     if f.get("severity") in ABOVE and (type(olr) is not int or not (0 <= olr <= 3)):
-        f["severity"] = "info"; f.setdefault("_demotions", []).append("undeclared-observability"); demoted += 1
-    # FP-RISK hygiene — false_positive_risk is the REVIEWER's self-assessment (it drives the
-    # adjudicator's cap); the executor never guesses it. Missing/invalid demotes to info, never a default.
+        f.setdefault("_demotions", []).append("undeclared-observability")
+    # FP-RISK hygiene — false_positive_risk is the REVIEWER's self-assessment, reported as a
+    # column; the executor never guesses it. A missing/invalid value is flagged, not rescored.
     if f.get("severity") in ABOVE and f.get("false_positive_risk") not in ("low", "medium", "high"):
-        f["severity"] = "info"; f.setdefault("_demotions", []).append("undeclared-fp-risk"); demoted += 1
+        f.setdefault("_demotions", []).append("undeclared-fp-risk")
     import os as _aris_os
     RESOLVED_MODEL = _aris_os.environ["ARIS_RESOLVED_MODEL"]          # exported by the executor from the call that ACTUALLY ran
     RESOLVED_REASONING = _aris_os.environ["ARIS_RESOLVED_REASONING"]  # (fail LOUD if unset — never stamp a target default)

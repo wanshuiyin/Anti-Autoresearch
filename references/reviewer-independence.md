@@ -54,10 +54,12 @@ hash. The **overall verdict is computed by deterministic code**
 (`tools/adjudicate_findings.py`) from the full finding set, by fixed rules:
 
 ```
-HARD_FLAGS  if any finding is severity=critical, span-anchored, and decidable
-            at the run's observability level
-SOFT_FLAGS  else if any major/minor finding survives FP-risk + observability gates
+HARD_FLAGS  if any weight-1 finding is severity=critical and span-anchored
+SOFT_FLAGS  else if any weight-1 finding is major/minor
 CLEAN_GIVEN_EVIDENCE otherwise
+
+(observability and FP-risk are reported beside each finding, not applied here —
+ they are the auditor's own declarations about its output)
 ```
 
 The LLM is demoted from **judge** to **evidence-extractor / candidate-explainer**.

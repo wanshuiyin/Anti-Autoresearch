@@ -577,15 +577,15 @@ for f in base + proposed:
     f["evidence"] = [ev for ev in (f.get("evidence") or [])
                      if ev.get("claim_id") and (ev.get("span") or "").strip()]
     sev, notes = (f.get("severity", "info") if f.get("severity") in SEV else "info"), []
-    if L < 2 and sev != "info":                                  # (1) L<2 => info-only
-        sev = "info"; f["observability_level_required"] = 2; notes.append("L<2-info-only")
-    if f.get("pattern_id") and f["pattern_id"] not in OWNED and sev != "info":  # (2) owned pattern
+    if L < 2:                          # declare what this pattern needs; do NOT rescore
+        f["observability_level_required"] = 2; notes.append("needs-L2")
+    if f.get("pattern_id") and f["pattern_id"] not in OWNED and sev != "info":  # contract: owned patterns only
         sev = "info"; notes.append("pattern-not-owned")
-    req = f.get("observability_level_required")                  # (3) observability gate
-    if sev != "info" and not (type(req) is int and 0 <= req <= 3):
-        sev = "info"; notes.append("undeclared-observability")
-    elif sev != "info" and req > L:
-        sev = "info"; notes.append(f"obs(req{req}>run{L})")
+    req = f.get("observability_level_required")
+    if not (type(req) is int and 0 <= req <= 3):
+        notes.append("undeclared-observability")
+    elif req > L:
+        notes.append(f"needs-L{req}-run-L{L}")   # annotated by the adjudicator, not demoted
     if sev != "info":                                            # (4) ANCHOR gate
         ok = any(ev.get("claim_id") in claims and norm(ev.get("span"))
                  and norm(ev["span"]) in norm(claims[ev["claim_id"]])

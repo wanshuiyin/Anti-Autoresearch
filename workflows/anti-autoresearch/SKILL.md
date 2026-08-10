@@ -535,9 +535,9 @@ for f in prop:
     if f.get("verdict_local") not in VL: f["verdict_local"] = "warn"
     if f.get("false_positive_risk") not in FPR: f["false_positive_risk"] = "high" if surface else "medium"
     if f["verdict_local"] == "needs_external_check": f["requires_external_check"] = True
-    if surface:                                   # surface signals: forced high-FP, capped at minor, L0-decidable
+    if surface:                                   # surface signals: high-FP by design, L0-decidable
         f["false_positive_risk"] = "high"; f["observability_level_required"] = 0
-        if f["severity"] in ("critical", "major"): f["severity"] = "minor"; capped += 1
+        # no rescore — the adjudicator labels these `_surface_signal` and the report shows it
     anchored = []
     for ev in (f.get("evidence") or []):
         cid = ev.get("claim_id"); span = nw(ev.get("span", "")); c = claims.get(cid)
@@ -778,9 +778,11 @@ python3 "$ROOT/tools/adjudicate_findings.py" \
 # prints e.g.: verdict=SOFT_FLAGS crit=0 maj=0 min=1 -> .../report.json, .../REPORT.md
 ```
 
-- **`--observability-level "$L"`** is the run level: it auto-demotes any finding whose
-  `observability_level_required` exceeds `L` (e.g. an L2 code-fraud pattern on an L0 run
-  → `info`, counted under `downgraded_for_observability`).
+- **`--observability-level "$L"`** is the run level: a finding whose
+  `observability_level_required` exceeds `L` (e.g. an L2 code-fraud pattern on an L0 run)
+  is reported with that shortfall marked in its Observability column, and counted under
+  `downgraded_for_observability`. It is not rescored — the human sees the claim and sees
+  that this run could not confirm it.
 - The adjudicator **auto-writes level-derived limitations** at L0/L1 (and an anchoring
   note if `--ledger` anchoring ever fails); Step 4 **also always passes an explicit
   `--limitation`** (above), so the report's `limitations` is never empty on this path —
@@ -791,7 +793,9 @@ python3 "$ROOT/tools/adjudicate_findings.py" \
 
 It applies, in order (each gate fail-closed and logged per finding): **ANCHOR**
 (above-info without a verbatim ledger span → `info`; counted under `unanchored_demoted`).
-That is the only rule that changes a severity. The rest are recorded beside the finding
+Together with critical scrutiny (a `critical` that declares no alternative explanation,
+or whose `numeric_basis` is missing/malformed, drops to `major`) that is all that changes
+a severity — and both act on the accusation's own completeness, never on the paper. The rest are recorded beside the finding
 for the human: **observability** (`observability_level_required` vs the run `L`; a
 shortfall is counted under `downgraded_for_observability`), **FP-risk** (the auditor's own
 estimate; an unrecognized value reads as `high`), **surface** (`presentation-signals` skill
