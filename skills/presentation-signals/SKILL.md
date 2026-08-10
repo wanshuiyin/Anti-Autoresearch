@@ -48,7 +48,7 @@ These signals are **real** in the sense that reviewers react to them — but the
 honest author uses LLM assistance for prose; a legitimate teaser figure can look
 "generated". So this skill's contract is narrow and permanent:
 
-- it emits only the five §F surface patterns, all **capped at `minor`**;
+- it emits only the five §F surface patterns, all **labelled surface-class**;
 - it defaults every *semantic* finding to `false_positive_risk: high` (the deterministic
   `HP-DUP-TABLE` / `HP-PIPELINE-ARTIFACT` checks set their own — the latter is low-FP);
 - it **never** says a paper is "AI-generated" or implies fabrication;
@@ -86,7 +86,7 @@ structurally almost never becomes even a `minor` flag. The model **proposes**;
 
 | Auditor | Question it answers | Level |
 |---------|---------------------|------|
-| **`presentation-signals`** (this) | **Surface tells a reviewer notices first (dup tables, pipeline artifacts, thin/LLM figures, padding) — AUXILIARY, capped at `minor`** | **L0** |
+| **`presentation-signals`** (this) | **Surface tells a reviewer notices first (dup tables, pipeline artifacts, thin/LLM figures, padding) — AUXILIARY, labelled surface-class** | **L0** |
 | `ai-style-impressions` | Pure AI writing-style impressions (AI-flavor, defensive hedging, broken narrative arc, jargon-stuffing, invented codenames) — zero verdict weight (AIS track) | L0 |
 | `consistency-audit` | Does the paper contradict ITSELF / described method = evaluated method? | L0 |
 | `experiment-forensics` | Are the reported numbers what the code actually computes? (fake GT, self-norm, phantom) | L2 |
@@ -292,7 +292,8 @@ mcp__codex__codex:
     notices at a glance. You are explicitly NOT deciding whether the paper is
     AI-written, and NOT whether it is fraudulent. You are NOT an AI-text classifier.
     Your output is auxiliary "look closer" context that a deterministic adjudicator
-    will CAP at severity "minor"; it can never raise a verdict on its own. Default to
+    is a surface-class signal reported under its own label; it does not carry an
+    integrity verdict on its own. Default to
     SILENCE: an empty array [] is the expected, correct output for most papers.
 
     INPUTS (in your working directory, read them directly):
@@ -313,7 +314,8 @@ mcp__codex__codex:
        (a note) or drop it — it can NEVER be a flag. The ledger holds numbers, scope,
        captions, citations, and table cells; generic prose is usually NOT in it, so
        any surface impression that cannot quote such a claim will correctly remain "info".
-    3. SEVERITY + FP. Surface flags are capped at "minor". For any ANCHORED finding
+    3. SEVERITY + FP. Surface flags are a "look closer" class — `minor` is the honest
+       severity for one; say so rather than inflating. For any ANCHORED finding
        (rule 2 satisfied) set severity = "minor"; an UNANCHORED signal stays "info"
        (rule 2) — never promote it to "minor". NEVER use "major"/"critical" (the
        adjudicator caps surface signals at minor regardless; do not argue past it). Set
@@ -371,7 +373,7 @@ mcp__codex__codex:
   outermost `[...]`; if there is none, re-ask once with "Output ONLY the JSON array,
   nothing else." Do not hand-author findings on the reviewer's behalf.
 - *Reviewer over-flags a surface impression*: that is what the Step 3 anchor gate + the
-  adjudicator's surface cap are for — an unanchored impression falls to `info` and even
+  adjudicator's surface label are for — an unanchored impression falls to `info` and even
   anchored surface findings cap at `minor`. Do not pre-suppress; let the gates work.
 
 ## Step 3 — Validate + anchor + cap (the anti-detector gate)
@@ -431,8 +433,8 @@ for f in proposed:
     f["observability_level_required"] = 0    # every F-pattern is L0-decidable
     sev = f.get("severity")
     if sev not in SEV: sev = "info"
-    if sev in {"critical", "major"}:         # SURFACE cap: a surface signal is NEVER above minor
-        sev = "minor"; capped += 1
+    # No surface rescore here: the adjudicator labels these `_surface_signal` and the
+    # report shows the label. Emit the severity you actually mean.
     # ANCHOR gate: span must be a verbatim ws-normalized SUBSTRING of its cited claim
     anchored = []
     for ev in (f.get("evidence") or []):
@@ -597,7 +599,7 @@ only from `tools/adjudicate_findings.py` (Step 6 / the orchestrator).
 ## Key rules
 
 - **Auxiliary only; never a verdict.** Surface signals contribute at most
-  `SOFT_FLAGS` and are **capped at `minor`** by the adjudicator (by skill AND by
+  `SOFT_FLAGS` and are **labelled surface-class** by the adjudicator (by skill AND by
   pattern_id). They are context for the substantive findings, not standalone evidence.
 - **Not authorship detection.** Never label a paper "AI-generated" or imply misconduct
   from a surface signal. This repo is **not** an AI-text classifier — it audits
@@ -625,7 +627,7 @@ only from `tools/adjudicate_findings.py` (Step 6 / the orchestrator).
 - **No `claims.json` yet** → run `/evidence-ledger` first; this skill never invents
   structure from the raw PDF.
 - **You want an AI-text / "looks machine-written" verdict** → out of scope by design.
-  This skill is auxiliary and capped at `minor`; for authorship detection use a
+  This skill is auxiliary and labelled surface-class; for authorship detection use a
   dedicated tool (Pangram / GPTZero / Binoculars).
 - **You need numeric self-contradiction / method drift** → `/consistency-audit`.
 - **You need citation existence / wrong-context** → `/citation-forensics`.

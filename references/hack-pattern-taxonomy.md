@@ -350,7 +350,7 @@ demoted to `info`.
 - **severity_rule:** **at L0/L1 this is `minor`, `false_positive_risk: high`, a
   *prompt to check* only — never a "this is fabricated" grade.** It rises to `major`
   **only at L2**, confirmed against the actual result files / code (emit with
-  `observability_level_required: 2`, so a PDF-only run auto-demotes it). This split
+  `observability_level_required: 2`, so a PDF-only run reports it as needing L2). This split
   is mandatory: you cannot grade results as synthesized from a table alone.
 - **ack:** the named screens credit the Carlisle method (Carlisle 2017) and Benford's-law
   first-digit screening (Diekmann 2007) — paraphrased, kept strictly advisory.
@@ -471,7 +471,7 @@ demoted to `info`.
 > too-few or LLM-looking figures, padding to fill the page limit. They are weak and high-FP —
 > a polished paper can be fraudulent and a rough one honest — so F-patterns: (a) are emitted
 > only by `skills/presentation-signals`, (b) carry `false_positive_risk: high` by default,
-> (c) are **capped at `minor`** (`SURFACE_PATTERNS`) so they contribute at most `SOFT_FLAGS`,
+> (c) are **labelled surface-class** (`SURFACE_PATTERNS`) so they contribute at most `SOFT_FLAGS`,
 > never `HARD_FLAGS`. **The pure AI writing-STYLE impressions that used to live here**
 > (AI-flavor prose, defensive hedging, narrative-arc, jargon-stuffing, invented codenames)
 > **moved in v0.5 to the zero-verdict-weight AIS track** ("AI writing-style impressions",

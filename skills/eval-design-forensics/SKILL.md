@@ -93,7 +93,7 @@ settle.** Four properties:
    is decided from the described protocol and emits
    `observability_level_required: 0`. The **L2 confirmation** of the same leak/
    omission is a **separate** finding with `observability_level_required: 2` that
-   auto-demotes on a PDF-only run (`references/observability-levels.md`). So a
+   is marked as needing L2 on a PDF-only run (`references/observability-levels.md`). So a
    PDF-only run keeps the stated-tell as a flag and the verification as an info
    "confirm-at-L2" pointer — never the reverse.
 
@@ -110,7 +110,7 @@ This skill is the **L0/L1-stated / L2-verified** sibling of
 | `consistency-audit` | Does the paper contradict ITSELF / described method = evaluated method? (owns `HP-AGG-DRIFT`, `HP-APPENDIX-CONTRA`, text-only `HP-SCOPE-INFLATE`) | L0 |
 | `baseline-comparison-audit` | Are the right baselines present, fairly tuned, and is "SOTA" earned? (owns `HP-MISSING-BASELINE`, `HP-SIG-OVERLAP`) | L0 stated / L2 verified |
 | `citation-forensics` | Do the cited papers exist and support the claim? | L0 |
-| `presentation-signals` | Surface "AI-flavor" hints (auxiliary, capped at minor) | L0 |
+| `presentation-signals` | Surface "AI-flavor" hints (auxiliary, surface-class) | L0 |
 | `adversarial-case-builder` | Strongest evidence-bound rejection memo (no verdict weight) | any |
 
 **Do NOT raise here** (hand off instead):
@@ -417,7 +417,7 @@ mcp__codex__codex:
     3. OBSERVABILITY. A leak visible in the DESCRIBED protocol => observability_level_
        required = 0 (this is verdict-bearing from a PDF). A leak only CONFIRMABLE from the
        split/preprocessing files => a SEPARATE finding with observability_level_required = 2
-       (it auto-demotes on an L0/L1 run — that is correct). NEVER put the stated tell at 2.
+       (an L0/L1 run reports it as needing L2 — that is correct). NEVER put the stated tell at 2.
     4. HAND OFF THE 3 UNDECIDABLE SUBTYPES. illegitimate-proxy feature, sampling bias, and
        pretraining/benchmark contamination are NOT decidable from the PDF or the repo:
        set verdict_local "needs_external_check", requires_external_check true, severity
@@ -630,27 +630,25 @@ for f in proposed:
     # ANCHOR gate: above-info needs >=1 anchored span
     if f.get("severity") in ABOVE and not anchored:
         f["severity"] = "info"; f.setdefault("_demotions", []).append("unanchored"); demoted += 1
-    # OBS hygiene — MIRROR the adjudicator, fail-closed: an above-info finding whose
-    # observability_level_required is missing/invalid demotes to info. NEVER default to 0
-    # (that would let a forgotten level-2 code-confirm survive an L0 run). type() not
-    # isinstance() so JSON booleans (True==1) are rejected, exactly as adjudicate_findings.py.
+    # OBSERVABILITY hygiene — record, never rescore. The adjudicator annotates the level a
+    # finding declares against the level this run had; a missing/invalid declaration is
+    # flagged so a forgotten level-2 asymmetry is visible rather than quietly passing as
+    # confirmed. type() not isinstance() so JSON booleans (True==1) are rejected.
     olr = f.get("observability_level_required")
     if f.get("severity") in ABOVE and (type(olr) is not int or not (0 <= olr <= 3)):
-        f["severity"] = "info"; f.setdefault("_demotions", []).append("undeclared-observability"); demoted += 1
-    # FP-RISK hygiene — false_positive_risk is the REVIEWER's self-assessment (it drives the
-    # adjudicator's cap); the executor never guesses it. Missing/invalid demotes to info.
+        f.setdefault("_demotions", []).append("undeclared-observability")
+    # FP-RISK hygiene — false_positive_risk is the REVIEWER's self-assessment, reported as a
+    # column; the executor never guesses it. A missing/invalid value is flagged, not rescored.
     if f.get("severity") in ABOVE and f.get("false_positive_risk") not in ("low", "medium", "high"):
-        f["severity"] = "info"; f.setdefault("_demotions", []).append("undeclared-fp-risk"); demoted += 1
+        f.setdefault("_demotions", []).append("undeclared-fp-risk")
     import os as _aris_os
     RESOLVED_MODEL = _aris_os.environ["ARIS_RESOLVED_MODEL"]          # exported by the executor from the call that ACTUALLY ran
     RESOLVED_REASONING = _aris_os.environ["ARIS_RESOLVED_REASONING"]  # (fail LOUD if unset — never stamp a target default)
     f["reviewer"] = {"model": RESOLVED_MODEL, "reasoning": RESOLVED_REASONING, "deterministic": False}
-    # honest hand-off: needs_external_check carries no severity weight (the 3 leakage external
-    # subtypes land here) — pin it to info, never drop it. Mirrors the adjudicator's gate 6.
+    # needs_external_check is the auditor saying it could not settle this itself. Record it;
+    # the adjudicator reports it in its own column and the human weighs it. Do NOT rescore.
     if f.get("verdict_local") == "needs_external_check" or f.get("requires_external_check") is True:
-        f["requires_external_check"] = True
-        if f.get("severity") in ABOVE:
-            f["severity"] = "info"; f.setdefault("_demotions", []).append("needs-external-check-no-weight"); ext += 1
+        f["requires_external_check"] = True; ext += 1
     kept.append(f)
 
 for k, f in enumerate(kept, 1):                                       # one namespace, sequential
@@ -672,8 +670,8 @@ above-info finding fails **closed to info**, never a guessed default). Do **not*
 re-implement the adjudicator's verdict-bearing gates (the observability LEVEL *downgrade*
 `req > run_level`, the FP-risk *cap* `{high:minor, medium:major, low:critical}`, the
 verdict) — those need the run level and belong to `tools/adjudicate_findings.py`, the
-single decider. `needs_external_check` findings (the 3 leakage external subtypes, and any
-unsure judge/GT call) are pinned to `info`, never dropped. The remaining judgments are the
+single reporter. `needs_external_check` findings (the 3 leakage external subtypes, and any
+unsure judge/GT call) are marked, not rescored — the report gives that its own column. The remaining judgments are the
 **reviewer's**, per the prompt — the K&N type, the conflicted-vs-unvalidated split, the
 `observability_level_required: 2` tag for a code-only confirm; if a kept finding plainly
 violates one, re-run that pass with the correction noted (never hand-fabricate). A finding
@@ -864,7 +862,7 @@ second deterministic file** and never edits the audited paper.
   judge / declared-but-unreported condition is decidable from the described protocol →
   `observability_level_required: 0` (this is the opposite of `experiment-forensics`,
   which is info-only below L2). The L2 *confirmation* of the same tell is a separate
-  `observability_level_required: 2` finding that auto-demotes on a PDF-only run.
+  `observability_level_required: 2` finding that is marked as needing L2 on a PDF-only run.
 - **No span → no severity.** Reject unanchored/paraphrased findings to `info` here (the
   adjudicator re-enforces). `span in claim`, whitespace-normalized — never `claim in
   span`. The anchor is a PAPER claim (the protocol / judge / declared-condition
@@ -912,7 +910,7 @@ second deterministic file** and never edits the audited paper.
 - **Whether a reported number matches the repo / code** (fake GT, self-norm, phantom)
   → `/experiment-forensics` at **L2**.
 - **An AI-text / "looks machine-written" verdict** → out of scope; surface hints live in
-  `/presentation-signals` (auxiliary, capped at minor). This repo is **not** an AI-text
+  `/presentation-signals` (auxiliary, surface-class). This repo is **not** an AI-text
   classifier.
 - **On a timer** → never `/loop` / `/schedule` / `CronCreate` this skill; re-fire only
   when the paper, ledger, or observability level changes (see the fence at the top).

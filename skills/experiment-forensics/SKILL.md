@@ -87,7 +87,7 @@ deterministic tool decides the verdict.** Both axes from
 | `consistency-audit` | Does the paper contradict ITSELF / does described method = evaluated method? | L0 |
 | `baseline-comparison-audit` | Are the right baselines present, tuned, and is "SOTA" earned? | L0 stated / L2 verified |
 | `citation-forensics` | Do the cited papers exist and support the claim made? | L0 |
-| `presentation-signals` | Surface "AI-flavor" hints (auxiliary, capped at minor) | L0 |
+| `presentation-signals` | Surface "AI-flavor" hints (auxiliary, surface-class) | L0 |
 | `adversarial-case-builder` | Strongest evidence-bound rejection memo (no verdict weight) | any |
 
 **Do NOT raise here** (hand off instead): pure text-vs-text contradiction or
@@ -126,7 +126,8 @@ This is an **auditor** skill in the integrity-forensics pipeline
 - **Observability caps severity.** Findings declare `observability_level_required`.
   Every code/result-level pattern is decidable only at **L2**; at L0/L1 it is emitted
   as `info` (Step 2). `tools/adjudicate_findings.py` is the structural backstop — any
-  `observability_level_required` above the run's level is demoted to `info`.
+  `observability_level_required` above the run's level is reported with that
+   shortfall marked in its own column — visible, and visibly unconfirmed.
 
 ## Constants & Reviewer Calling Convention
 
@@ -577,15 +578,15 @@ for f in base + proposed:
     f["evidence"] = [ev for ev in (f.get("evidence") or [])
                      if ev.get("claim_id") and (ev.get("span") or "").strip()]
     sev, notes = (f.get("severity", "info") if f.get("severity") in SEV else "info"), []
-    if L < 2 and sev != "info":                                  # (1) L<2 => info-only
-        sev = "info"; f["observability_level_required"] = 2; notes.append("L<2-info-only")
-    if f.get("pattern_id") and f["pattern_id"] not in OWNED and sev != "info":  # (2) owned pattern
+    if L < 2:                          # declare what this pattern needs; do NOT rescore
+        f["observability_level_required"] = 2; notes.append("needs-L2")
+    if f.get("pattern_id") and f["pattern_id"] not in OWNED and sev != "info":  # contract: owned patterns only
         sev = "info"; notes.append("pattern-not-owned")
-    req = f.get("observability_level_required")                  # (3) observability gate
-    if sev != "info" and not (type(req) is int and 0 <= req <= 3):
-        sev = "info"; notes.append("undeclared-observability")
-    elif sev != "info" and req > L:
-        sev = "info"; notes.append(f"obs(req{req}>run{L})")
+    req = f.get("observability_level_required")
+    if not (type(req) is int and 0 <= req <= 3):
+        notes.append("undeclared-observability")
+    elif req > L:
+        notes.append(f"needs-L{req}-run-L{L}")   # annotated by the adjudicator, not demoted
     if sev != "info":                                            # (4) ANCHOR gate
         ok = any(ev.get("claim_id") in claims and norm(ev.get("span"))
                  and norm(ev["span"]) in norm(claims[ev["claim_id"]])
@@ -745,7 +746,7 @@ python3 "$ROOT/tools/adjudicate_findings.py" --findings "$TARGET"/*.findings.jso
 - **Not an AI-text classifier.** "Results look too clean" is `HP-SUSPICIOUS-REGULARITY`
   — high-FP, only `major` when the *result files* contradict the table (L2); a bare
   "looks fake" from a table is deferred to `consistency-audit`. Never infer authorship
-  or misconduct from surface impressions (those live, capped at minor, in
+  or misconduct from surface impressions (those live, surface-class label, in
   `presentation-signals`).
 - **`pattern_id` ∈ taxonomy v0.5 only** (`PATTERNS_OWNED`); the taxonomy is a
   post-hoc mapping layer, not the detector.
@@ -766,7 +767,7 @@ python3 "$ROOT/tools/adjudicate_findings.py" --findings "$TARGET"/*.findings.jso
   baseline integrity or "SOTA / first" → `/baseline-comparison-audit` (+
   `/citation-forensics`), handed off via `needs_external_check`.
 - **For authorship / "is this AI-written".** Out of scope — surface "AI-flavor" lives
-  in `/presentation-signals` (auxiliary, capped at minor); this repo is **not** an
+  in `/presentation-signals` (auxiliary, surface-class); this repo is **not** an
   AI-text classifier.
 - **On a timer.** Re-firing adds no signal — only a higher observability level does;
   schedule the *wait for artifacts*, then run once at the new level (see the cadence

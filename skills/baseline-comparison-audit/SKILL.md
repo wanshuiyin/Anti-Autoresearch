@@ -85,7 +85,7 @@ settle.** Four properties:
    (contract rule 6).
 4. **Observability caps severity.** Stated-comparison checks are L0; a fairness
    finding that needs the actual config/seed files is `observability_level_required:
-   2` and auto-demotes on a PDF-only run (`references/observability-levels.md`).
+   2` and is marked as needing L2 on a PDF-only run (`references/observability-levels.md`).
 
 ## How this differs from the other auditors (route correctly)
 
@@ -95,7 +95,7 @@ settle.** Four properties:
 | `experiment-forensics` | Are the reported numbers what the code actually computes? (fake GT, self-norm, phantom) | L2 |
 | **`baseline-comparison-audit`** (this) | **Are the right baselines present (completeness), fairly tuned/configured (fairness), and is "outperforms/SOTA" statistically earned (significance)?** | **L0 stated / L2 verified** |
 | `citation-forensics` | Do the cited baseline papers exist and support the claim? | L0 |
-| `presentation-signals` | Surface "AI-flavor" hints (auxiliary, capped at minor) | L0 |
+| `presentation-signals` | Surface "AI-flavor" hints (auxiliary, surface-class) | L0 |
 | `adversarial-case-builder` | Strongest evidence-bound rejection memo (no verdict weight) | any |
 
 **Do NOT raise here** (hand off instead): generic in-text scope inflation
@@ -657,34 +657,35 @@ for f in proposed:
     # owned-pattern gate: a non-owned pattern cannot rise above info here
     if f.get("pattern_id") and f["pattern_id"] not in OWNED and f.get("severity") in ABOVE:
         f["severity"] = "info"; f.setdefault("_demotions", []).append("pattern-not-owned"); not_owned += 1
-    # best-effort delta dedup vs the deterministic single-sentence pass
-    if f.get("pattern_id") == "HP-DELTA-ERROR" and f.get("severity") in ABOVE \
+    # possible overlap with the deterministic single-sentence pass. A shared claim_id is
+    # NOT proof of the same discrepancy — two different deltas routinely share an operand —
+    # so flag it for the reader instead of dropping a finding that may be distinct.
+    if f.get("pattern_id") == "HP-DELTA-ERROR" \
        and any(ev.get("claim_id") in det_delta for ev in anchored):
-        f["severity"] = "info"; f.setdefault("_demotions", []).append("dup-of-deterministic-delta"); deduped += 1
+        f.setdefault("_demotions", []).append("may-overlap-deterministic-delta"); deduped += 1
     # ANCHOR gate: above-info needs >=1 anchored span
     if f.get("severity") in ABOVE and not anchored:
         f["severity"] = "info"; f.setdefault("_demotions", []).append("unanchored"); demoted += 1
-    # OBSERVABILITY hygiene — MIRROR the adjudicator, fail-closed: an above-info finding whose
-    # observability_level_required is missing/invalid demotes to info. NEVER silently default to 0
-    # (that would let a forgotten level-2 config-only asymmetry survive an L0 run). type() not
-    # isinstance() so JSON booleans (True==1) are rejected, exactly as adjudicate_findings.py does.
+    # OBSERVABILITY hygiene — record, never rescore. The adjudicator annotates the level a
+    # finding declares against the level this run had; a missing/invalid declaration is
+    # flagged so a forgotten level-2 asymmetry is visible rather than quietly passing as
+    # confirmed. type() not isinstance() so JSON booleans (True==1) are rejected.
     olr = f.get("observability_level_required")
     if f.get("severity") in ABOVE and (type(olr) is not int or not (0 <= olr <= 3)):
-        f["severity"] = "info"; f.setdefault("_demotions", []).append("undeclared-observability"); demoted += 1
-    # FP-RISK hygiene — false_positive_risk is the REVIEWER's self-assessment (it drives the
-    # adjudicator's cap); the executor never guesses it. Missing/invalid demotes to info, never a default.
+        f.setdefault("_demotions", []).append("undeclared-observability")
+    # FP-RISK hygiene — false_positive_risk is the REVIEWER's self-assessment, reported as a
+    # column; the executor never guesses it. A missing/invalid value is flagged, not rescored.
     if f.get("severity") in ABOVE and f.get("false_positive_risk") not in ("low", "medium", "high"):
-        f["severity"] = "info"; f.setdefault("_demotions", []).append("undeclared-fp-risk"); demoted += 1
+        f.setdefault("_demotions", []).append("undeclared-fp-risk")
     import os as _aris_os
     RESOLVED_MODEL = _aris_os.environ["ARIS_RESOLVED_MODEL"]          # exported by the executor from the call that ACTUALLY ran
     RESOLVED_REASONING = _aris_os.environ["ARIS_RESOLVED_REASONING"]  # (fail LOUD if unset — never stamp a target default)
     f["reviewer"] = {"model": RESOLVED_MODEL, "reasoning": RESOLVED_REASONING, "deterministic": False}
-    # honest hand-off: needs_external_check carries no severity weight (adjudicate_findings.py has
-    # no such gate, so the validator makes the claim true) — pin it to info, never drop it.
+    # needs_external_check is the auditor saying it could not settle this itself. Record it;
+    # the adjudicator reports it in its own column and the human weighs it. Do NOT rescore —
+    # that would hide what was proposed.
     if f.get("verdict_local") == "needs_external_check":
         f["requires_external_check"] = True
-        if f.get("severity") in ABOVE:
-            f["severity"] = "info"; f.setdefault("_demotions", []).append("needs-external-check-no-weight")
     kept.append(f)
 
 for k, f in enumerate(kept, 1):                                        # one namespace, sequential
@@ -697,15 +698,14 @@ print(f"validated {len(kept)} baseline findings (above_info={above}; {demoted} d
 PY
 ```
 
-Scope of this gate: **anchoring + owned-pattern + delta-dedup + schema hygiene only**
-(schema hygiene = the *presence/validity* of the reviewer's required fields — a
+Scope of this gate: **anchoring + owned-pattern + schema hygiene only**
+(schema hygiene = FLAGGING the *presence/validity* of the reviewer's required fields — a
 missing/invalid `observability_level_required` or `false_positive_risk` on an
 above-info finding fails **closed to info**, never a guessed default). Do **not**
-re-implement the adjudicator's verdict-bearing gates (the observability LEVEL
-*downgrade* `req > run_level`, the FP-risk *cap*, the surface cap, the verdict) — those
-need the run level and belong to `tools/adjudicate_findings.py`, the single decider.
-`needs_external_check` findings are pinned to `info` (the honest hand-off carries no
-severity weight), never dropped. The remaining judgments are the **reviewer's**, per the
+re-implement what the adjudicator reports (the observability comparison against the
+run level, the FP-risk column, the surface label, the summary) — those need the run
+level and belong to `tools/adjudicate_findings.py`. `needs_external_check` findings
+are marked, not rescored: the report gives that its own column. The remaining judgments are the **reviewer's**, per the
 prompt — concurrency/post-dating FP on a missing baseline, a large-gap/significance-
 test FP on overlap, the `observability_level_required: 2` tag for config-only
 asymmetry; if a kept finding plainly violates one of these, re-run that pass with the
@@ -905,7 +905,7 @@ second deterministic file** and never edits the audited paper.
   (gpt-5.6-sol xhigh); completeness and fairness/significance/delta are separate fresh
   `mcp__codex__codex` threads; `codex-reply` is never used (absent from `allowed-tools`).
 - **Observability honesty.** Config/budget asymmetry only the repo reveals gets
-  `observability_level_required: 2` so a PDF-only run auto-demotes it. You cannot prove
+  `observability_level_required: 2` so a PDF-only run reports it as needing L2. You cannot prove
   an undocumented budget gap from a PDF.
 - **Stay in lane.** Generic text scope-overclaim → `consistency-audit`
   (`HP-SCOPE-INFLATE`); code/result fraud → `experiment-forensics` (L2); citation
@@ -932,7 +932,7 @@ second deterministic file** and never edits the audited paper.
 - **Whether a *cited* baseline paper EXISTS / is used in-context** →
   `/citation-forensics`.
 - **An AI-text / "looks machine-written" verdict** → out of scope; surface hints live
-  in `/presentation-signals` (auxiliary, capped at minor). This repo is **not** an
+  in `/presentation-signals` (auxiliary, surface-class). This repo is **not** an
   AI-text classifier.
 - **On a timer** → never `/loop` / `/schedule` / `CronCreate` this skill; re-fire only
   when the paper, ledger, or live leaderboard changes (see the fence at the top).

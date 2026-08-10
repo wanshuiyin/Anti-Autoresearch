@@ -94,7 +94,7 @@ Layer 2). This skill computes **no verdict** and proposes **no integrity finding
 | Auditor | Question it answers | Verdict weight |
 |---------|---------------------|----------------|
 | **`ai-style-impressions`** (this) | **What AI writing-STYLE tells does a reviewer notice? Named, located, itemized impressions — NOT integrity** | **ZERO (forced to `info`, separate report section, excluded from `overall_verdict`)** |
-| `presentation-signals` | Checkable *surface* tells (dup tables, thin/LLM figures, page padding, leftover pipeline strings) | capped at `minor` (`SOFT_FLAGS` at most) |
+| `presentation-signals` | Checkable *surface* tells (dup tables, thin/LLM figures, page padding, leftover pipeline strings) | labelled surface-class; `minor` is the honest severity for one |
 | `consistency-audit` | Does the paper contradict ITSELF / described method = evaluated method? | full |
 | `experiment-forensics` | Are the reported numbers what the code computes? (fake GT, self-norm, phantom — L2) | full |
 | `baseline-comparison-audit` | Right baselines present, tuned, "SOTA" earned? | full |

@@ -223,7 +223,7 @@ and `PAPER_ID`, into every step below.
 - **`RUN_LEVEL_L == 0`** (PDF-text only) → proceed, but **recall is reduced**: equation
   and theorem-statement spans are poorly captured, so obligation/assumption findings
   that need the LaTeX source to confirm an obligation is undischarged anywhere will
-  carry `observability_level_required: 1` and auto-demote to `info` (honest — you can
+  carry `observability_level_required: 1`, so an L0 run reports them as unconfirmed (honest — you can
   suspect from PDF text, you cannot confirm). Family G is at full strength at **L1**.
 - **`RUN_LEVEL_L == 2`** → proof checks run identically (they are textual/semantic);
   the extra L2 power (paper-number↔result-file) belongs to `/experiment-forensics`.
@@ -556,7 +556,7 @@ GFAMILY = {"HP-PROOF-OBLIGATION-GAP", "HP-PROOF-CIRCULARITY", "HP-DERIVATION-INV
 # a verdict-bearing proof/derivation flaw is decided from the LaTeX SOURCE, because
 # PDF-extracted math is unreliable (mangled symbols, subscripts, equation structure) — an
 # L0 (PDF-only) "this step is invalid" risks flagging an extraction artifact. An unknown/
-# missing pattern fails closed to L2 (auto-demotes at L0/L1).
+# missing pattern fails closed to L2 (declares a level above L0/L1).
 OBS = {"HP-PROOF-OBLIGATION-GAP": 1, "HP-PROOF-CIRCULARITY": 1, "HP-DERIVATION-INVALID": 1,
        "HP-SYMBOL-SEMANTIC-DRIFT": 1, "HP-ASSUMPTION-SMUGGLE": 1, "HP-UNDEFINED-NOTATION": 1}
 SEV = {"critical", "major", "minor", "info"}
@@ -618,14 +618,15 @@ for f in proposed:
         # missing/garbled -> a written-proof flaw is decided from the LaTeX source (L1);
         # unknown pattern fail-closes to L2.
         olr = 1 if pid in GFAMILY else 2
-    elif pid in GFAMILY and olr > 1 and f["severity"] in ABOVE_INFO:
+    elif pid in GFAMILY and olr > 1:
         # reviewer EXPLICITLY marked an owned G finding as needing code/results (>=L2).
         # family-G validity is decided from the WRITTEN proof, so >=L2 means this finding is
-        # mis-routed / over-claimed -> demote to info (do NOT silently clamp it down to L1).
-        f["severity"] = "info"; demoted += 1
+        # mis-routed / over-claimed. Record that; the adjudicator reports the mismatch and
+        # the human weighs it (do NOT silently clamp the level down to L1 either).
+        f.setdefault("_notes", []).append("g-finding-declared-above-L1")
     # family-G floor: a verdict-bearing proof/derivation finding needs the LaTeX source (L1) —
     # PDF-extracted math is unreliable, so an L0 G finding must not raise the verdict. Clamp UP
-    # to L1 (conservative: RAISES the observability bar -> auto-demotes at an L0 run; unlike the
+    # to L1 (conservative: RAISES the observability bar -> reported as unconfirmed at L0; unlike the
     # >L2 case above, clamping up never launders an over-claim into a pass).
     if pid in GFAMILY and isinstance(olr, int) and olr < 1:
         olr = 1
@@ -647,8 +648,8 @@ PY
 **Scope of this gate: anchoring + schema hygiene + family-G enforcement** — verbatim-span
 anchoring, enum coercion, non-G pattern rejection, observability fallback, and
 cross-model provenance — so every kept finding is well-formed, honestly anchored, and
-in this skill's lane. It does **not** compute the verdict, the FP-risk cap, or the
-observability *downgrade* against the run level; those belong to
+in this skill's lane. It does **not** compute the summary, the FP-risk column, or the
+observability comparison against the run level; those belong to
 `tools/adjudicate_findings.py`, the single decider. Note this skill applies **no
 critical-floor** (unlike consistency-audit's `HP-SUSPICIOUS-REGULARITY`): family-G
 flaws legitimately reach `critical`, so the reviewer's honest `severity` + `false_positive_risk`
@@ -795,7 +796,7 @@ human-readable rendering is the orchestrator's job, not this skill's.
   → `/experiment-forensics` at **L2**; family G is decided at L1 and never reaches for code.
 - **You want an "is this AI-written math" verdict** → out of scope. We assert a step
   does not hold, not who or what wrote it; surface hints live in
-  `/presentation-signals` (auxiliary, capped at minor).
+  `/presentation-signals` (auxiliary, surface-class).
 - **On a timer** → never `/loop` / `/schedule` / `CronCreate` this skill; re-fire only
   when the paper or ledger changes (see the fence at the top).
 

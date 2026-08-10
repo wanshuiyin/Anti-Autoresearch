@@ -38,8 +38,9 @@ grading another LLM's paper is just slop."*
 This orchestrator answers that structurally. **One deterministic pass** turns the paper
 into a hashed, span-anchored evidence ledger; **six auditors** read only that ledger
 and *propose* findings; a **deterministic adjudicator** *decides* the verdict by fixed
-rules with no model in the loop; and **observability levels** make it impossible to
-shout "fraud" from a PDF. Same artifacts → same ledger → same verdict.
+rules; **observability levels** are recorded on every finding so a claim that needs
+code cannot pass as confirmed from a PDF; and every proposal is reported rather than
+silently dropped. Same artifacts → same ledger → same summary.
 
 ## Pipeline role (what this run does, and never does)
 
@@ -56,7 +57,7 @@ shout "fraud" from a PDF. Same artifacts → same ledger → same verdict.
         citation-forensics         (if ≥1 citation claim)
         baseline-comparison-audit  (if ≥1 comparison / SOTA scope claim)
         experiment-forensics       (always · L0/L1 = info "could-not-verify" · L2 = full code audit)
-        presentation-signals       (always · AUXILIARY · capped at minor)
+        presentation-signals       (always · AUXILIARY · surface-class label)
         ai-style-impressions       (always · AIS track · NOT integrity · zero verdict weight)
         proof-derivation-forensics (if ≥1 theorem/proof/derivation claim · verdict-bearing · dim=proof · L1 source, CAN reach HARD_FLAGS; L0 PDF-only → info)
         eval-design-forensics      (if ≥1 comparison/eval claim · family H · dim=evaluation · L0/L1 stated-tells: leakage / judge-validity / selective-reporting)
@@ -64,11 +65,12 @@ shout "fraud" from a PDF. Same artifacts → same ledger → same verdict.
         ▼
 [3] advisory memos (each reads the ledger + merged findings · NO verdict weight):
         /adversarial-case-builder      → adversarial-case-builder.memo.md       (strongest evidence-bound objection)
-        /novelty-duplication-advisory  → novelty-duplication-advisory.memo.md   (if ≥1 contribution claim · MEMO-ONLY · prior-work overlap · capped at info)
+        /novelty-duplication-advisory  → novelty-duplication-advisory.memo.md   (if ≥1 contribution claim · MEMO-ONLY · prior-work overlap · zero verdict weight)
         │
         ▼
 [4] tools/adjudicate_findings.py  --ledger REQUIRED  → report.json + REPORT.md
-        │   gates (in order): ANCHOR → OBSERVABILITY → FP-RISK → MEMO → SURFACE
+        │   anchor check moves severity; observability / FP-risk / surface /
+        │   needs-external-check / zero-weight are recorded as annotations
         │   overall_verdict ∈ {CLEAN_GIVEN_EVIDENCE, SOFT_FLAGS, HARD_FLAGS}  (rules, no model)
         ▼
 [5] present REPORT.md to the human (verdict + level first; state what could NOT be checked)
@@ -165,7 +167,7 @@ every reviewer call obeys:
   truthfully (legit "best config", labeled pilots, rounding, deterministic metrics are
   common FPs); **(5) HAND OFF EXTERNAL CLAIMS** — "first / SOTA" the text cannot settle ⇒
   `verdict_local: needs_external_check` + `requires_external_check: true`; **(6)
-  pattern_id ∈ taxonomy v0.4 only**.
+  pattern_id ∈ taxonomy v0.5 only**.
 - **Reviewer ≠ adjudicator.** The reviewer *proposes* findings; only
   `tools/adjudicate_findings.py` *decides* the verdict (Layer 2). The model is demoted
   from judge to evidence-extractor.
@@ -458,15 +460,15 @@ PY
 
 Run the applicable skills (pass `PAPER_DIR` so each locates the ledger). **Keep the
 reviewer calls serial.** Each row's `Writes` column is the exact filename the Step-4 glob
-expects; the `Owns` column is the taxonomy-v0.4 patterns that skill may emit:
+expects; the `Owns` column is the taxonomy-v0.5 patterns that skill may emit:
 
-| Skill | Run when | Writes | Owns (pattern_ids, taxonomy v0.4) |
+| Skill | Run when | Writes | Owns (pattern_ids, taxonomy v0.5) |
 |-------|----------|--------|-----------------------------------|
 | `/consistency-audit "<PAPER_DIR>"` | **always** (flagship; L0-decidable) | `consistency-audit.deterministic.findings.json` (+ semantic `consistency-audit.findings.json`) | HP-NUM-INFLATE, HP-DELTA-ERROR, HP-AGG-DRIFT, HP-DENOM-DRIFT, HP-UNIT-DIR-MISMATCH, HP-CAPTION-MISMATCH, HP-APPENDIX-CONTRA, HP-METHOD-DRIFT, HP-ABLATION-ATTRIB, HP-SCOPE-INFLATE, HP-THEOREM-SCOPE-DRIFT, HP-SUSPICIOUS-REGULARITY(L0→info), HP-ARGUMENT-CHAIN-BREAK, HP-CAUSAL-EVIDENCE-LEAP, HP-ACRONYM-DRIFT, HP-GRANULARITY-IMPOSSIBLE, HP-VARIANCE-IMPOSSIBLE, HP-STAT-INCONSISTENCY |
 | `/citation-forensics "<PAPER_DIR>"` | ≥1 `citation` claim | `citation-forensics.findings.json` | HP-CITE-HALLUC, HP-CITE-CONTEXT, HP-CITE-RETRACTED |
 | `/baseline-comparison-audit "<PAPER_DIR>"` | ≥1 comparison/SOTA scope claim | `baseline-comparison-audit.findings.json` | HP-MISSING-BASELINE, HP-WEAK-BASELINE, HP-SIG-OVERLAP, HP-DELTA-ERROR(cross-claim), HP-RESOURCE-IDENTITY-MISMATCH |
 | `/experiment-forensics "<PAPER_DIR>"` | **always** (depth scales with L) | `experiment-forensics.findings.json` | HP-FAKE-GT, HP-SELF-NORM, HP-PHANTOM-RESULT, HP-DEAD-METRIC, HP-SCOPE-INFLATE(verified), HP-METHOD-DRIFT(L2), HP-SUSPICIOUS-REGULARITY(L2), HP-PLACEHOLDER-DATA(L2), HP-RESULT-ARTIFACT-MISMATCH(L2), HP-MISSING-REPRO-ARTIFACT(L2) |
-| `/presentation-signals "<PAPER_DIR>"` | **always** (AUXILIARY, capped at `minor`) | `presentation-signals.deterministic.findings.json` (+ semantic `presentation-signals.findings.json`) | HP-DUP-TABLE, HP-PIPELINE-ARTIFACT, HP-THIN-FLOAT, HP-LLM-FIGURE, HP-PAGE-PADDING |
+| `/presentation-signals "<PAPER_DIR>"` | **always** (AUXILIARY, labelled surface-class) | `presentation-signals.deterministic.findings.json` (+ semantic `presentation-signals.findings.json`) | HP-DUP-TABLE, HP-PIPELINE-ARTIFACT, HP-THIN-FLOAT, HP-LLM-FIGURE, HP-PAGE-PADDING |
 | `/proof-derivation-forensics "<PAPER_DIR>"` | ≥1 theorem/proof/derivation claim (self-guards: writes `[]` if `HAS_PROOFS=no`) | `proof-derivation-forensics.findings.json` | HP-PROOF-OBLIGATION-GAP, HP-PROOF-CIRCULARITY, HP-DERIVATION-INVALID, HP-SYMBOL-SEMANTIC-DRIFT, HP-ASSUMPTION-SMUGGLE, HP-UNDEFINED-NOTATION |
 | `/eval-design-forensics "<PAPER_DIR>"` | ≥1 comparison/eval claim (family H, L0/L1 stated-tells; dim=evaluation) | `eval-design-forensics.findings.json` | HP-EVAL-LEAKAGE, HP-JUDGE-VALIDITY, HP-SELECTIVE-REPORTING |
 | `/ai-style-impressions "<PAPER_DIR>"` | **always** (AIS track · NOT integrity · **zero verdict weight** · separate report section) | `ai-style-impressions.deterministic.findings.json` (+ semantic `ai-style-impressions.findings.json`) | AIS-NARRATIVE-ARC-BREAK, AIS-LLM-PHRASE-TICS, AIS-DEFENSIVE-HEDGE, AIS-JARGON-STUFF, AIS-INVENTED-CODENAME, AIS-CLAUSE-FORMULA-WALL, AIS-GRATUITOUS-PSEUDOCODE, AIS-BULLET-LIST-OVERUSE, AIS-BOLD-MODULE-SPAM, AIS-RESTATE-OVERCLAIM, AIS-FOCUS-DRIFT, AIS-SINGLE-STYLE-FIGURES, AIS-APPENDIX-DUMPING-GROUND |
@@ -533,9 +535,9 @@ for f in prop:
     if f.get("verdict_local") not in VL: f["verdict_local"] = "warn"
     if f.get("false_positive_risk") not in FPR: f["false_positive_risk"] = "high" if surface else "medium"
     if f["verdict_local"] == "needs_external_check": f["requires_external_check"] = True
-    if surface:                                   # surface signals: forced high-FP, capped at minor, L0-decidable
+    if surface:                                   # surface signals: high-FP by design, L0-decidable
         f["false_positive_risk"] = "high"; f["observability_level_required"] = 0
-        if f["severity"] in ("critical", "major"): f["severity"] = "minor"; capped += 1
+        # no rescore — the adjudicator labels these `_surface_signal` and the report shows it
     anchored = []
     for ev in (f.get("evidence") or []):
         cid = ev.get("claim_id"); span = nw(ev.get("span", "")); c = claims.get(cid)
@@ -611,13 +613,13 @@ inside a sub-skill → it re-invokes the identical prompt in a fresh thread (nev
 `codex-reply`); if it still fails it writes `[]` and the run continues. Unanchored
 above-info findings are not a stop condition (the adjudicator demotes them); a *large*
 count signals a thin ledger/source — note it in the report's limitations. Any
-`pattern_id` present MUST be in `references/hack-pattern-taxonomy.md` (v0.4); never patch
+`pattern_id` present MUST be in `references/hack-pattern-taxonomy.md` (v0.5); never patch
 findings by hand.
 
 ## Step 3 — Advisory memos (last; memo-only, no verdict weight)
 
 After the auditors (so the ledger + the merged findings exist), run the two **advisory**
-skills. Both are **memo-only**: the adjudicator lists each in `MEMO_ONLY_SKILLS` and its
+skills. Both are **memo-only**: the adjudicator lists each in `ZERO_WEIGHT_SKILLS` and its
 MEMO gate pins any finding either emits to `info`, so neither can move the verdict — they
 hand a human area chair context to weigh, nothing more.
 
@@ -630,7 +632,7 @@ objection:
 
 Every point in the memo must cite an existing ledger `claim_id` or finding `finding_id` —
 no new uncited accusations. It is passed to the adjudicator via `--memo` and shown as
-informational with **no verdict weight** (the `MEMO_ONLY_SKILLS` cap pins any
+informational with **no verdict weight** (the `ZERO_WEIGHT_SKILLS` cap pins any
 `adversarial-case-builder` finding to `info`, even if it also emits a `findings.json`). If
 the anchored evidence does not support a strong rejection, the honest memo says the paper
 survives.
@@ -651,7 +653,7 @@ observability level), and **absence of a retrieved match is NOT evidence of orig
 Unlike 3a it does **not** flow through `--memo` (the adjudicator has a single memo slot):
 its human-facing `novelty-duplication-advisory.memo.md` is surfaced in Step 5, and it also
 writes an **info-only `novelty-duplication-advisory.findings.json` mirror** that the Step-4
-glob picks up and the `MEMO_ONLY_SKILLS` gate caps at `info` (recorded, never
+glob picks up and the `ZERO_WEIGHT_SKILLS` gate caps at `info` (recorded, never
 verdict-bearing). With no contribution claim, or when retrieval surfaces nothing, it writes
 an honest-null memo + `[]` — "no candidate overlap found" still says nothing about novelty.
 It is the literature-facing complement to `citation-forensics`: that audits works the paper
@@ -742,7 +744,7 @@ Cost note: criticals are rare; a clean paper skips this step entirely (`[]`).
 
 The single decider. Pass every auditor's `*.findings.json` (the glob now also enumerates
 the verdict-bearing `proof-derivation-forensics.findings.json` and the info-only
-`novelty-duplication-advisory.findings.json` mirror — the latter capped at `info` by the
+`novelty-duplication-advisory.findings.json` mirror — the latter zero-weight by the
 MEMO gate), the **required** ledger, the run level, the taxonomy version, and the
 adversarial memo. `--ledger` is what re-verifies each
 finding quotes a **verbatim ledger span**; argparse makes it mandatory — and without a
@@ -776,9 +778,11 @@ python3 "$ROOT/tools/adjudicate_findings.py" \
 # prints e.g.: verdict=SOFT_FLAGS crit=0 maj=0 min=1 -> .../report.json, .../REPORT.md
 ```
 
-- **`--observability-level "$L"`** is the run level: it auto-demotes any finding whose
-  `observability_level_required` exceeds `L` (e.g. an L2 code-fraud pattern on an L0 run
-  → `info`, counted under `downgraded_for_observability`).
+- **`--observability-level "$L"`** is the run level: a finding whose
+  `observability_level_required` exceeds `L` (e.g. an L2 code-fraud pattern on an L0 run)
+  is reported with that shortfall marked in its Observability column, and counted under
+  `downgraded_for_observability`. It is not rescored — the human sees the claim and sees
+  that this run could not confirm it.
 - The adjudicator **auto-writes level-derived limitations** at L0/L1 (and an anchoring
   note if `--ledger` anchoring ever fails); Step 4 **also always passes an explicit
   `--limitation`** (above), so the report's `limitations` is never empty on this path —
@@ -788,12 +792,17 @@ python3 "$ROOT/tools/adjudicate_findings.py" \
   DeprecationWarning may print to stderr; exit 0).
 
 It applies, in order (each gate fail-closed and logged per finding): **ANCHOR**
-(above-info without a verbatim ledger span → `info`; counted under `unanchored_demoted`) →
-**OBSERVABILITY** (`observability_level_required` missing/invalid or > run `L` → `info`;
-counted under `downgraded_for_observability`) → **FP-RISK** (`high` caps at `minor`,
-`medium` caps at `major`) → **MEMO** (`adversarial-case-builder` + `novelty-duplication-advisory` → `info`) → **SURFACE**
-(`presentation-signals` skill OR a `SURFACE_PATTERNS` `pattern_id` → `minor`). Then, over
-the **surviving** severities:
+(above-info without a verbatim ledger span → `info`; counted under `unanchored_demoted`).
+Together with critical scrutiny (a `critical` that declares no alternative explanation,
+or whose `numeric_basis` is missing/malformed, drops to `major`) that is all that changes
+a severity — and both act on the accusation's own completeness, never on the paper. The rest are recorded beside the finding
+for the human: **observability** (`observability_level_required` vs the run `L`; a
+shortfall is counted under `downgraded_for_observability`), **FP-risk** (the auditor's own
+estimate; an unrecognized value reads as `high`), **surface** (`presentation-signals` skill
+OR a `SURFACE_PATTERNS` `pattern_id`), **needs-external-check** (the auditor marked it
+unsettled), and **zero weight** (`ZERO_WEIGHT_SKILLS` + the `AIS-*` track, reported in
+their own section and never forming an integrity verdict). Then, over the weight-1
+severities:
 
 ```
 any surviving critical          → HARD_FLAGS
@@ -819,8 +828,11 @@ print(f"counts: crit={c['critical']} maj={c['major']} min={c['minor']} info={c['
 PY
 ```
 
-**The verdict is reproducible: same findings + same `L` → same verdict, with no model in
-the final decision.**
+**The summary is reproducible: same findings + same `L` → same summary, by a fixed
+rule. What it reports is what the auditors PROPOSED — only the anchor check and
+critical scrutiny move a severity, and both act on the accusation's own completeness
+rather than on the paper. The summary is not a
+ruling that those proposals stand; the table's columns are what the human weighs.**
 
 ## Step 5 — Present
 
@@ -836,7 +848,7 @@ Present in this shape (fill from `report.json` / `REPORT.md`):
 
 ```
 🔬 Integrity Forensics — <PAPER_ID>
-   Verdict: <CLEAN_GIVEN_EVIDENCE | SOFT_FLAGS | HARD_FLAGS>   Observability: L<L>   Taxonomy: v0.4
+   Verdict: <CLEAN_GIVEN_EVIDENCE | SOFT_FLAGS | HARD_FLAGS>   Observability: L<L>   Taxonomy: v<taxonomy_version from report.json>
    Findings above info: critical <n> · major <n> · minor <n>   (demoted: obs <n>, unanchored <n>)
    Top flags: <ID> <severity> <pattern_id> — <one-line, where>
    Could NOT check at L<L>: <one line from limitations — e.g. "code/result-level patterns need L2">
@@ -920,7 +932,7 @@ A completed run leaves, in `PAPER_DIR` (we never edit the paper itself):
 - `novelty-duplication-advisory.memo.md` — the prior-work overlap advisory (informational,
   memo-only), present when the novelty advisory ran; alongside it the retrieval records
   `novelty-duplication-advisory.profile.json` / `.candidates.json` and the info-only
-  `novelty-duplication-advisory.findings.json` mirror (capped at `info` by the MEMO gate).
+  `novelty-duplication-advisory.findings.json` mirror (zero verdict weight by the MEMO gate).
 - `report.json` (`schemas/report.schema.json`) + `REPORT.md` — the **only** files
   carrying `overall_verdict`, produced solely by `tools/adjudicate_findings.py`
   (`adjudicator: deterministic-rules-v2`, `human_review_required: true`).
@@ -941,7 +953,7 @@ deterministic adjudicator, and presents.
   `claim in span`). The orchestrator's anchor sweep checks this; the adjudicator binds it
   (fail-closed to `info`). `--ledger` is therefore **mandatory** in Step 4.
 - **Observability honesty.** Carry the ledger's `L` everywhere; it caps severity. L0/L1
-  **cannot** assert code/result-level fraud — those auto-demote to `info` on a sub-L2
+  **cannot** assert code/result-level fraud — those are reported as needing L2 on a sub-L2
   run. Never present an L0 run as if it could see code; the report's limitations say what
   was unverifiable (`references/observability-levels.md`; `DESIGN.md` §4).
 - **Cross-model, fresh thread per dimension.** Reviewer = gpt-5.6-sol xhigh (a different
@@ -951,7 +963,7 @@ deterministic adjudicator, and presents.
 - **Detect-only.** No step edits the audited paper or repo (no `Edit` granted; reviewer
   sandbox is `read-only`). Output describes a *discrepancy to check/ask*, never "reject"
   or "the authors faked X".
-- **Surface signals stay weak.** `presentation-signals` is auxiliary, capped at `minor`
+- **Surface signals stay weak.** `presentation-signals` is auxiliary, labelled surface-class
   (by skill and by `pattern_id`), default `false_positive_risk: high`. This repo is
   **not** an AI-text classifier — for authorship use a dedicated detector.
 - **Proof decides from the source; novelty never decides.** `proof-derivation-forensics`
@@ -959,11 +971,11 @@ deterministic adjudicator, and presents.
   span-anchored **critical** family-G flaw reaches `HARD_FLAGS` with no repo/results, but
   needs the L1 source (PDF-extracted math is unreliable; an L0 PDF-only run → `info`); it
   emits only the five family-G patterns and self-guards to `[]` when no proof is present.
-  `novelty-duplication-advisory` is **memo-only** (`MEMO_ONLY_SKILLS`, capped at `info`):
+  `novelty-duplication-advisory` is **memo-only** (`ZERO_WEIGHT_SKILLS`, zero verdict weight):
   it retrieves and *lays out* prior-work overlap but **never** rules trivial/duplicate, and
   absence of a retrieved match is **not** evidence of originality (the only auditor that
   consults an external corpus, which is exactly why it carries no verdict weight).
-- **`pattern_id` ∈ taxonomy v0.4 only**; the taxonomy is a post-hoc mapping layer, not
+- **`pattern_id` ∈ taxonomy v0.5 only**; the taxonomy is a post-hoc mapping layer, not
   the detector (`references/hack-pattern-taxonomy.md`).
 - **The adjudicator ingests validated findings only.** The `*.findings.json` glob feeds
   the adjudicator; defensively exclude any raw/intermediate `*.proposed.findings.json` a

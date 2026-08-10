@@ -54,10 +54,12 @@ hash. The **overall verdict is computed by deterministic code**
 (`tools/adjudicate_findings.py`) from the full finding set, by fixed rules:
 
 ```
-HARD_FLAGS  if any finding is severity=critical, span-anchored, and decidable
-            at the run's observability level
-SOFT_FLAGS  else if any major/minor finding survives FP-risk + observability gates
+HARD_FLAGS  if any weight-1 finding is severity=critical and span-anchored
+SOFT_FLAGS  else if any weight-1 finding is major/minor
 CLEAN_GIVEN_EVIDENCE otherwise
+
+(observability and FP-risk are reported beside each finding, not applied here —
+ they are the auditor's own declarations about its output)
 ```
 
 The LLM is demoted from **judge** to **evidence-extractor / candidate-explainer**.
@@ -65,8 +67,10 @@ Its job is to *find and quote*; the rules *decide*. Two consequences:
 
 1. A finding with no span cannot raise the verdict (the adjudicator rejects
    critical/major findings that lack evidence — see the contract).
-2. The verdict is reproducible: same ledger + same findings → same verdict, with
-   no model in the final decision.
+2. The summary is reproducible: same ledger + same findings → same summary, by a
+   fixed rule. It reports what the auditors proposed; only the anchor check and
+   critical scrutiny move a severity, and both act on the accusation's own
+   completeness rather than on the paper.
 
 ## What the reviewer is told (and not told)
 

@@ -1,6 +1,6 @@
 ---
 name: novelty-duplication-advisory
-description: "MEMO-ONLY prior-work overlap advisory: surfaces the two ADVISORY taxonomy signals neither a tool nor a model can decide from the paper alone — ADV-TRIVIAL-COMBINATION (standard A+B+C / 缝合 stapling) and ADV-DUPLICATE-PUBLICATION (repackaged / duplicate submission). The executor RETRIEVES candidate prior work (DBLP fuzzy-title + boolean · WebSearch · WebFetch) from the paper's own title + contribution spans in the evidence ledger; TWO fresh cross-model codex reviewers (one per axis) LAY OUT the overlap side-by-side against each anchored contribution claim. It NEVER rules 'trivial' or 'duplicate' (that is a human judgment) and absence of a match is NOT evidence of originality. Emits novelty-duplication-advisory.memo.md + an info-only findings mirror; carries NO verdict weight — tools/adjudicate_findings.py lists it in MEMO_ONLY_SKILLS and caps it at info. Detect-only. Adapted from ARIS novelty-check, reframed from 'is MY idea novel' to 'here is the overlap a reviewer should weigh'. Triggers: \"novelty advisory\", \"duplication check\", \"prior-work overlap\", \"is this stapling\", \"缝合\", \"查重\", \"重复发表\", \"duplicate submission\"."
+description: "MEMO-ONLY prior-work overlap advisory: surfaces the two ADVISORY taxonomy signals neither a tool nor a model can decide from the paper alone — ADV-TRIVIAL-COMBINATION (standard A+B+C / 缝合 stapling) and ADV-DUPLICATE-PUBLICATION (repackaged / duplicate submission). The executor RETRIEVES candidate prior work (DBLP fuzzy-title + boolean · WebSearch · WebFetch) from the paper's own title + contribution spans in the evidence ledger; TWO fresh cross-model codex reviewers (one per axis) LAY OUT the overlap side-by-side against each anchored contribution claim. It NEVER rules 'trivial' or 'duplicate' (that is a human judgment) and absence of a match is NOT evidence of originality. Emits novelty-duplication-advisory.memo.md + an info-only findings mirror; carries NO verdict weight — tools/adjudicate_findings.py lists it in ZERO_WEIGHT_SKILLS and caps it at info. Detect-only. Adapted from ARIS novelty-check, reframed from 'is MY idea novel' to 'here is the overlap a reviewer should weigh'. Triggers: \"novelty advisory\", \"duplication check\", \"prior-work overlap\", \"is this stapling\", \"缝合\", \"查重\", \"重复发表\", \"duplicate submission\"."
 argument-hint: [paper-dir | claims.json]
 allowed-tools: Bash(*), Read, Write, WebSearch, WebFetch, mcp__codex__codex, mcp__mcp-dblp__fuzzy_title_search, mcp__mcp-dblp__search
 ---
@@ -33,7 +33,7 @@ contribution, and emit `novelty-duplication-advisory.memo.md`. Run AFTER `/evide
 > that is **not decidable from the paper alone, and not decidable at any observability level**
 > — it depends on a corpus you can never prove you searched exhaustively. So this skill
 > **retrieves and lays out** overlap; it refuses to grade it. `tools/adjudicate_findings.py`
-> lists `novelty-duplication-advisory` in `MEMO_ONLY_SKILLS` and caps anything it emits at
+> lists `novelty-duplication-advisory` in `ZERO_WEIGHT_SKILLS` and caps anything it emits at
 > `info`. The memo *informs*; the human *judges*; the deterministic adjudicator owns the
 > report verdict — and this skill never moves it.
 
@@ -115,9 +115,9 @@ rules novelty · absence ≠ originality.** Three honesty spines hold this skill
 | `baseline-comparison-audit` | Right baselines present, tuned, "SOTA" earned? | profile only | yes |
 | `citation-forensics` | Do the *cited* papers EXIST and support the claim they are used for? | yes (existence/context of *cited* works) | yes |
 | `proof-derivation-forensics` | Does the written proof / derivation hold? | no | yes |
-| `presentation-signals` | Surface "AI-flavor" hints (auxiliary) | no | capped at minor |
+| `presentation-signals` | Surface "AI-flavor" hints (auxiliary) | no | surface-class label |
 | `adversarial-case-builder` | Strongest *anchored* rejection memo + defense | no | none (memo-only) |
-| **`novelty-duplication-advisory`** (this) | **What prior-work OVERLAP should a reviewer weigh for trivial-combination / duplicate?** | **YES — retrieves *uncited* prior work** | **none (memo-only, capped at info)** |
+| **`novelty-duplication-advisory`** (this) | **What prior-work OVERLAP should a reviewer weigh for trivial-combination / duplicate?** | **YES — retrieves *uncited* prior work** | **none (memo-only, zero verdict weight)** |
 
 **Route, do not overreach.** `citation-forensics` checks the works the paper *already cites*;
 this skill goes looking for prior work the paper *omits or overlaps*. A **wrong-context or
@@ -135,7 +135,7 @@ two advisory overlap signals — and even those it only *surfaces*.
 | Subject | the author's own prospective idea | a third party's submitted paper |
 | Paper side | a free-text method description | **ledger claims** (`claim_id` + verbatim span) |
 | Output | a `Score: X/10` + recommendation + "suggested positioning" | a side-by-side overlap memo — **no score, no recommendation** |
-| Verdict | "Novelty: HIGH/MEDIUM/LOW" | **none** — never rules trivial/duplicate; capped at `info` |
+| Verdict | "Novelty: HIGH/MEDIUM/LOW" | **none** — never rules trivial/duplicate; zero verdict weight |
 | Empty retrieval | "looks novel, proceed" | "no candidate overlap found — this says **nothing** about novelty" |
 | Prior-work anchoring | `verify_papers.py` (anti-hallucination) | every candidate a resolved record in `candidates.json`; unresolved → dropped |
 
@@ -165,7 +165,7 @@ DISPOSITION          = candidate_overlap_surfaced | no_candidate_overlap_found |
 ADVISORY_PATTERNS    = ADV-TRIVIAL-COMBINATION · ADV-DUPLICATE-PUBLICATION   (zero verdict weight)
 TAXONOMY_VERSION     = 0.5                     # references/hack-pattern-taxonomy.md
 MEMO_FILE            = novelty-duplication-advisory.memo.md            # canonical human-facing output
-FINDINGS_FILE        = novelty-duplication-advisory.findings.json      # info-only mirror (or []); globbed, capped at info
+FINDINGS_FILE        = novelty-duplication-advisory.findings.json      # info-only mirror (or []); globbed, zero verdict weight
 PROFILE_FILE         = novelty-duplication-advisory.profile.json       # executor-built retrieval profile (from the ledger)
 CANDIDATES_FILE      = novelty-duplication-advisory.candidates.json    # retrieved prior work (REAL records only)
 TRACE_POLICY         = forensic (never silently dropped)
@@ -838,7 +838,7 @@ out += ["", "> ⚠️ **This is not a novelty verdict.** It lays out prior work 
         "originality** — the search corpus is incomplete by construction (recent / non-indexed / paywalled / "
         "differently-titled work is missed). A same-authors match is legitimate self-overlap (arXiv→venue, "
         "workshop→conference, extended journal), not misconduct. `tools/adjudicate_findings.py` lists this skill in "
-        "`MEMO_ONLY_SKILLS` and caps it at `info`; it carries no verdict weight.", ""]
+        "`ZERO_WEIGHT_SKILLS` and caps it at `info`; it carries no verdict weight.", ""]
 
 for axis, head in [("duplicate", "ADV-DUPLICATE-PUBLICATION — candidate near-duplicates (verify; never a verdict)"),
                    ("combination", "ADV-TRIVIAL-COMBINATION — is the contribution a standard A+B+C? (reviewer judgment)")]:
@@ -876,7 +876,7 @@ out += ["### Retrieval & anchoring audit", "",
         "is a verbatim span of a contribution ledger claim.", ""]
 out += ["---",
         "_Informational only. `tools/adjudicate_findings.py` lists `novelty-duplication-advisory` in "
-        "`MEMO_ONLY_SKILLS` and caps every finding it emits at `info`, so this memo contributes **no verdict "
+        "`ZERO_WEIGHT_SKILLS` and caps every finding it emits at `info`, so this memo contributes **no verdict "
         "weight**. Novelty is a reviewer judgment; the deterministic adjudicator owns the report verdict, and neither "
         "it nor this skill rules \"trivial\" or \"duplicate\"._"]
 memo_path = os.path.join(paper_dir, "novelty-duplication-advisory.memo.md")
@@ -1028,7 +1028,7 @@ It writes **no verdict and no report** of its own — `report.json` / `REPORT.md
 
 - **Never rules novelty — by design.** The skill never outputs "trivial", "not novel",
   "duplicate", a novelty score, or a recommendation. It surfaces overlap and questions; the
-  human judges; the adjudicator's `MEMO_ONLY_SKILLS` cap pins it to `info` and it is absent from
+  human judges; the adjudicator's `ZERO_WEIGHT_SKILLS` cap pins it to `info` and it is absent from
   `SKILL_TO_DIMENSION`. Leaked ruling words are neutralized in Step 4.
 - **Absence ≠ originality.** "No candidate overlap found" / "retrieval incomplete" is a valid
   result that says **nothing** about novelty — the corpus is incomplete by construction. The
@@ -1076,7 +1076,7 @@ It writes **no verdict and no report** of its own — `report.json` / `REPORT.md
   *author-facing* ARIS `/novelty-check`, not this forensics advisory. This skill never scores or
   recommends; it only surfaces overlap for a human to weigh.
 - **You want a "this paper is trivial / a duplicate" verdict** → impossible by design; novelty
-  is a reviewer judgment and this skill is capped at `info`. Read the memo and decide yourself.
+  is a reviewer judgment and this skill is zero verdict weight. Read the memo and decide yourself.
 - **You need to verify a *cited* reference exists / is used in the right context** →
   `/citation-forensics` (this skill is about overlap with work the paper need not cite).
 - **You need to verify an empirical "first / SOTA / beats prior work" claim** →
@@ -1086,7 +1086,7 @@ It writes **no verdict and no report** of its own — `report.json` / `REPORT.md
 - **You need code/result-level fraud** (fake GT, self-normalization, phantom numbers) →
   `/experiment-forensics` at **L2**.
 - **You want an AI-text / "looks machine-written" verdict** → out of scope. Surface hints live
-  in `/presentation-signals` (auxiliary, capped at minor); this repo is **not** an AI-text
+  in `/presentation-signals` (auxiliary, surface-class); this repo is **not** an AI-text
   classifier and **not** a plagiarism detector — it surfaces candidates to weigh.
 - **No corpus access** → the retrieval cannot run; the honest output is `retrieval_incomplete`
   (concludes nothing), not a guessed "no duplication".

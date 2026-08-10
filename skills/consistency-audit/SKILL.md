@@ -69,7 +69,7 @@ rules 1–2). The model **proposes**; `tools/adjudicate_findings.py` **decides**
 | `baseline-comparison-audit` | Are the right baselines present, tuned, and is "SOTA" earned? | L0 stated / L2 verified |
 | `citation-forensics` | Do the cited papers exist and support the claim made? | L0 |
 | `proof-derivation-forensics` | Does the WRITTEN proof/derivation actually establish its theorem? (gap / circularity / invalid step / symbol drift / smuggled assumption) | L1 |
-| `presentation-signals` | Surface "AI-flavor" hints (auxiliary, capped at minor) | L0 |
+| `presentation-signals` | Surface "AI-flavor" hints (auxiliary, surface-class) | L0 |
 | `adversarial-case-builder` | Strongest evidence-bound rejection memo (no verdict weight) | any |
 
 **Do NOT raise here** (hand off instead): code/result-level fraud → `experiment-forensics`
@@ -279,7 +279,7 @@ mcp__codex__codex:
     3. OBSERVABILITY. Set observability_level_required = the LOWEST tier at which the
        discrepancy is DECIDABLE. A purely textual contradiction (text vs text/table
        inside the paper) = 0. Anything that needs the CODE or RESULT FILES to confirm
-       = 2 (it will auto-demote on a PDF-only run — that is correct, not a loss).
+       = 2 (a PDF-only run reports it as needing L2 — that is correct, not a loss).
     4. HONEST FP RISK. Set false_positive_risk truthfully. Legit "best config"
        labels, deliberately-labeled ablations, standard rounding, deterministic
        metrics, and honestly-labeled pilots are COMMON false positives — say so.
@@ -379,7 +379,7 @@ mcp__codex__codex:
         smooth monotonicity, identical decimals across unrelated settings).
                                                           [HP-SUSPICIOUS-REGULARITY]
         At L0/L1 this is ALWAYS severity "minor", false_positive_risk "high",
-        observability_level_required 2 (so a PDF-only run auto-demotes it). It is a
+        observability_level_required 2 (so a PDF-only run reports it as needing L2). It is a
         PROMPT TO CHECK, never a "fabricated" grade; it rises to major only at L2
         against the real files. FP: deterministic metrics, small integer scores,
         rounding coincidence, a real linear trend.
@@ -490,11 +490,10 @@ for f in proposed:
     if f.get("false_positive_risk") not in FPR: f["false_positive_risk"] = "high"
     if f["verdict_local"] == "needs_external_check":
         f["requires_external_check"] = True
-    # MANDATORY floor: HP-SUSPICIOUS-REGULARITY can never shout "fraud" from a table
-    # alone — pin it to minor / fp:high / req:L2 (auto-demotes on a PDF-only run),
-    # overriding whatever the reviewer filled in (see "Observability honesty").
+    # HP-SUSPICIOUS-REGULARITY cannot be settled from a table alone: it is high-FP by
+    # construction and needs the code/results to confirm. Declare that (the report shows
+    # both columns) instead of rewriting what the reviewer proposed.
     if pid == "HP-SUSPICIOUS-REGULARITY":
-        if f["severity"] in ("critical", "major"): f["severity"] = "minor"
         f["false_positive_risk"] = "high"
         f["observability_level_required"] = 2
     # ANCHOR gate: span must be a verbatim, ws-normalized SUBSTRING of its cited claim
@@ -514,7 +513,7 @@ for f in proposed:
     # observability: must be a real int 0-3 (reject JSON bool, which is an int subclass)
     olr = f.get("observability_level_required")
     if isinstance(olr, bool) or not isinstance(olr, int) or not (0 <= olr <= 3):
-        f["observability_level_required"] = OBS.get(pid, 2)  # unknown pattern -> fail-closed L2 (auto-demotes at L0/L1)
+        f["observability_level_required"] = OBS.get(pid, 2)  # unknown pattern -> fail-closed L2 (declares a level above L0/L1)
     # cross-model provenance (reviewer-independence: this is a proposal, not a verdict)
     import os as _aris_os
     RESOLVED_MODEL = _aris_os.environ["ARIS_RESOLVED_MODEL"]          # exported by the executor from the call that ACTUALLY ran
@@ -532,7 +531,7 @@ PY
 **Scope of this gate: anchoring + schema hygiene** — verbatim-span anchoring, enum
 coercion, surface-pattern rejection, observability fallback, and cross-model
 provenance — so every kept finding is well-formed and honestly anchored. It does
-**not** compute the verdict, the FP-risk cap, or the observability *downgrade*
+**not** compute the summary, the FP-risk column, or the observability comparison
 against the run level; those belong to `tools/adjudicate_findings.py`, the single
 decider. Surface patterns (`HP-DUP-TABLE`, `HP-AI-FLAVOR`, …) are **dropped** (not
 capped) here because they are owned by `presentation-signals` and are never this
@@ -595,9 +594,11 @@ python3 "$ROOT/tools/adjudicate_findings.py" \
     --out "$D/report.json" --md "$D/REPORT.md"
 ```
 
-The adjudicator applies, in order: ANCHOR → OBSERVABILITY → FP-RISK → MEMO → SURFACE
-gates, then computes `overall_verdict` ∈ {CLEAN_GIVEN_EVIDENCE, SOFT_FLAGS,
-HARD_FLAGS} (any span-anchored **critical** decidable at `L` → HARD_FLAGS). No model
+The adjudicator drops an unanchored above-info finding to `info`, and drops a
+`critical` whose own `numeric_basis` or alternative explanation is missing to `major` —
+those are the only severities it changes. It records observability / FP-risk / surface /
+needs-external-check / zero-weight as annotations, then computes `overall_verdict` ∈ {CLEAN_GIVEN_EVIDENCE,
+SOFT_FLAGS, HARD_FLAGS} (any span-anchored **critical** → HARD_FLAGS). No model
 is in the final decision. Treat a single-skill report as a PREVIEW — the paper's
 verdict comes from the orchestrator over all dimensions.
 
@@ -629,7 +630,7 @@ human-readable rendering is the orchestrator's job, not this skill's.
 - **Cross-model, fresh thread.** Reviewer is a different family (gpt-5.6-sol xhigh);
   every run is a new `mcp__codex__codex` thread; `codex-reply` is never used.
 - **Observability honesty.** A discrepancy that needs code/results to confirm gets
-  `observability_level_required: 2` so a PDF-only run auto-demotes it.
+  `observability_level_required: 2` so a PDF-only run reports it as needing L2.
   `HP-SUSPICIOUS-REGULARITY` is **mandatorily** `minor` / `fp:high` / `req:2` — you
   cannot shout "fraud", or grade results as synthesized, from a table alone.
 - **Discrepancy, not accusation.** Output asks a reviewer to *check/ask*, never to
@@ -659,7 +660,7 @@ human-readable rendering is the orchestrator's job, not this skill's.
   smuggled assumption) → `/proof-derivation-forensics` (**family G**, L1); a
   theoretical relation that should be *derived* is its dimension, not this skill's.
 - **You want an AI-text / "looks machine-written" verdict** → out of scope. Surface
-  hints live in `/presentation-signals` (auxiliary, capped at minor); this repo is
+  hints live in `/presentation-signals` (auxiliary, surface-class); this repo is
   **not** an AI-text classifier.
 - **On a timer** → never `/loop` / `/schedule` / `CronCreate` this skill; re-fire
   only when the paper or ledger changes (see the fence at the top).

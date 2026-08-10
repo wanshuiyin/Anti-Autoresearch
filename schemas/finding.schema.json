@@ -57,7 +57,7 @@
       "type": "integer",
       "minimum": 0,
       "maximum": 3,
-      "description": "Lowest evidence tier at which this finding is decidable. The adjudicator downgrades severity if the run's observability level is below this (you cannot assert code-level fraud from a PDF)."
+      "description": "Lowest evidence tier at which this finding is decidable. The report marks the finding when the run's observability level is below this, so a claim needing code is never read as confirmed from a PDF."
     },
     "evidence": {
       "type": "array",

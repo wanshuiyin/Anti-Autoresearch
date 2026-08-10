@@ -44,7 +44,7 @@ its own paper. Reviewers, area chairs, and honest authors increasingly need to
 | **G** | Proof & derivation | 证明诚信:skipped obligations, circular or invalid derivations |
 | **H** | Evaluation design & validity | 评测设计:data leakage, LLM-judge validity, selective reporting |
 
-Delivered as **11 skills + 1 orchestrating workflow** on a deterministic spine: a span-anchored, hashed evidence **ledger** → LLM auditors that only **propose** findings → a rules-only **adjudicator** that owns the verdict — with 8 patterns eval-gated end-to-end (GRIM · GRIMMER · statcheck · delta arithmetic · hedge-density · …) and the whole gate in CI.
+Delivered as **11 skills + 1 orchestrating workflow** on a deterministic spine: a span-anchored, hashed evidence **ledger** → LLM auditors that only **propose** findings → a rules-only **reporter** that lists every proposal with what the auditor said about it, and summarizes — with 8 patterns eval-gated end-to-end (GRIM · GRIMMER · statcheck · delta arithmetic · hedge-density · …) and the whole gate in CI.
 
 ---
 
@@ -305,10 +305,12 @@ just noise."* Three structural defenses, not just a disclaimer:
    span. **No span → it cannot be a high-severity finding.**
 2. **The LLM never grades.** Auditors *propose* findings; a **deterministic
    adjudicator** (`tools/adjudicate_findings.py`, pure rules) computes the verdict.
-   Same findings → same verdict, with no model in the final decision.
+   Same findings → same summary, by a fixed rule. The severities in it are what the
+   auditors proposed, annotated with what the computation could and could not confirm.
 3. **Observability levels.** A run declares what it could see (L0 PDF-only → L2
-   repo+results); findings that need code are **auto-demoted** on a PDF-only run.
-   You can never shout "fraud" from a PDF. See
+   repo+results). A finding that needs code is **reported with the level it needs and
+   a mark that this run did not have it**, so nothing shouts "fraud" from a PDF and
+   nothing disappears either. See
    [references/observability-levels.md](references/observability-levels.md).
 
 **Surface signals and AI writing-style impressions have firewalls.** Family-F surface tells

@@ -95,7 +95,7 @@ reviewer≠adjudicator, detect-only.**
 | `consistency-audit` | Does the paper contradict ITSELF / described method = evaluated method? | L0 |
 | `baseline-comparison-audit` | Are the right baselines present, tuned, and is "SOTA" earned? | L0 stated / L2 verified |
 | `experiment-forensics` | Are the reported numbers what the code actually computes? (fake GT, self-norm, phantom) | L2 |
-| `presentation-signals` | Surface "AI-flavor" hints (auxiliary, capped at minor) | L0 |
+| `presentation-signals` | Surface "AI-flavor" hints (auxiliary, surface-class) | L0 |
 | `adversarial-case-builder` | Strongest evidence-bound rejection memo (no verdict weight) | any |
 
 **Do NOT raise here** (hand off instead): numeric self-contradiction / method drift →
@@ -637,7 +637,7 @@ Scope of this gate: **anchoring + schema hygiene** — verbatim-span anchoring (
 must be a substring of a `type:"citation"` claim), enum coercion, non-citation-pattern
 rejection, observability fallback, and cross-model provenance — so every kept finding
 is well-formed and honestly anchored. It does **not** compute the verdict, the FP-risk
-cap, or the observability *downgrade* against the run level; those belong to
+column, or the observability comparison against the run level; those belong to
 `tools/adjudicate_findings.py`, the single decider.
 
 **Always emit.** Write `citation-forensics.findings.json` even when it is `[]` (no
@@ -783,7 +783,7 @@ only from `tools/adjudicate_findings.py` (Step 6 / the orchestrator).
 - **You need code/result-level fraud** (fake GT, self-normalization, phantom numbers)
   → `/experiment-forensics` at **L2**.
 - **You want an AI-text / "looks machine-written" verdict** → out of scope. Surface
-  hints live in `/presentation-signals` (auxiliary, capped at minor); this repo is
+  hints live in `/presentation-signals` (auxiliary, surface-class); this repo is
   **not** an AI-text classifier.
 - **You want the `.bib`/`.tex` auto-fixed** → that is ARIS `citation-audit`
   (co-author mode). This skill is detect-only.

@@ -1,6 +1,6 @@
 ---
 name: adversarial-case-builder
-description: "Synthesize the single strongest EVIDENCE-BOUND reviewer case to reject a paper, built ONLY from the evidence ledger (claims.json) + the other auditors' confirmed findings — never free-floating LLM critique. Two fresh cross-model codex threads: an attack writes the ~200-word rejection paragraph (every accusation tagged to an existing claim_id/finding_id), a defense decomposes it and rules each point against the anchored evidence. MEMO-ONLY: emits adversarial-case-builder.memo.md (fed to the adjudicator via --memo) and carries NO verdict weight — tools/adjudicate_findings.py lists it in MEMO_ONLY_SKILLS and caps it at info. Honest-null allowed (the paper may survive). Run LAST. Detect-only. Adapted from ARIS kill-argument. Triggers: \"adversarial case\", \"strongest objection\", \"rejection memo\", \"kill argument\", \"最强拒稿点\"."
+description: "Synthesize the single strongest EVIDENCE-BOUND reviewer case to reject a paper, built ONLY from the evidence ledger (claims.json) + the other auditors' confirmed findings — never free-floating LLM critique. Two fresh cross-model codex threads: an attack writes the ~200-word rejection paragraph (every accusation tagged to an existing claim_id/finding_id), a defense decomposes it and rules each point against the anchored evidence. MEMO-ONLY: emits adversarial-case-builder.memo.md (fed to the adjudicator via --memo) and carries NO verdict weight — tools/adjudicate_findings.py lists it in ZERO_WEIGHT_SKILLS and caps it at info. Honest-null allowed (the paper may survive). Run LAST. Detect-only. Adapted from ARIS kill-argument. Triggers: \"adversarial case\", \"strongest objection\", \"rejection memo\", \"kill argument\", \"最强拒稿点\"."
 argument-hint: [paper-dir | claims.json]
 allowed-tools: Bash(*), Read, Write, mcp__codex__codex
 ---
@@ -26,7 +26,7 @@ merged `*.findings.json` exist).
 > mode is exactly the "LLM slop grading LLM slop" failure this repo exists to refuse.
 > So here every attack point must cite an existing ledger `claim_id` or `finding_id`,
 > and the skill never emits verdict-bearing findings: `tools/adjudicate_findings.py`
-> lists `adversarial-case-builder` in `MEMO_ONLY_SKILLS` and caps anything from it at
+> lists `adversarial-case-builder` in `ZERO_WEIGHT_SKILLS` and caps anything from it at
 > `info`. The deterministic adjudicator owns the verdict; this skill owns the memo.
 
 ## Why this exists
@@ -76,8 +76,8 @@ rules 1–2, 7–8; `references/reviewer-independence.md` Layer 2). This skill c
 | `experiment-forensics` | Are reported numbers what the code computes? (fake GT, self-norm, phantom) | L2 | yes |
 | `baseline-comparison-audit` | Right baselines present, tuned, "SOTA" earned? | L0 stated / L2 verified | yes |
 | `citation-forensics` | Do cited papers exist and support the claim made? | L0 | yes |
-| `presentation-signals` | Surface "AI-flavor" hints (auxiliary) | L0 | capped at minor |
-| **`adversarial-case-builder`** (this) | **Strongest *anchored* rejection memo + defense** | **any (inherits anchors' level)** | **none (memo-only, capped at info)** |
+| `presentation-signals` | Surface "AI-flavor" hints (auxiliary) | L0 | surface-class label |
+| **`adversarial-case-builder`** (this) | **Strongest *anchored* rejection memo + defense** | **any (inherits anchors' level)** | **none (memo-only, zero verdict weight)** |
 
 **This skill detects nothing new.** It does not re-read the paper to invent
 objections, does not assign severities the upstream auditors didn't already license,
@@ -118,7 +118,7 @@ ANCHOR_UNIVERSE     = ledger claim_ids (claims.json) + finding_ids (sibling *.fi
 DISPOSITION         = kill_constructed | partial_case | honest_null   # informational, NOT the report verdict
 TAXONOMY_VERSION    = 0.5               # references/hack-pattern-taxonomy.md
 MEMO_FILE           = adversarial-case-builder.memo.md          # canonical output (fed to --memo)
-FINDINGS_FILE       = adversarial-case-builder.findings.json    # info-only mirror (or []), capped at info
+FINDINGS_FILE       = adversarial-case-builder.findings.json    # info-only mirror (or []), zero verdict weight
 TRACE_POLICY        = forensic (never silently dropped)
 TRACE_DIR           = .aris/traces/adversarial-case-builder/<YYYY-MM-DD>_run<NN>/
 ```
@@ -250,7 +250,7 @@ mcp__codex__codex:
        NOT hedge ("the authors might respond" — the defense gets the next pass).
     6. HONEST NULL IS A VALID OUTPUT. If the anchored evidence does NOT license a
        strong rejection (the only anchored findings are minor / high-FP / info, or
-       every decisive one auto-demotes at L), SAY SO plainly in <=120 words: "the
+       every decisive one declares a level above L), SAY SO plainly in <=120 words: "the
        anchored evidence does not support a strong rejection because …". Do NOT
        manufacture a kill from weak evidence — an honest null is the correct, expected
        answer in that case.
@@ -486,9 +486,9 @@ for j, p in enumerate(kept, 1): p["id"] = "P%d" % j   # stable renumber
 def decidable_crit(p):
     # INFORMATIONAL heuristic (NOT a verdict): flag a "constructed" kill only if an
     # UNRESOLVED point rests on a finding the upstream auditor DECLARED critical, FP
-    # low, and decidable at the run level L. The adjudicator independently re-applies
-    # the full gate stack (incl. span-anchor + surface cap) and owns the real verdict;
-    # a minor / high-FP / observability-demoted finding can never reach this.
+    # low, and decidable at the run level L. This filter is what keeps a minor /
+    # high-FP / above-run-level finding out of an unresolved case; the adjudicator
+    # re-applies the anchor check and owns the summary.
     return p["classification"] == "unresolved" and any(
         a["kind"] == "finding" and a.get("severity") == "critical"
         and a.get("fpr") == "low" and type(a.get("olr")) is int and a["olr"] <= L
@@ -566,7 +566,7 @@ out += ["### Anchoring audit", "",
         % (counts["already_addressed"], counts["partially_addressed"], counts["unresolved"]), ""]
 out += ["---",
         "_Informational only. `tools/adjudicate_findings.py` lists `adversarial-case-builder` in "
-        "`MEMO_ONLY_SKILLS` and caps every finding it could emit at `info`, so this memo contributes "
+        "`ZERO_WEIGHT_SKILLS` and caps every finding it could emit at `info`, so this memo contributes "
         "**no verdict weight**. The deterministic adjudicator owns the verdict._"]
 memo_path = os.path.join(D, "adversarial-case-builder.memo.md")
 open(memo_path, "w", encoding="utf-8").write("\n".join(out) + "\n")
@@ -689,7 +689,7 @@ only from `tools/adjudicate_findings.py` (Step 5 / the orchestrator).
 ## Key rules
 
 - **No verdict — by design.** This skill never raises the report's verdict. The
-  adjudicator's `MEMO_ONLY_SKILLS` gate caps it at `info`, and it is excluded from
+  adjudicator's `ZERO_WEIGHT_SKILLS` gate caps it at `info`, and it is excluded from
   `dimension_verdicts`. The memo *informs*; the deterministic rules *decide*.
 - **Evidence-bound.** Every attack point cites an existing `claim_id` / `finding_id`;
   claim citations carry a verbatim span. Step 3 deletes uncited rhetoric. `span in
@@ -728,10 +728,10 @@ only from `tools/adjudicate_findings.py` (Step 5 / the orchestrator).
   missing baseline, code-level fraud) → use the owning detector (`consistency-audit` /
   `citation-forensics` / `baseline-comparison-audit` / `experiment-forensics`). This
   skill only *narrates* what they found.
-- **You want a verdict from this skill** → impossible by design; it is capped at
+- **You want a verdict from this skill** → impossible by design; it carries zero verdict weight and is reported at
   `info`. Read `REPORT.md`'s `overall_verdict` from the adjudicator instead.
 - **You want an AI-text / "looks machine-written" verdict** → out of scope; surface
-  hints live in `/presentation-signals` (auxiliary, capped at minor). This repo is
+  hints live in `/presentation-signals` (auxiliary, surface-class). This repo is
   **not** an AI-text classifier.
 - **On a timer** → never `/loop` / `/schedule` / `CronCreate` this skill; re-fire only
   when the ledger / findings / paper change (see the fence at the top).
