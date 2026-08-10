@@ -52,8 +52,8 @@ wider literature:
   is reportable; the **absence** of a match proves nothing, because your search corpus is
   never complete.
 
-Both are listed in `references/hack-pattern-taxonomy.md` (v0.4) under **Advisory signals (NOT
-in the 39 · zero verdict weight · reviewer-judgment only)** — `ADV-TRIVIAL-COMBINATION` and
+Both are listed in `references/hack-pattern-taxonomy.md` (v0.5) under **Advisory signals (NOT
+a hard pattern · zero verdict weight · reviewer-judgment only)** — `ADV-TRIVIAL-COMBINATION` and
 `ADV-DUPLICATE-PUBLICATION`. The taxonomy is explicit: *"Novelty is a reviewer judgment; the
 tool can lay out the prior-work overlap, it cannot rule 'trivial'"* and *"the absence of a
 match is **not** evidence of originality."*
@@ -1062,7 +1062,7 @@ It writes **no verdict and no report** of its own — `report.json` / `REPORT.md
   advisory from text + the public corpus). Output asks a reviewer to CHECK/WEIGH, never
   "reject" / "plagiarism" / "the authors faked X." The tool audits overlap, not provenance.
 - **Detect-only.** Never edit the audited paper (no `Edit`; reviewer sandbox read-only).
-- **Taxonomy is a mapping layer (v0.4).** The two `ADV-*` ids are advisory signals with zero
+- **Taxonomy is a mapping layer (v0.5).** The two `ADV-*` ids are advisory signals with zero
   verdict weight — set them on the info-only findings, never to claim a decision.
 - **Reproducible.** Same ledger + same candidates snapshot + same reviewer outputs → same
   validated memo + same disposition.

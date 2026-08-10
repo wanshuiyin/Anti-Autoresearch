@@ -747,7 +747,7 @@ python3 "$ROOT/tools/adjudicate_findings.py" --findings "$TARGET"/*.findings.jso
   "looks fake" from a table is deferred to `consistency-audit`. Never infer authorship
   or misconduct from surface impressions (those live, capped at minor, in
   `presentation-signals`).
-- **`pattern_id` ∈ taxonomy v0.4 only** (`PATTERNS_OWNED`); the taxonomy is a
+- **`pattern_id` ∈ taxonomy v0.5 only** (`PATTERNS_OWNED`); the taxonomy is a
   post-hoc mapping layer, not the detector.
 - **Detect-only.** Never edit the audited paper or repo; the only files this skill
   writes are its own `findings.json` and trace artifacts.

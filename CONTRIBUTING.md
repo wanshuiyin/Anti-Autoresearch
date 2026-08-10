@@ -12,7 +12,7 @@ written by AI".
 
 The [hack-pattern taxonomy](references/hack-pattern-taxonomy.md) is the heart of this
 repo, and it grows with the community. If you've **seen a real autoresearch /
-AI-Scientist paper pull a trick** that the current 39 patterns (7 families, A–G) don't
+AI-Scientist paper pull a trick** that the current 46 patterns (8 families, A–H) don't
 cover yet — that is the single most valuable thing you can send.
 
 Two ways, pick whichever is less friction for you:
