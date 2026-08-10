@@ -246,13 +246,13 @@
     },
     "critical_countercheck": {
       "type": "object",
-      "description": "Counters for the deterministic counter-check over allow-listed LLM criticals. proved_compatible = demoted to info by a computation (the ONLY path that may demote a critical); basis_invalid = accusation demoted to major for an unauditable numeric basis.",
+      "description": "Counters for the deterministic counter-check over allow-listed LLM criticals. The counter-check never changes a severity — compatible arithmetic cannot establish that no discrepancy exists, so its outcome is decision support recorded on the finding. basis_invalid = accusation demoted to major for an unauditable numeric basis; that is the one counter here that reflects a severity change, and it limits the accusation rather than acquitting the paper.",
       "properties": {
         "eligible": {
           "type": "integer",
           "minimum": 0
         },
-        "proved_compatible": {
+        "compatible": {
           "type": "integer",
           "minimum": 0
         },

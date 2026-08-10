@@ -168,14 +168,15 @@ def test_display_precision_endpoint_contact_unresolvable():
     assert st == C.UNRESOLVABLE and "endpoint" in ev["why"]
 
 
-def test_allowlist_shape_and_demotion_capability():
+def test_allowlist_shape_is_report_only():
     assert set(C.ALLOWLIST) == {"HP-DELTA-ERROR", "HP-NUM-INFLATE", "HP-APPENDIX-CONTRA"}
+    # (resolver, required roles) — no demotion flag exists: resolvers are report-only.
+    # rounding_interval fails binding-invariance; display_precision fails
+    # rounding-provability ("exactly 50%" vs 50.4% is a real contradiction interval
+    # logic would wrongly excuse).
     assert C.ALLOWLIST["HP-DELTA-ERROR"] == ("rounding_interval",
-                                             frozenset({"old", "new", "stated"}), False)
-    # NOTHING currently demotes: rounding_interval fails binding-invariance,
-    # display_precision fails rounding-provability ("exactly 50%" vs 50.4% is a
-    # real contradiction interval logic would wrongly excuse)
-    assert not any(v[2] for v in C.ALLOWLIST.values())
+                                             frozenset({"old", "new", "stated"}))
+    assert all(len(v) == 2 for v in C.ALLOWLIST.values())
 
 
 if __name__ == "__main__":

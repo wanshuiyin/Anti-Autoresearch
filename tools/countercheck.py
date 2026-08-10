@@ -7,11 +7,10 @@ markers; only computations change severity). A resolver PROVES, by exact interva
 arithmetic over the DISPLAYED precision of the very numbers the accusation cites,
 that the accused discrepancy cannot be established from the evidence.
 
-Demotion-authorization rule (hardened across three cross-model review rounds):
-**a resolver may demote only when its verdict is (a) invariant under every
-model-controlled degree of freedom AND (b) built on premises a computation can
-actually establish.** No shipped resolver satisfies both — so, today,
-**every resolver is REPORT-ONLY** and the demotable set is empty:
+Why every resolver is REPORT-ONLY (hardened across three cross-model review
+rounds): a resolver could only license a demotion if its verdict were (a)
+invariant under every model-controlled degree of freedom AND (b) built on
+premises a computation can actually establish. No resolver satisfies both:
 
 - `rounding_interval` (HP-DELTA-ERROR) fails (a): (new−old)/old·100 is not
   symmetric in old/new and no parser can certify which operand is the baseline —
@@ -25,10 +24,7 @@ actually establish.** No shipped resolver satisfies both — so, today,
   the quantity's semantics, which no parser has.
 
 Resolver outputs are recorded on the finding and in the report as decision
-support for the human; the fixed rules never let them touch severity. The
-`may_demote` flag in ALLOWLIST exists so a future resolver that meets BOTH
-conditions can be enabled explicitly — turning it on requires demonstrating (a)
-and (b) in review, not editing one boolean.
+support for the human; nothing lets them touch severity.
 
 Numeric rules:
 - Pure stdlib, `fractions.Fraction` — EXACT rational arithmetic. No floating
@@ -185,12 +181,13 @@ def display_precision(a_raw, b_raw, a_unit=None, b_unit=None):
     return DISCREPANCY_PERSISTS, ev
 
 
-# pattern_id -> (resolver, required numeric_basis roles, may_demote)
-# may_demote is currently False EVERYWHERE (see module doctrine): rounding_interval
-# fails binding-invariance; display_precision fails rounding-provability. The flag
-# stays so a future provably-sound resolver can be enabled explicitly, in review.
+# pattern_id -> (resolver, required numeric_basis roles)
+# Resolvers are REPORT-ONLY. No shipped resolver can license a demotion — see the
+# module doctrine above — and the report now shows every proposal with what the
+# computation could and could not confirm, so there is nothing for a demotion flag
+# to gate. A future provably-sound resolver would be a deliberate, reviewed change.
 ALLOWLIST = {
-    "HP-DELTA-ERROR": ("rounding_interval", frozenset({"old", "new", "stated"}), False),
-    "HP-NUM-INFLATE": ("display_precision", frozenset({"fine", "coarse"}), False),
-    "HP-APPENDIX-CONTRA": ("display_precision", frozenset({"fine", "coarse"}), False),
+    "HP-DELTA-ERROR": ("rounding_interval", frozenset({"old", "new", "stated"})),
+    "HP-NUM-INFLATE": ("display_precision", frozenset({"fine", "coarse"})),
+    "HP-APPENDIX-CONTRA": ("display_precision", frozenset({"fine", "coarse"})),
 }

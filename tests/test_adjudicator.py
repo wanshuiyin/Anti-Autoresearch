@@ -616,7 +616,7 @@ def test_delta_proved_compatible_is_informational_never_demotes():
                  ledger={"C012": "a 6.7% relative improvement"})
     assert f["_severity_final"] == "critical"          # severity untouched
     assert rc["countercheck"]["informational"] == 1
-    assert rc["countercheck"]["proved_compatible"] == 0
+    assert rc["countercheck"]["compatible"] == 0
     assert f["_deterministic_countercheck"]["status"] == "PROVED_COMPATIBLE"
     assert f["_deterministic_countercheck"]["certified"] is False
 
@@ -652,7 +652,7 @@ def test_display_precision_proved_compatible_is_informational():
                  ledger={"C020": "table cell 78.03", "C021": "headline 78.0% accuracy"})
     assert f["_severity_final"] == "critical"                # severity untouched
     assert rc["countercheck"]["informational"] == 1
-    assert rc["countercheck"]["proved_compatible"] == 0      # demotable set is empty
+    assert rc["countercheck"]["compatible"] == 0             # no separate demotion path exists
     assert f["_deterministic_countercheck"]["status"] == "PROVED_COMPATIBLE"
 
 
@@ -764,7 +764,7 @@ def test_cli_end_to_end_countercheck_demotion_and_render():
         r = json.load(open(out))
         assert r["overall_verdict"] == "HARD_FLAGS"       # nothing demotes today
         assert r["critical_countercheck"]["informational"] == 1
-        assert r["critical_countercheck"]["proved_compatible"] == 0
+        assert r["critical_countercheck"]["compatible"] == 0
         assert r["adjudicator"] == "deterministic-rules-v2"
         m = open(md).read()
         assert "Deterministically resolved criticals" not in m   # section only on demotion
