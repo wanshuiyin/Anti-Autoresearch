@@ -657,10 +657,12 @@ for f in proposed:
     # owned-pattern gate: a non-owned pattern cannot rise above info here
     if f.get("pattern_id") and f["pattern_id"] not in OWNED and f.get("severity") in ABOVE:
         f["severity"] = "info"; f.setdefault("_demotions", []).append("pattern-not-owned"); not_owned += 1
-    # best-effort delta dedup vs the deterministic single-sentence pass
-    if f.get("pattern_id") == "HP-DELTA-ERROR" and f.get("severity") in ABOVE \
+    # possible overlap with the deterministic single-sentence pass. A shared claim_id is
+    # NOT proof of the same discrepancy — two different deltas routinely share an operand —
+    # so flag it for the reader instead of dropping a finding that may be distinct.
+    if f.get("pattern_id") == "HP-DELTA-ERROR" \
        and any(ev.get("claim_id") in det_delta for ev in anchored):
-        f["severity"] = "info"; f.setdefault("_demotions", []).append("dup-of-deterministic-delta"); deduped += 1
+        f.setdefault("_demotions", []).append("may-overlap-deterministic-delta"); deduped += 1
     # ANCHOR gate: above-info needs >=1 anchored span
     if f.get("severity") in ABOVE and not anchored:
         f["severity"] = "info"; f.setdefault("_demotions", []).append("unanchored"); demoted += 1
@@ -696,15 +698,14 @@ print(f"validated {len(kept)} baseline findings (above_info={above}; {demoted} d
 PY
 ```
 
-Scope of this gate: **anchoring + owned-pattern + delta-dedup + schema hygiene only**
-(schema hygiene = the *presence/validity* of the reviewer's required fields — a
+Scope of this gate: **anchoring + owned-pattern + schema hygiene only**
+(schema hygiene = FLAGGING the *presence/validity* of the reviewer's required fields — a
 missing/invalid `observability_level_required` or `false_positive_risk` on an
 above-info finding fails **closed to info**, never a guessed default). Do **not**
-re-implement the adjudicator's verdict-bearing gates (the observability LEVEL
-*downgrade* `req > run_level`, the FP-risk *cap*, the surface cap, the verdict) — those
-need the run level and belong to `tools/adjudicate_findings.py`, the single decider.
-`needs_external_check` findings are pinned to `info` (the honest hand-off carries no
-severity weight), never dropped. The remaining judgments are the **reviewer's**, per the
+re-implement what the adjudicator reports (the observability comparison against the
+run level, the FP-risk column, the surface label, the summary) — those need the run
+level and belong to `tools/adjudicate_findings.py`. `needs_external_check` findings
+are marked, not rescored: the report gives that its own column. The remaining judgments are the **reviewer's**, per the
 prompt — concurrency/post-dating FP on a missing baseline, a large-gap/significance-
 test FP on overlap, the `observability_level_required: 2` tag for config-only
 asymmetry; if a kept finding plainly violates one of these, re-run that pass with the

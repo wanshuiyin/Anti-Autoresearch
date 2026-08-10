@@ -486,9 +486,9 @@ for j, p in enumerate(kept, 1): p["id"] = "P%d" % j   # stable renumber
 def decidable_crit(p):
     # INFORMATIONAL heuristic (NOT a verdict): flag a "constructed" kill only if an
     # UNRESOLVED point rests on a finding the upstream auditor DECLARED critical, FP
-    # low, and decidable at the run level L. The adjudicator independently re-applies
-    # the full gate stack (incl. span-anchor + surface cap) and owns the real verdict;
-    # a minor / high-FP / observability-demoted finding can never reach this.
+    # low, and decidable at the run level L. This filter is what keeps a minor /
+    # high-FP / above-run-level finding out of an unresolved case; the adjudicator
+    # re-applies the anchor check and owns the summary.
     return p["classification"] == "unresolved" and any(
         a["kind"] == "finding" and a.get("severity") == "critical"
         and a.get("fpr") == "low" and type(a.get("olr")) is int and a["olr"] <= L

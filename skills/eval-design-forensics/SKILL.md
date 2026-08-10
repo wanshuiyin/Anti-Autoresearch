@@ -670,8 +670,8 @@ above-info finding fails **closed to info**, never a guessed default). Do **not*
 re-implement the adjudicator's verdict-bearing gates (the observability LEVEL *downgrade*
 `req > run_level`, the FP-risk *cap* `{high:minor, medium:major, low:critical}`, the
 verdict) — those need the run level and belong to `tools/adjudicate_findings.py`, the
-single decider. `needs_external_check` findings (the 3 leakage external subtypes, and any
-unsure judge/GT call) are pinned to `info`, never dropped. The remaining judgments are the
+single reporter. `needs_external_check` findings (the 3 leakage external subtypes, and any
+unsure judge/GT call) are marked, not rescored — the report gives that its own column. The remaining judgments are the
 **reviewer's**, per the prompt — the K&N type, the conflicted-vs-unvalidated split, the
 `observability_level_required: 2` tag for a code-only confirm; if a kept finding plainly
 violates one, re-run that pass with the correction noted (never hand-fabricate). A finding

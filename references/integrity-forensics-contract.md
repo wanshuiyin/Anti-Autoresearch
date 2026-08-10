@@ -41,8 +41,8 @@ input (pdf | pdf+latex | pdf+repo+results)
    `evidence` entry with a non-empty `span`. The adjudicator demotes violators to
    `info`. (This is the single most important integrity rule of the repo.)
 3. **Declare your observability requirement** — it is reported next to the finding, so a claim needing code is never read as confirmed from a PDF. Every finding sets
-   `observability_level_required`. Findings above the run's level are demoted (see
-   `observability-levels.md`).
+   `observability_level_required`. A finding above the run's level is reported with
+   that shortfall marked in its own column (see `observability-levels.md`).
 4. **Discrepancy, not accusation.** `description` and
    `recommended_reviewer_action` describe what to *check/ask*, never "reject" or
    "the authors faked X".

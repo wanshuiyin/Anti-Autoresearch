@@ -373,7 +373,7 @@ mcp__codex__codex:
   outermost `[...]`; if there is none, re-ask once with "Output ONLY the JSON array,
   nothing else." Do not hand-author findings on the reviewer's behalf.
 - *Reviewer over-flags a surface impression*: that is what the Step 3 anchor gate + the
-  adjudicator's surface cap are for — an unanchored impression falls to `info` and even
+  adjudicator's surface label are for — an unanchored impression falls to `info` and even
   anchored surface findings cap at `minor`. Do not pre-suppress; let the gates work.
 
 ## Step 3 — Validate + anchor + cap (the anti-detector gate)

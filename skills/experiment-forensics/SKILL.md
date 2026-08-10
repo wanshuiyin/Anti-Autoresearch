@@ -126,7 +126,8 @@ This is an **auditor** skill in the integrity-forensics pipeline
 - **Observability caps severity.** Findings declare `observability_level_required`.
   Every code/result-level pattern is decidable only at **L2**; at L0/L1 it is emitted
   as `info` (Step 2). `tools/adjudicate_findings.py` is the structural backstop — any
-  `observability_level_required` above the run's level is demoted to `info`.
+  `observability_level_required` above the run's level is reported with that
+   shortfall marked in its own column — visible, and visibly unconfirmed.
 
 ## Constants & Reviewer Calling Convention
 
