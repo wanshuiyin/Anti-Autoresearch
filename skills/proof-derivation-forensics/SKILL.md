@@ -649,7 +649,7 @@ PY
 anchoring, enum coercion, non-G pattern rejection, observability fallback, and
 cross-model provenance — so every kept finding is well-formed, honestly anchored, and
 in this skill's lane. It does **not** compute the summary, the FP-risk column, or the
-observability *downgrade* against the run level; those belong to
+observability comparison against the run level; those belong to
 `tools/adjudicate_findings.py`, the single decider. Note this skill applies **no
 critical-floor** (unlike consistency-audit's `HP-SUSPICIOUS-REGULARITY`): family-G
 flaws legitimately reach `critical`, so the reviewer's honest `severity` + `false_positive_risk`

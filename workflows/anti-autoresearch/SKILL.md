@@ -953,7 +953,7 @@ deterministic adjudicator, and presents.
   `claim in span`). The orchestrator's anchor sweep checks this; the adjudicator binds it
   (fail-closed to `info`). `--ledger` is therefore **mandatory** in Step 4.
 - **Observability honesty.** Carry the ledger's `L` everywhere; it caps severity. L0/L1
-  **cannot** assert code/result-level fraud — those auto-demote to `info` on a sub-L2
+  **cannot** assert code/result-level fraud — those are reported as needing L2 on a sub-L2
   run. Never present an L0 run as if it could see code; the report's limitations say what
   was unverifiable (`references/observability-levels.md`; `DESIGN.md` §4).
 - **Cross-model, fresh thread per dimension.** Reviewer = gpt-5.6-sol xhigh (a different
